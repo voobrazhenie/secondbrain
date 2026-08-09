@@ -246,6 +246,47 @@
     border:2px solid var(--paper);box-shadow:none;
   }
 
+  /* ---------- daily direction ---------- */
+  .direction{
+    background:var(--teal);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:13px 14px 14px;margin:0 0 16px;
+  }
+  .direction .k{
+    font-size:8px;letter-spacing:.1em;font-family:"Arial Black",Impact,sans-serif;
+  }
+  .direction .q{font-size:17px;line-height:1.18;font-weight:900;margin:5px 0 12px}
+  .direction .value{
+    font-size:20px;line-height:1.12;margin:5px 0 9px;overflow-wrap:anywhere;
+    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
+  }
+  .direction .next{
+    background:var(--card);border:2px solid var(--ink);padding:8px 10px;
+    font-size:12px;font-weight:700;margin:0 0 10px;overflow-wrap:anywhere;
+  }
+  .direction .next b{
+    display:block;font-size:8px;letter-spacing:.08em;margin-bottom:2px;
+    font-family:"Arial Black",Impact,sans-serif;
+  }
+  .direction .hint{font-size:10.5px;font-weight:700;color:#164F52;margin:0 0 10px}
+  .direction .acts{display:flex;gap:9px;flex-wrap:wrap}
+  .direction .acts button{flex:1;min-width:120px;background:var(--card)}
+  .direction .acts button.primary{background:var(--yellow)}
+  .direction label{
+    display:block;font-size:9px;letter-spacing:.08em;margin:10px 0 4px;
+    font-family:"Arial Black",Impact,sans-serif;
+  }
+  .direction textarea,.direction input{
+    display:block;width:100%;font:inherit;font-size:16px;font-weight:700;
+    padding:9px 10px;background:var(--card);color:var(--ink);border:2px solid var(--ink);
+  }
+  .direction textarea{min-height:78px;resize:vertical}
+  .direction .error{min-height:1.2em;margin-top:6px;font-size:11px;font-weight:900;color:#741338}
+  .direction .skipped{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .direction .skipped .k{flex:1;min-width:190px}
+  .direction .skipped button{padding:6px 9px;font-size:9px;background:var(--card)}
+
   /* ---------- main focus ---------- */
   .focus{
     background:var(--ink);color:var(--paper);
@@ -337,6 +378,47 @@
     <button id="dayToday" hidden>TODAY</button>
     <button id="dayNext" title="Next day">›</button>
   </div>
+
+  <section class="direction" id="direction" aria-label="Daily direction" hidden>
+    <div id="directionEmpty" hidden>
+      <div class="k">DAILY DIRECTION</div>
+      <div class="q" id="directionQuestion"></div>
+      <div class="acts">
+        <button class="primary" id="directionSet">SET DIRECTION</button>
+        <button id="directionSkip">NOT TODAY</button>
+      </div>
+    </div>
+
+    <div id="directionEdit" hidden>
+      <div class="k">DAILY DIRECTION</div>
+      <div class="q" id="directionEditQuestion"></div>
+      <label for="directionText">DIRECTION</label>
+      <textarea id="directionText" maxlength="180" placeholder="What do you want to protect today?"></textarea>
+      <label for="directionNext">NEXT ACTION <span aria-hidden="true">—</span> OPTIONAL</label>
+      <input id="directionNext" type="text" maxlength="140" placeholder="One concrete move">
+      <div class="error" id="directionError" role="status" aria-live="polite"></div>
+      <div class="acts">
+        <button id="directionCancel">CANCEL</button>
+        <button class="primary" id="directionSave">SAVE</button>
+      </div>
+    </div>
+
+    <div id="directionSaved" hidden>
+      <div class="k">TODAY'S DIRECTION</div>
+      <div class="value" id="directionValue"></div>
+      <div class="next" id="directionNextSaved" hidden>
+        <b>NEXT ACTION</b>
+        <span id="directionNextValue"></span>
+      </div>
+      <div class="hint">Still true? Edit it if not.</div>
+      <div class="acts"><button id="directionEditBtn">EDIT</button></div>
+    </div>
+
+    <div class="skipped" id="directionSkipped" hidden>
+      <div class="k">DAILY DIRECTION — NOT SET TODAY</div>
+      <button id="directionAnyway">SET ANYWAY</button>
+    </div>
+  </section>
 
   <main id="list"></main>
 
@@ -435,6 +517,15 @@ const LS_NOTES   = "secondbrain.fitness.notes";
 const LS_CUSTOM  = "secondbrain.fitness.custom";
 const LS_FOCUS   = "secondbrain.fitness.focus";
 const LS_COLLAPSED = "secondbrain.fitness.collapsed";
+const LS_DIRECTION = "secondbrain.daily.direction.";
+const DIRECTION_PROMPTS = [
+  { id:"meaningfully-better", text:"What would make today meaningfully better?" },
+  { id:"beyond-urgent", text:"What matters today beyond what feels urgent?" },
+  { id:"one-thing-forward", text:"If you moved one important thing forward today, what should it be?" },
+  { id:"clearest-hour", text:"What deserves your clearest hour today?" },
+  { id:"reduce-stress", text:"What small action would reduce the most background stress?" },
+  { id:"enough", text:"What would “enough” look like today?" }
+];
 
 /* One-time: the app was renamed from Life Interface to Second Brain. Carry
    existing local data over to the new key prefix so it isn't orphaned. */
@@ -595,6 +686,133 @@ function todayISO() { return DEV_DATE || localISO(); }
 function weekdayOf(iso) {
   const [y,m,d] = iso.split("-").map(Number);
   return WEEKDAYS[new Date(y, m-1, d).getDay()];
+}
+
+/* ---------- daily direction ----------
+   One date-scoped, user-written orientation. It is intentionally separate from
+   tasks, XP and the craving-interrupt focus timer. */
+let directionEditDate = null;
+
+function directionPromptFor(date, record = null) {
+  if (record?.promptId && record?.promptText) {
+    return { id:record.promptId, text:record.promptText };
+  }
+  const offset = daysBetween("2026-01-01", date);
+  return DIRECTION_PROMPTS[((offset % DIRECTION_PROMPTS.length) + DIRECTION_PROMPTS.length) % DIRECTION_PROMPTS.length];
+}
+
+function normaliseDirection(value, date) {
+  if (!value || (value.status !== "set" && value.status !== "skipped")) return null;
+  const prompt = directionPromptFor(date, value);
+  const text = typeof value.text === "string" ? value.text.trim().slice(0, 180) : "";
+  if (value.status === "set" && !text) return null;
+  return {
+    status:value.status,
+    promptId:prompt.id,
+    promptText:prompt.text,
+    text,
+    nextAction:typeof value.nextAction === "string" ? value.nextAction.trim().slice(0, 140) : "",
+    updatedAt:typeof value.updatedAt === "string" ? value.updatedAt : new Date().toISOString()
+  };
+}
+
+function loadDirection(date) {
+  try { return normaliseDirection(JSON.parse(localStorage.getItem(LS_DIRECTION + date) || "null"), date); }
+  catch { return null; }
+}
+
+function saveDirectionLocal(date, record) {
+  try { localStorage.setItem(LS_DIRECTION + date, JSON.stringify(record)); } catch {}
+}
+
+function showDirectionState(id) {
+  for (const state of ["directionEmpty","directionEdit","directionSaved","directionSkipped"]) {
+    $(state).hidden = state !== id;
+  }
+}
+
+function renderDirection() {
+  if (!plan) return;
+  const date = plan.date;
+  const box = $("direction");
+  box.hidden = false;
+
+  if (directionEditDate === date) {
+    showDirectionState("directionEdit");
+    return;
+  }
+  if (directionEditDate && directionEditDate !== date) directionEditDate = null;
+
+  const record = loadDirection(date);
+  const prompt = directionPromptFor(date, record);
+  $("directionQuestion").textContent = prompt.text;
+
+  if (!record) {
+    showDirectionState("directionEmpty");
+    return;
+  }
+  if (record.status === "skipped") {
+    showDirectionState("directionSkipped");
+    return;
+  }
+
+  $("directionValue").textContent = record.text;
+  $("directionNextValue").textContent = record.nextAction;
+  $("directionNextSaved").hidden = !record.nextAction;
+  showDirectionState("directionSaved");
+}
+
+function startDirectionEdit() {
+  const date = plan.date;
+  const record = loadDirection(date);
+  const prompt = directionPromptFor(date, record);
+  directionEditDate = date;
+  $("directionEditQuestion").textContent = prompt.text;
+  $("directionText").value = record?.status === "set" ? record.text : "";
+  $("directionNext").value = record?.status === "set" ? record.nextAction : "";
+  $("directionError").textContent = "";
+  showDirectionState("directionEdit");
+  $("directionText").focus();
+}
+
+function cancelDirectionEdit() {
+  directionEditDate = null;
+  $("directionError").textContent = "";
+  renderDirection();
+}
+
+function storeDirection(record) {
+  const date = plan.date;
+  saveDirectionLocal(date, record);
+  directionEditDate = null;
+  renderDirection();
+  sync.pushDirection(date, record);
+}
+
+function saveDirectionForm() {
+  const text = $("directionText").value.trim();
+  if (!text) {
+    $("directionError").textContent = "Write a direction before saving.";
+    $("directionText").focus();
+    return;
+  }
+  const prompt = directionPromptFor(plan.date, loadDirection(plan.date));
+  storeDirection({
+    status:"set",
+    promptId:prompt.id,
+    promptText:prompt.text,
+    text:text.slice(0, 180),
+    nextAction:$("directionNext").value.trim().slice(0, 140),
+    updatedAt:new Date().toISOString()
+  });
+}
+
+function skipDirection() {
+  const prompt = directionPromptFor(plan.date, loadDirection(plan.date));
+  storeDirection({
+    status:"skipped", promptId:prompt.id, promptText:prompt.text,
+    text:"", nextAction:"", updatedAt:new Date().toISOString()
+  });
 }
 
 /* ---------- tick storage ---------- */
@@ -973,6 +1191,7 @@ function render() {
   renderStreak();
   renderPrinciple();
   renderDayNav();
+  renderDirection();
 }
 
 /* ---------- gestures ----------
@@ -1358,6 +1577,40 @@ const sync = {
     render();
   },
 
+  adoptDirection(value, date) {
+    const record = normaliseDirection(value, date);
+    if (!record) return false;
+    saveDirectionLocal(date, record);
+    if (plan.date === date && directionEditDate !== date) renderDirection();
+    return true;
+  },
+
+  directionFields(date) {
+    const record = loadDirection(date);
+    if (!record) return {};
+    return { direction:record, directionUpdatedAt:this.fb.f.serverTimestamp() };
+  },
+
+  async pushDirection(date, record = loadDirection(date)) {
+    if (this.mode !== "signed-in" || !record) return;
+    const { f } = this.fb;
+    try {
+      await f.setDoc(this.ref(date), {
+        direction:record,
+        directionUpdatedAt:f.serverTimestamp()
+      }, { merge:true });
+    } catch (e) {
+      this.setUI("err", `Couldn't sync the daily direction (${e.code || e.message}). Saved on this device.`,
+        "Retry", () => this.pushDirection(date, record));
+    }
+  },
+
+  async reconcileDirection(data, date) {
+    if (this.adoptDirection(data.direction, date)) return;
+    const local = loadDirection(date);
+    if (local) await this.pushDirection(date, local);
+  },
+
   async attach() {
     const { f } = this.fb;
     const date = plan.date;
@@ -1367,11 +1620,14 @@ const sync = {
       try { snap = await f.getDocFromServer(ref); }
       catch { snap = await f.getDoc(ref); }
       if (snap.exists()) {
-        this.adopt(snap.data().ticks || {}, date);
-        await this.ensureMeta(snap.data(), date);
+        const data = snap.data();
+        this.adopt(data.ticks || {}, date);
+        await this.ensureMeta(data, date);
+        await this.reconcileDirection(data, date);
       } else {
         await f.setDoc(ref, {
           ticks: loadTicks(date), ...this.meta(),
+          ...this.directionFields(date),
           createdAt: f.serverTimestamp(), updatedAt: f.serverTimestamp()
         });
       }
@@ -1383,7 +1639,9 @@ const sync = {
     this.unsub = f.onSnapshot(ref,
       s => {
         if (this.queue.size && this.queueDate === date) return;
-        this.adopt(s.exists() ? (s.data().ticks || {}) : {}, date);
+        const data = s.exists() ? s.data() : {};
+        this.adopt(data.ticks || {}, date);
+        if (data.direction) this.adoptDirection(data.direction, date);
       },
       e => this.setUI("err", `Live sync dropped (${e.code || e.message}). Ticks are still saved locally.`,
         "Reconnect", () => { this.onAuth(this.fb.auth.currentUser); })
@@ -1484,6 +1742,7 @@ const sync = {
         try {
           await f.setDoc(this.ref(date), {
             ticks: loadTicks(date), ...this.meta(),
+            ...this.directionFields(date),
             createdAt: f.serverTimestamp(), updatedAt: f.serverTimestamp()
           });
           return;
@@ -1502,7 +1761,11 @@ const sync = {
     clearTimeout(this.timer);
     const { f } = this.fb;
     try {
-      await f.setDoc(this.ref(date), { ticks: {}, ...this.meta(), updatedAt: f.serverTimestamp() });
+      // Merge instead of replacing the day document: clearing ticks must not
+      // erase its Daily Direction or future date-scoped fields.
+      await f.setDoc(this.ref(date),
+        { ticks: {}, ...this.meta(), updatedAt: f.serverTimestamp() },
+        { merge:true });
     } catch (e) {
       this.setUI("err", `Couldn't clear on sync (${e.code || e.message}). Cleared locally.`,
         "Retry", () => this.clearDay(date));
@@ -1515,7 +1778,9 @@ const sync = {
     const { f } = this.fb;
     try {
       const snap = await f.getDocFromServer(this.ref(plan.date));
-      this.adopt(snap.exists() ? (snap.data().ticks || {}) : {}, plan.date);
+      const data = snap.exists() ? snap.data() : {};
+      this.adopt(data.ticks || {}, plan.date);
+      if (data.direction) this.adoptDirection(data.direction, plan.date);
     } catch { /* offline; the listener catches up on reconnect */ }
   },
 
@@ -1609,12 +1874,22 @@ $("dayPrev").addEventListener("click", () => goToDay(shiftDate(plan.date, -1)));
 $("dayNext").addEventListener("click", () => goToDay(shiftDate(plan.date, 1)));
 $("dayToday").addEventListener("click", () => goToDay(todayISO()));
 
+$("directionSet").addEventListener("click", startDirectionEdit);
+$("directionAnyway").addEventListener("click", startDirectionEdit);
+$("directionEditBtn").addEventListener("click", startDirectionEdit);
+$("directionSkip").addEventListener("click", skipDirection);
+$("directionCancel").addEventListener("click", cancelDirectionEdit);
+$("directionSave").addEventListener("click", saveDirectionForm);
+$("directionText").addEventListener("input", () => { $("directionError").textContent = ""; });
+
 $("mCancel").addEventListener("click", closeModal);
 $("mSave").addEventListener("click", saveModal);
 $("scrim").addEventListener("click", e => { if (e.target === $("scrim")) closeModal(); });
 $("mText").addEventListener("keydown", e => { if (e.key === "Enter") saveModal(); });
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape" && !$("scrim").hidden) closeModal();
+  if (e.key !== "Escape") return;
+  if (!$("scrim").hidden) closeModal();
+  else if (directionEditDate) cancelDirectionEdit();
 });
 
 $("focusHelp").addEventListener("click", focusStart);
