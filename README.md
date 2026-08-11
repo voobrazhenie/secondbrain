@@ -9,7 +9,7 @@ Live: **https://voobrazhenie.github.io/secondbrain/**
 `dailyplan/index.html` — **DailyPlan** — is a single self-contained page that **derives today's list itself** — it is never waiting to be told what day it is, and cannot go stale.
 
 - **`dailyplan/plan.json`** — the whole program: a 4-session rotation, the groups that repeat every day, one-off setup tasks, and the weekly schedule. Holds both a `home` (bodyweight) and a `gym` variant; `activeProgram` picks one.
-- **Firestore** — where ticks live once you sign in, so the phone and the PC agree. Signed out, the page still works and keeps ticks in `localStorage` only.
+- **Firestore** — where ticks and the optional Daily Direction live once you sign in, so the phone and the PC agree. Signed out, the page still works and keeps them in `localStorage` only.
 - **`dailyplan/overrides/<YYYY-MM-DD>.json`** — optional, rare. Shallow-merged over the derived day when a particular day needs something the rules can't express.
 
 ### How a day is derived
@@ -31,12 +31,19 @@ Set `activeProgram` to `"gym"` in `dailyplan/plan.json`. The gym sessions are al
 ## Data model
 
 ```
-users/{uid}/days/{YYYY-MM-DD}  ->  { ticks: { itemId: true, … }, updatedAt }
+users/{uid}/days/{YYYY-MM-DD}  ->  {
+  ticks: { itemId: true, … },
+  direction: { status, promptId, promptText, text, nextAction, updatedAt },
+  session metadata,
+  updatedAt
+}
 ```
 
-One document per day. Item `id`s in `today.json` must be **unique and stable** — tick state is keyed on them, so reusing an id from a previous day carries that tick across.
+One document per day. Item `id`s in `plan.json` must be **unique and stable** — tick state is keyed on them, so reusing an id from a previous day carries that tick across.
 
-Day documents are written with `setDoc` and no merge, on purpose: a merge would deep-merge the `ticks` map and resurrect keys you had just unticked. That means a day document holds *only* ticks — anything else (metrics, session logs) belongs in a sibling document.
+Tick changes use targeted field updates so unticked keys are deleted rather than resurrected by a deep merge. Whole-map operations such as clearing a day use merge-safe writes so the date's optional Daily Direction is preserved.
+
+Signed out, Daily Direction uses one key per date: `secondbrain.daily.direction.<YYYY-MM-DD>`.
 
 ## Security
 

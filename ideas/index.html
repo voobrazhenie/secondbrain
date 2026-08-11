@@ -6,30 +6,26 @@
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#F2EDE0">
 <title>Startup-up Ideas — Second Brain</title>
-<!--
-  Shell only, on purpose — this iteration is the page and the nav entry, not
-  an idea-management system. No fields, no storage, no workflow yet. See the
-  "Startup-up ideas page" Trello card for the intentionally narrow scope.
--->
 <style>
-  /* Same neo-brutalist system as / and the other modules. */
   :root{
-    --paper:#F2EDE0; --card:#FFFDF7; --ink:#111111;
+    --paper:#F2EDE0; --card:#FFFDF7; --sunk:#E8E4D6; --ink:#111111;
     --yellow:#FFD53D; --teal:#00C2CB; --pink:#FF3D8B; --lime:#B8E62E;
-    --grey:#7A756A;
+    --grey:#7A756A; --faint:#A39D91;
     --stroke:2.5px; --shadow:5px 5px 0 var(--ink);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
-    margin:0; background:var(--paper); color:var(--ink);
+    margin:0;background:var(--paper);color:var(--ink);
     padding:
       calc(5vh + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
       calc(60px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
     font:16px/1.5 "Archivo","Helvetica Neue",Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
+  button,input,textarea{font:inherit}
+  button{cursor:pointer}
   .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900}
-  .wrap{max-width:520px;margin:0 auto}
+  .wrap{max-width:560px;margin:0 auto}
 
   a.back{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.08em;
     text-decoration:none;color:var(--ink);border-bottom:2px solid var(--ink);margin-bottom:16px}
@@ -38,28 +34,471 @@
   h1{font-size:clamp(28px,7.5vw,38px);margin:0 0 12px;line-height:1.03;letter-spacing:-.02em}
   h1 em{font-style:normal;background:var(--yellow);border:var(--stroke) solid var(--ink);
     padding:0 8px;box-shadow:4px 4px 0 var(--ink);display:inline-block}
-  .lede{color:var(--grey);font-weight:600;margin:0 0 22px;font-size:14.5px}
+  .lede{color:var(--grey);font-weight:600;margin:0 0 20px;font-size:14.5px}
 
-  .empty{
-    border:2.5px dashed var(--ink);padding:22px 20px;text-align:center;
-    color:var(--grey);font-weight:700;font-size:14px;
-  }
+  .editor{background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:14px;margin-bottom:22px}
+  .editor.editing{margin:0;box-shadow:none;border:0;padding:0}
+  .field{display:block;margin-bottom:11px}
+  .field span{display:block;font-size:9px;letter-spacing:.08em;margin-bottom:4px}
+  .field input,.field textarea{display:block;width:100%;border:2px solid var(--ink);
+    background:var(--paper);color:var(--ink);padding:9px 10px;font-weight:650;border-radius:0}
+  .field textarea{min-height:92px;resize:vertical;line-height:1.45}
+  .form-actions,.idea-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .btn{background:var(--card);color:var(--ink);border:2px solid var(--ink);
+    padding:7px 10px;font-size:10px;font-weight:900;letter-spacing:.04em;
+    box-shadow:2px 2px 0 var(--ink);font-family:"Arial Black",Impact,sans-serif}
+  .btn.primary{background:var(--yellow)}
+  .btn.danger.armed{background:var(--pink);color:#fff}
+  .btn:active{transform:translate(2px,2px);box-shadow:none}
+  .btn:disabled{opacity:.35;cursor:default;transform:none;box-shadow:2px 2px 0 var(--faint)}
 
-  footer{margin-top:34px;padding-top:14px;border-top:2px solid var(--ink);
+  .list-head{display:flex;align-items:baseline;gap:9px;margin-bottom:10px}
+  .list-head .t{font-size:11px;letter-spacing:.08em;background:var(--ink);color:var(--paper);
+    padding:3px 8px}
+  .list-head .rule{height:2px;background:var(--ink);flex:1}
+  .list-head .count{font-size:10px;color:var(--grey)}
+  .empty{border:2.5px dashed var(--ink);padding:20px;text-align:center;
+    color:var(--grey);font-weight:700;font-size:13px}
+
+  .idea{background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    margin-bottom:11px;transition:transform .08s,opacity .08s}
+  .idea[draggable="true"]{cursor:grab}
+  .idea.dragging{opacity:.42;cursor:grabbing}
+  .idea.drop-before{box-shadow:0 -6px 0 var(--teal),var(--shadow)}
+  .idea.drop-after{box-shadow:0 6px 0 var(--teal),var(--shadow)}
+  .idea-head{display:flex;align-items:stretch;min-height:48px}
+  .idea-toggle{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);
+    padding:11px 12px;text-align:left;display:flex;align-items:center;gap:10px;font-weight:800}
+  .idea-title{flex:1;min-width:0;overflow-wrap:anywhere}
+  .chev{flex:0 0 auto;font-size:13px;transition:transform .12s}
+  .idea.expanded .chev{transform:rotate(180deg)}
+  .idea-body{border-top:2px solid var(--ink);padding:12px}
+  .idea-description{white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 12px;font-size:14px}
+  .idea-description.empty-desc{color:var(--grey);font-style:italic}
+  .drag-note{margin-left:auto;font-size:9px;font-weight:800;color:var(--grey);letter-spacing:.05em}
+
+  .sync{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+    border:2px solid var(--ink);background:var(--card);box-shadow:3px 3px 0 var(--ink);
+    padding:9px 11px;margin:24px 0 0;font-size:12px;font-weight:700;color:var(--grey)}
+  .sync .dot{flex:0 0 auto;width:9px;height:9px;border:2px solid var(--ink);background:var(--sunk)}
+  .sync.on .dot{background:var(--lime)}
+  .sync.err .dot{background:var(--pink)}
+  .sync .msg{flex:1;min-width:150px}
+  footer{margin-top:30px;padding-top:14px;border-top:2px solid var(--ink);
     font-size:11px;font-weight:700;color:var(--grey);line-height:1.6}
+
+  @media (max-width:440px){
+    .drag-note{display:none}
+    .btn{padding:8px 9px}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-
-  <a class="back" href="../">&larr; SECOND BRAIN</a>
+  <a class="back" href="../">&larr; SECOND BRAIN</a><br>
   <span class="eyebrow">STARTUP-UP IDEAS</span>
   <h1 class="blk">Worth <em>starting</em> up.</h1>
-  <p class="lede">A place to put ideas before they're anything more than that.</p>
+  <p class="lede">Capture the thought now. Decide what it is later.</p>
 
-  <div class="empty">Nothing here yet.</div>
+  <form class="editor" id="addForm">
+    <label class="field">
+      <span class="blk">TITLE</span>
+      <input id="newTitle" maxlength="100" required autocomplete="off" placeholder="A short name for the idea">
+    </label>
+    <label class="field">
+      <span class="blk">DESCRIPTION</span>
+      <textarea id="newDescription" maxlength="2000" placeholder="What is the idea?"></textarea>
+    </label>
+    <div class="form-actions"><button class="btn primary" type="submit">ADD IDEA</button></div>
+  </form>
 
-  <footer>Second Brain — static pages on GitHub Pages.</footer>
+  <div class="list-head">
+    <span class="t blk">IDEAS</span><span class="rule"></span><span class="count blk" id="ideaCount">0</span>
+  </div>
+  <div id="ideaList"></div>
+
+  <div class="sync" id="sync">
+    <span class="dot"></span>
+    <span class="msg" id="syncMsg">Checking sync&hellip;</span>
+    <button class="btn" id="authBtn" hidden></button>
+  </div>
+
+  <footer>Drag cards to reorder them. Signed out, ideas stay in this browser. Signed in, they sync to your account.</footer>
 </div>
+
+<script type="module">
+"use strict";
+
+const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
+const LS_IDEAS = "secondbrain.ideas.v1";
+const $ = id => document.getElementById(id);
+const newId = () => "i-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+let ideas = [];
+let editingId = null;
+let armedId = null;
+let draggingId = null;
+
+function cleanIdea(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const title = typeof raw.title === "string" ? raw.title.trim().slice(0, 100) : "";
+  if (!title) return null;
+  return {
+    id: typeof raw.id === "string" && raw.id ? raw.id : newId(),
+    title,
+    description: typeof raw.description === "string" ? raw.description.slice(0, 2000) : "",
+    collapsed: Boolean(raw.collapsed)
+  };
+}
+
+function loadLocal() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LS_IDEAS) || "[]");
+    ideas = Array.isArray(parsed) ? parsed.map(cleanIdea).filter(Boolean) : [];
+  } catch { ideas = []; }
+}
+
+function saveLocal({ push = true } = {}) {
+  try { localStorage.setItem(LS_IDEAS, JSON.stringify(ideas)); } catch {}
+  if (push) sync.push();
+}
+
+function addIdea(title, description) {
+  title = (title || "").trim();
+  if (!title) return false;
+  ideas.push({ id:newId(), title:title.slice(0, 100), description:(description || "").trim().slice(0, 2000), collapsed:false });
+  saveLocal();
+  render();
+  return true;
+}
+
+function updateIdea(id, title, description) {
+  title = (title || "").trim();
+  const idea = ideas.find(item => item.id === id);
+  if (!idea || !title) return false;
+  idea.title = title.slice(0, 100);
+  idea.description = (description || "").trim().slice(0, 2000);
+  editingId = null;
+  saveLocal();
+  render();
+  return true;
+}
+
+function toggleIdea(id) {
+  const idea = ideas.find(item => item.id === id);
+  if (!idea) return;
+  idea.collapsed = !idea.collapsed;
+  armedId = null;
+  saveLocal();
+  render();
+}
+
+function removeIdea(id) {
+  ideas = ideas.filter(item => item.id !== id);
+  armedId = null;
+  saveLocal();
+  render();
+}
+
+function moveIdea(id, offset) {
+  const from = ideas.findIndex(item => item.id === id);
+  const to = from + offset;
+  if (from < 0 || to < 0 || to >= ideas.length) return;
+  const [idea] = ideas.splice(from, 1);
+  ideas.splice(to, 0, idea);
+  saveLocal();
+  render();
+}
+
+function dropIdea(id, targetId, before) {
+  if (!id || id === targetId) return;
+  const from = ideas.findIndex(item => item.id === id);
+  if (from < 0) return;
+  const [idea] = ideas.splice(from, 1);
+  let target = ideas.findIndex(item => item.id === targetId);
+  if (target < 0) { ideas.splice(from, 0, idea); return; }
+  if (!before) target += 1;
+  ideas.splice(target, 0, idea);
+  saveLocal();
+  render();
+}
+
+function clearDropMarks() {
+  document.querySelectorAll(".drop-before,.drop-after").forEach(el => el.classList.remove("drop-before","drop-after"));
+}
+
+function render() {
+  const list = $("ideaList");
+  list.textContent = "";
+  $("ideaCount").textContent = String(ideas.length);
+
+  if (!ideas.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Nothing here yet.";
+    list.appendChild(empty);
+    return;
+  }
+
+  ideas.forEach((idea, index) => list.appendChild(ideaCard(idea, index)));
+}
+
+function ideaCard(idea, index) {
+  const card = document.createElement("article");
+  card.className = "idea" + (idea.collapsed ? "" : " expanded");
+  card.dataset.id = idea.id;
+  card.draggable = editingId !== idea.id;
+
+  card.addEventListener("dragstart", event => {
+    if (editingId === idea.id) { event.preventDefault(); return; }
+    draggingId = idea.id;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", idea.id);
+    requestAnimationFrame(() => card.classList.add("dragging"));
+  });
+  card.addEventListener("dragover", event => {
+    if (!draggingId || draggingId === idea.id) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    clearDropMarks();
+    const before = event.clientY < card.getBoundingClientRect().top + card.offsetHeight / 2;
+    card.classList.add(before ? "drop-before" : "drop-after");
+  });
+  card.addEventListener("drop", event => {
+    event.preventDefault();
+    const before = event.clientY < card.getBoundingClientRect().top + card.offsetHeight / 2;
+    const droppedId = draggingId || event.dataTransfer.getData("text/plain");
+    draggingId = null;
+    clearDropMarks();
+    dropIdea(droppedId, idea.id, before);
+  });
+  card.addEventListener("dragend", () => {
+    draggingId = null;
+    clearDropMarks();
+    card.classList.remove("dragging");
+  });
+
+  if (editingId === idea.id) {
+    card.appendChild(editForm(idea));
+    return card;
+  }
+
+  const head = document.createElement("div");
+  head.className = "idea-head";
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "idea-toggle";
+  toggle.setAttribute("aria-expanded", idea.collapsed ? "false" : "true");
+  toggle.setAttribute("aria-label", `${idea.collapsed ? "Expand" : "Collapse"} ${idea.title}`);
+  const title = document.createElement("span");
+  title.className = "idea-title";
+  title.textContent = idea.title;
+  const chev = document.createElement("span");
+  chev.className = "chev";
+  chev.textContent = "⌃";
+  chev.setAttribute("aria-hidden", "true");
+  toggle.append(title, chev);
+  toggle.addEventListener("click", () => toggleIdea(idea.id));
+  head.appendChild(toggle);
+  card.appendChild(head);
+
+  if (idea.collapsed) return card;
+
+  const body = document.createElement("div");
+  body.className = "idea-body";
+  const description = document.createElement("p");
+  description.className = "idea-description" + (idea.description ? "" : " empty-desc");
+  description.textContent = idea.description || "No description.";
+  body.appendChild(description);
+
+  const actions = document.createElement("div");
+  actions.className = "idea-actions";
+  actions.append(
+    actionButton("EDIT", () => { editingId = idea.id; armedId = null; render(); }),
+    actionButton("↑", () => moveIdea(idea.id, -1), index === 0, "Move up"),
+    actionButton("↓", () => moveIdea(idea.id, 1), index === ideas.length - 1, "Move down")
+  );
+  const remove = actionButton(armedId === idea.id ? "SURE?" : "REMOVE", () => {
+    if (armedId !== idea.id) { armedId = idea.id; render(); }
+    else removeIdea(idea.id);
+  });
+  remove.classList.add("danger");
+  if (armedId === idea.id) remove.classList.add("armed");
+  actions.appendChild(remove);
+  const note = document.createElement("span");
+  note.className = "drag-note";
+  note.textContent = "DRAG CARD TO REORDER";
+  actions.appendChild(note);
+  body.appendChild(actions);
+  card.appendChild(body);
+  return card;
+}
+
+function actionButton(label, action, disabled = false, ariaLabel = "") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "btn";
+  button.textContent = label;
+  button.disabled = disabled;
+  if (ariaLabel) button.setAttribute("aria-label", ariaLabel);
+  button.addEventListener("click", action);
+  return button;
+}
+
+function editForm(idea) {
+  const form = document.createElement("form");
+  form.className = "editor editing";
+  const title = field("TITLE", "input", idea.title, 100);
+  const description = field("DESCRIPTION", "textarea", idea.description, 2000);
+  const actions = document.createElement("div");
+  actions.className = "form-actions";
+  const save = actionButton("SAVE", () => {});
+  save.classList.add("primary");
+  save.type = "submit";
+  const cancel = actionButton("CANCEL", () => { editingId = null; armedId = null; render(); });
+  actions.append(save, cancel);
+  form.append(title.label, description.label, actions);
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    if (!updateIdea(idea.id, title.control.value, description.control.value)) title.control.focus();
+  });
+  setTimeout(() => { title.control.focus(); title.control.select(); }, 0);
+  return form;
+}
+
+function field(labelText, type, value, maxLength) {
+  const label = document.createElement("label");
+  label.className = "field";
+  const caption = document.createElement("span");
+  caption.className = "blk";
+  caption.textContent = labelText;
+  const control = document.createElement(type);
+  control.value = value;
+  control.maxLength = maxLength;
+  if (type === "input") control.required = true;
+  label.append(caption, control);
+  return { label, control };
+}
+
+$("addForm").addEventListener("submit", event => {
+  event.preventDefault();
+  if (addIdea($("newTitle").value, $("newDescription").value)) {
+    $("newTitle").value = "";
+    $("newDescription").value = "";
+    $("newTitle").focus();
+  }
+});
+
+const sync = {
+  fb:null, uid:null, mode:"checking",
+
+  setUI(state, msg, btnLabel, btnAction) {
+    $("sync").className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
+    $("syncMsg").textContent = msg;
+    const btn = $("authBtn");
+    if (btnLabel) { btn.hidden = false; btn.textContent = btnLabel; btn.onclick = btnAction; }
+    else { btn.hidden = true; btn.onclick = null; }
+  },
+
+  async init() {
+    let config = null;
+    try { ({ firebaseConfig:config } = await import("./firebase-config.js")); }
+    catch {}
+    if (!config || !config.projectId) {
+      this.mode = "local";
+      this.setUI("off", "Local only — no Firebase config.");
+      return;
+    }
+    try {
+      const [{ initializeApp }, authMod, fsMod] = await Promise.all([
+        import(SDK + "firebase-app.js"),
+        import(SDK + "firebase-auth.js"),
+        import(SDK + "firebase-firestore.js")
+      ]);
+      const app = initializeApp(config);
+      const db = fsMod.initializeFirestore(app, {
+        localCache:fsMod.persistentLocalCache({ tabManager:fsMod.persistentMultipleTabManager() })
+      });
+      this.fb = { auth:authMod.getAuth(app), db, a:authMod, f:fsMod };
+      this.mode = "signed-out";
+      authMod.getRedirectResult(this.fb.auth).catch(() => {});
+      authMod.onAuthStateChanged(this.fb.auth, user => this.onAuth(user));
+    } catch (error) {
+      console.warn("Firebase unavailable, staying local:", error);
+      this.setUI("err", "Couldn't reach Firebase. Local only.", "Retry", () => location.reload());
+    }
+  },
+
+  onAuth(user) {
+    if (!user) {
+      this.mode = "signed-out";
+      this.uid = null;
+      this.setUI("off", "Not syncing — ideas stay in this browser.", "Sign in with Google", () => this.signIn());
+      return;
+    }
+    this.uid = user.uid;
+    this.mode = "signed-in";
+    this.setUI("on", `Synced — signed in as ${user.email || "your account"}`, "Sign out", () => this.signOut());
+    this.pull();
+  },
+
+  async signIn() {
+    const { a, auth } = this.fb;
+    try {
+      this.setUI("off", "Opening Google sign-in…");
+      await a.signInWithPopup(auth, new a.GoogleAuthProvider());
+    } catch (error) {
+      const code = (error && error.code) || "";
+      if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+        try { await a.signInWithRedirect(auth, new a.GoogleAuthProvider()); return; }
+        catch (redirectError) { error = redirectError; }
+      }
+      const msg = code === "auth/unauthorized-domain" ? "This domain isn't authorised in Firebase Auth yet."
+        : code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" ? "Sign-in was cancelled."
+        : `Sign-in failed (${error.code || error.message}).`;
+      this.setUI("err", msg, "Try again", () => this.signIn());
+    }
+  },
+
+  async signOut() {
+    try { await this.fb.a.signOut(this.fb.auth); }
+    catch (error) { this.setUI("err", `Couldn't sign out (${error.message}).`, "Try again", () => this.signOut()); }
+  },
+
+  ref() {
+    const { f, db } = this.fb;
+    return f.doc(db, "users", this.uid, "config", "ideas");
+  },
+
+  async push() {
+    if (this.mode !== "signed-in") return;
+    const { f } = this.fb;
+    try { await f.setDoc(this.ref(), { ideas, updatedAt:f.serverTimestamp() }); }
+    catch (error) {
+      this.setUI("err", `Couldn't save to sync (${error.code || error.message}). Saved on this device.`, "Retry", () => this.push());
+    }
+  },
+
+  async pull() {
+    const { f } = this.fb;
+    try {
+      let snap;
+      try { snap = await f.getDocFromServer(this.ref()); }
+      catch { snap = await f.getDoc(this.ref()); }
+      if (snap.exists()) {
+        const remote = snap.data().ideas;
+        ideas = Array.isArray(remote) ? remote.map(cleanIdea).filter(Boolean) : [];
+        saveLocal({ push:false });
+        render();
+      } else if (ideas.length) await this.push();
+    } catch {}
+  }
+};
+
+loadLocal();
+render();
+sync.init();
+</script>
 </body>
 </html>
