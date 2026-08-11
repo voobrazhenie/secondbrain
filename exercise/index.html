@@ -154,6 +154,46 @@
   .signoff .t span{display:block;font-size:10.5px;font-weight:600;color:var(--grey);
     margin-top:3px;line-height:1.35}
 
+  /* ---------- monthly monitor ----------
+     Same card weight as .ex / .signoff. Dates stay readable on every cell —
+     colour alone carries the state, so nothing sits on top of the number. */
+  .month{
+    background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:13px 12px 14px;margin-top:16px;
+  }
+  .mhead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .mlbl{flex:1;text-align:center;font-size:12px;letter-spacing:.06em;
+    font-family:"Arial Black",Impact,sans-serif}
+  .mtally{font-size:10px;letter-spacing:.05em;color:var(--grey);text-align:center;
+    margin-bottom:11px;font-family:"Arial Black",Impact,sans-serif}
+  .mtally b{color:var(--ink)}
+
+  .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:5px}
+  .dow span{text-align:center;font-size:8.5px;letter-spacing:.05em;color:var(--grey);
+    font-family:"Arial Black",Impact,sans-serif}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+
+  .d{
+    aspect-ratio:1;border:2px solid var(--ink);background:var(--card);
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:900;color:var(--ink);
+    font-family:"Arial Black",Impact,sans-serif;
+  }
+  .d.blank{border:none;background:transparent}
+  .d.train{background:var(--lime)}
+  .d.miss{color:var(--grey)}
+  .d.rest{background:var(--sunk);border-color:var(--faint);color:var(--faint)}
+  .d.sched{border:3px solid var(--lime);color:var(--grey)}
+  .d.today{box-shadow:0 0 0 3px var(--pink)}
+
+  .legend{display:flex;flex-wrap:wrap;gap:7px 12px;margin-top:12px}
+  .lg{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:800;color:var(--grey)}
+  .lg i{display:block;width:12px;height:12px;flex:0 0 auto;border:2px solid var(--ink)}
+  .lg-train i{background:var(--lime)}
+  .lg-miss i{background:var(--card)}
+  .lg-rest i{background:var(--sunk);border-color:var(--faint)}
+  .lg-sched i{background:var(--card);border:3px solid var(--lime)}
+
   /* ---------- sync (bottom, like streams/) ---------- */
   .sync{
     display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:20px 0 0;
@@ -207,6 +247,25 @@
 
   <div id="notice"></div>
   <div id="list"></div>
+
+  <div class="month" id="month">
+    <div class="mhead">
+      <button type="button" class="btn" id="monthPrev" aria-label="Previous month">&lsaquo;</button>
+      <div class="mlbl" id="monthLabel"></div>
+      <button type="button" class="btn" id="monthNext" aria-label="Next month">&rsaquo;</button>
+    </div>
+    <div class="mtally" id="monthTally"></div>
+    <div class="dow">
+      <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+    </div>
+    <div class="grid" id="monthGrid"></div>
+    <div class="legend">
+      <span class="lg lg-train"><i></i>TRAINED</span>
+      <span class="lg lg-miss"><i></i>MISSED</span>
+      <span class="lg lg-rest"><i></i>REST DAY</span>
+      <span class="lg lg-sched"><i></i>SCHEDULED</span>
+    </div>
+  </div>
 
   <div class="sync" id="sync">
     <span class="dot"></span>
@@ -489,6 +548,117 @@ function refreshTally() {
   $("tally").textContent = `${done}/${total} SETS DONE`;
 }
 
+/* ---------- monthly monitor ----------
+   A read-only calendar: which days were trained, which training days were
+   missed, which are still ahead, and which are rest days by the schedule.
+   "Trained" comes from this page's own doc (sets[DONE_ID]) going forward,
+   with dailyplan's older sessionDone meta as a fallback for days before this
+   page existed. Local storage covers signed-out use; signed in, a bounded
+   Firestore range query for the visible month fills in other devices. */
+let monthCursor = null;               // { y, m } — m is 0-indexed
+const monthRemoteCache = new Map();   // "y-m" -> Set of trained ISO dates
+
+function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+function isoFor(y, m, d) { return `${y}-${String(m + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
+
+function localMonthTrained(y, m) {
+  const found = new Set();
+  const n = daysInMonth(y, m);
+  const first = isoFor(y, m, 1), last = isoFor(y, m, n);
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k) continue;
+    if (k.startsWith(LS_SETS)) {
+      const d = k.slice(LS_SETS.length);
+      if (d < first || d > last) continue;
+      try {
+        const v = JSON.parse(localStorage.getItem(k) || "{}")[DONE_ID];
+        if (Array.isArray(v) ? v[0] : v) found.add(d);
+      } catch {}
+    } else if (k.startsWith(LS_META)) {
+      const d = k.slice(LS_META.length);
+      if (d < first || d > last) continue;
+      try { if (JSON.parse(localStorage.getItem(k) || "{}").sessionDone) found.add(d); }
+      catch {}
+    }
+  }
+  return found;
+}
+
+async function remoteMonthTrained(y, m) {
+  const key = `${y}-${m}`;
+  if (monthRemoteCache.has(key)) return monthRemoteCache.get(key);
+  const found = new Set();
+  if (sync.mode === "signed-in") {
+    const { f, db } = sync.fb;
+    const n = daysInMonth(y, m);
+    const first = isoFor(y, m, 1), last = isoFor(y, m, n);
+    try {
+      const [exSnap, daySnap] = await Promise.all([
+        f.getDocs(f.query(f.collection(db, "users", sync.uid, "exercise"),
+          f.where(f.documentId(), ">=", first), f.where(f.documentId(), "<=", last))),
+        f.getDocs(f.query(f.collection(db, "users", sync.uid, "days"),
+          f.where(f.documentId(), ">=", first), f.where(f.documentId(), "<=", last)))
+      ]);
+      exSnap.forEach(d => { const v = d.data().sets?.[DONE_ID]; if (Array.isArray(v) ? v[0] : v) found.add(d.id); });
+      daySnap.forEach(d => { if (d.data().sessionDone) found.add(d.id); });
+    } catch { /* offline — local view stands */ }
+  }
+  monthRemoteCache.set(key, found);
+  return found;
+}
+
+function renderMonth(trained) {
+  const { y, m } = monthCursor;
+  $("monthLabel").textContent = new Date(y, m, 1)
+    .toLocaleDateString(undefined, { month: "long", year: "numeric" }).toUpperCase();
+
+  const n = daysInMonth(y, m);
+  const lead = (new Date(y, m, 1).getDay() + 6) % 7;   // Monday-first
+  const grid = $("monthGrid");
+  grid.textContent = "";
+  for (let i = 0; i < lead; i++) {
+    const blank = document.createElement("div");
+    blank.className = "d blank";
+    grid.appendChild(blank);
+  }
+
+  let trainedCount = 0, missedCount = 0;
+  for (let d = 1; d <= n; d++) {
+    const iso = isoFor(y, m, d);
+    const isTrainDay = program.schedule[weekdayOf(iso)] === "train";
+    const cell = document.createElement("div");
+    let cls = "d";
+    if (trained.has(iso)) { cls += " train"; trainedCount++; }
+    else if (iso < program.startDate) cls += " rest";   // before the plan existed
+    else if (isTrainDay && iso >= DATE) cls += " sched";
+    else if (isTrainDay) { cls += " miss"; missedCount++; }
+    else cls += " rest";
+    if (iso === DATE) cls += " today";
+    cell.className = cls;
+    cell.textContent = String(d);
+    grid.appendChild(cell);
+  }
+  $("monthTally").innerHTML = `<b>${trainedCount}</b> DAYS TRAINED · ${missedCount} MISSED`;
+}
+
+async function loadMonth() {
+  const { y, m } = monthCursor;
+  const local = localMonthTrained(y, m);
+  renderMonth(local);
+  const remote = await remoteMonthTrained(y, m);
+  if (monthCursor.y === y && monthCursor.m === m && remote.size) {
+    renderMonth(new Set([...local, ...remote]));
+  }
+}
+
+function shiftMonth(delta) {
+  monthCursor.m += delta;
+  while (monthCursor.m < 0)  { monthCursor.m += 12; monthCursor.y--; }
+  while (monthCursor.m > 11) { monthCursor.m -= 12; monthCursor.y++; }
+  loadMonth();
+}
+
 /* ---------- rest timer ----------
    Local only — a 60-second rest is not worth a round trip, and it should keep
    counting if the screen locks mid-set. The stored endAt is the single source
@@ -649,6 +819,8 @@ const sync = {
       "Sign out", () => this.signOut());
     this.pullRotation();
     this.pull();
+    monthRemoteCache.clear();
+    loadMonth();
   },
 
   async signIn() {
@@ -734,6 +906,8 @@ const sync = {
 $("restPlus").addEventListener("click", () => { ensureAudio(); restAdd(30 * 1000); });
 $("restStop").addEventListener("click", restStop);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) restTick(true); });
+$("monthPrev").addEventListener("click", () => shiftMonth(-1));
+$("monthNext").addEventListener("click", () => shiftMonth(1));
 
 (async function boot() {
   try {
@@ -754,6 +928,9 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) rest
   }
   render();
   restTick(false);   // a rest still running from before the reload, silently
+  const [dy, dm] = DATE.split("-").map(Number);
+  monthCursor = { y: dy, m: dm - 1 };
+  loadMonth();
   sync.init();
 })();
 </script>
