@@ -129,6 +129,31 @@
   .set[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
   .set:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
 
+  /* The session sign-off. Deliberately not a set: it is the one thing that
+     marks training done over on the daily page, and it is ticked by hand
+     rather than inferred from the sets above. */
+  .signoff{
+    display:flex;align-items:center;gap:12px;width:100%;
+    font:inherit;text-align:left;cursor:pointer;
+    background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:13px 12px;margin-top:16px;
+    transition:transform .07s, box-shadow .07s, background .12s;
+  }
+  .signoff:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+  .signoff[aria-pressed="true"]{background:var(--lime)}
+  .signoff:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
+  .signoff .box{
+    flex:0 0 auto;width:26px;height:26px;border:2.5px solid var(--ink);background:var(--card);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .signoff[aria-pressed="true"] .box{background:var(--ink)}
+  .signoff .box svg{width:15px;height:15px;opacity:0}
+  .signoff[aria-pressed="true"] .box svg{opacity:1}
+  .signoff .t{flex:1;min-width:0}
+  .signoff .t b{display:block;font-size:16px;font-family:"Arial Black",Impact,sans-serif;letter-spacing:.02em}
+  .signoff .t span{display:block;font-size:10.5px;font-weight:600;color:var(--grey);
+    margin-top:3px;line-height:1.35}
+
   /* ---------- sync (bottom, like streams/) ---------- */
   .sync{
     display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:20px 0 0;
@@ -200,6 +225,9 @@ const LS_SETS = "secondbrain.exercise.v1.";     // + date
 const LS_REST = "secondbrain.exercise.rest";
 const LS_META = "secondbrain.fitness.meta.";    // written by dailyplan — read only here
 const REST_MS = 60 * 1000;
+// Reserved key inside `sets` for the session sign-off. dailyplan/ reads this
+// exact id out of the same document to mirror Physical training.
+const DONE_ID = "x-done";
 const WEEKDAYS = ["sun","mon","tue","wed","thu","fri","sat"];
 const $ = id => document.getElementById(id);
 
@@ -375,7 +403,59 @@ function render() {
     list.appendChild(card);
   }
 
+  list.appendChild(signoffRow());
   refreshTally();
+}
+
+/* Ticking this is what marks Physical training done on the daily page. It
+   deliberately does not check whether every set above is ticked — half a
+   session you decided to call finished is still a session you did. */
+function signoffRow() {
+  const on = isDone();
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "signoff";
+  b.id = "signoff";
+  b.setAttribute("aria-pressed", on ? "true" : "false");
+
+  const box = document.createElement("span");
+  box.className = "box";
+  box.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF7" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 L9.5 18 L20 6"/></svg>';
+
+  const t = document.createElement("span");
+  t.className = "t";
+  const title = document.createElement("b");
+  title.textContent = "DONE";
+  const sub = document.createElement("span");
+  sub.textContent = on
+    ? "Physical training is ticked on the daily plan."
+    : "Tick when the session is over — this is what marks Physical training done on the daily plan.";
+  t.append(title, sub);
+
+  b.append(box, t);
+  b.addEventListener("click", toggleDone);
+  return b;
+}
+
+function isDone() {
+  const v = sets[DONE_ID];
+  return Array.isArray(v) ? !!v[0] : !!v;
+}
+
+/* No rest timer here — the session is over, not between sets. */
+function toggleDone() {
+  const on = !isDone();
+  if (on) sets[DONE_ID] = [true];
+  else delete sets[DONE_ID];
+  saveSets();
+
+  const b = $("signoff");
+  if (b) {
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.querySelector(".t span").textContent = on
+      ? "Physical training is ticked on the daily plan."
+      : "Tick when the session is over — this is what marks Physical training done on the daily plan.";
+  }
 }
 
 /* Ticking a set must never rebuild the list — the button would be replaced
@@ -440,7 +520,7 @@ function restBeep() {
       osc.type = "sine";
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, t0 + offset);
-      gain.gain.exponentialRampToValueAtTime(0.12, t0 + offset + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.144, t0 + offset + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.0001, t0 + offset + 0.45);
       osc.connect(gain).connect(ctx.destination);
       osc.start(t0 + offset);

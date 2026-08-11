@@ -49,8 +49,7 @@
             { "id": "h1-pushup", "emoji": "🤸", "ladder": ["Incline push-up (hands on desk)", "Knee push-up", "Push-up", "Decline push-up (feet on chair)", "Deficit push-up (hands on books)", "Archer push-up"], "rung": 2, "reps": "4 × 6–12", "detail": "Elbows about 45° from your body, not flared. Full range — chest to the floor.", "xp": 25 },
             { "id": "h1-pike", "emoji": "🔺", "ladder": ["Pike push-up", "Elevated pike push-up (feet on chair)", "Wall-supported handstand push-up"], "rung": 0, "reps": "3 × 6–10", "detail": "Hips high, head travels toward the floor between your hands. The best delt work available without weights — treat it as the priority movement of this session.", "xp": 25, "hero": true },
             { "id": "h1-dip", "emoji": "💺", "ladder": ["Bent-leg chair dip", "Straight-leg chair dip", "Feet-elevated chair dip"], "rung": 0, "reps": "3 × 8–12", "detail": "Two stable chairs or the edge of a sofa. Shoulders down, don't sink into the shrug.", "xp": 20 },
-            { "id": "h1-diamond", "emoji": "💎", "ladder": ["Incline diamond push-up", "Knee diamond push-up", "Diamond push-up"], "rung": 0, "reps": "3 × 6–10", "detail": "Hands together under the chest. Triceps.", "xp": 20 },
-            { "id": "h1-logged", "emoji": "📝", "reps": "", "text": "Logged the session", "detail": "Reps per set, and which rung you're on. Without it, next session has nothing to beat.", "xp": 20 }
+            { "id": "h1-diamond", "emoji": "💎", "ladder": ["Incline diamond push-up", "Knee diamond push-up", "Diamond push-up"], "rung": 0, "reps": "3 × 6–10", "detail": "Hands together under the chest. Triceps.", "xp": 20 }
           ]
         },
         {
@@ -64,8 +63,7 @@
             { "id": "h2-side", "emoji": "📐", "ladder": ["Knee side plank", "Side plank", "Side plank with reach"], "rung": 0, "reps": "3 × 20–40 s each side", "detail": "Builds the waist taper from the side.", "xp": 15 },
             { "id": "h2-superman", "emoji": "🦸", "ladder": ["Superman hold", "Superman hold, arms extended"], "rung": 0, "reps": "3 × 20–30 s", "detail": "Lower back and spinal erectors.", "xp": 15 },
             { "id": "h2-squat", "emoji": "🦵", "ladder": ["Bodyweight squat", "3-second tempo squat", "Split squat"], "rung": 1, "reps": "3 × 12–20", "detail": "Legs kept ticking over, not the focus any more.", "xp": 15 },
-            { "id": "h2-calf", "emoji": "🦶", "ladder": ["Calf raise", "Single-leg calf raise", "Single-leg calf raise off a step"], "rung": 0, "reps": "3 × 15–20", "xp": 10 },
-            { "id": "h2-logged", "emoji": "📝", "reps": "", "text": "Logged the session", "xp": 20 }
+            { "id": "h2-calf", "emoji": "🦶", "ladder": ["Calf raise", "Single-leg calf raise", "Single-leg calf raise off a step"], "rung": 0, "reps": "3 × 15–20", "xp": 10 }
           ]
         },
         {
@@ -76,8 +74,7 @@
             { "id": "h3-row", "emoji": "🤝", "ladder": ["Self-resistance row", "Self-resistance row, slow", "Self-resistance row, paused"], "rung": 0, "reps": "3 × 10 each arm", "detail": "Grip one hand with the other in front of your chest. Pull the working arm back into a row while the other hand fights it. Push hard — you only get out what you put in.", "xp": 25, "hero": true },
             { "id": "h3-swimmer", "emoji": "🏊", "ladder": ["Prone swimmer", "Prone swimmer, slow", "Prone swimmer, paused"], "rung": 0, "reps": "3 × 30–40 s", "detail": "Face down, arms and legs lifted, flutter opposite arm and leg. Lower back and the whole rear chain.", "xp": 20 },
             { "id": "h3-ytw", "emoji": "🪽", "ladder": ["Prone Y-T-W", "Prone Y-T-W, paused", "Prone Y-T-W, slow eccentric"], "rung": 0, "reps": "3 × 8 each shape", "detail": "Face down, arms making a Y then T then W. Rear delts and mid-back — this is genuinely useful equipment-free work and it protects your shoulders for the gym later.", "xp": 20 },
-            { "id": "h3-superman", "emoji": "🦸", "ladder": ["Superman hold", "Superman hold, arms extended"], "rung": 0, "reps": "3 × 20–30 s", "detail": "Lower back and spinal erectors.", "xp": 15 },
-            { "id": "h3-logged", "emoji": "📝", "reps": "", "text": "Logged the session", "xp": 20 }
+            { "id": "h3-superman", "emoji": "🦸", "ladder": ["Superman hold", "Superman hold, arms extended"], "rung": 0, "reps": "3 × 20–30 s", "detail": "Lower back and spinal erectors.", "xp": 15 }
           ]
         },
         {
@@ -89,8 +86,7 @@
             { "id": "h4-dip", "emoji": "💺", "ladder": ["Bent-leg chair dip", "Straight-leg chair dip", "Feet-elevated chair dip"], "rung": 0, "reps": "3 × 10–15", "detail": "Triceps.", "xp": 20 },
             { "id": "h4-close", "emoji": "💎", "ladder": ["Incline diamond push-up", "Knee diamond push-up", "Diamond push-up"], "rung": 0, "reps": "3 × 8–12", "xp": 20 },
             { "id": "h4-yraise", "emoji": "🪽", "ladder": ["Prone Y raise", "Prone Y raise, paused"], "rung": 0, "reps": "3 × 15", "detail": "Rear and medial delts. Slow — there's no weight, so time under tension is all you've got.", "xp": 15 },
-            { "id": "h4-wall", "emoji": "🧱", "reps": "3 × 20–30 s each side", "text": "Wall lateral isometric", "detail": "Stand side-on, press the back of your hand into the wall as if raising the arm, and hold. Being straight with you: this is a poor substitute for a loaded lateral raise and won't build much width. It's here to keep the movement pattern alive until you have dumbbells.", "xp": 15 },
-            { "id": "h4-logged", "emoji": "📝", "reps": "", "text": "Logged the session", "xp": 20 }
+            { "id": "h4-wall", "emoji": "🧱", "reps": "3 × 20–30 s each side", "text": "Wall lateral isometric", "detail": "Stand side-on, press the back of your hand into the wall as if raising the arm, and hold. Being straight with you: this is a poor substitute for a loaded lateral raise and won't build much width. It's here to keep the movement pattern alive until you have dumbbells.", "xp": 15 }
           ]
         }
       ]
@@ -109,8 +105,7 @@
             { "id": "g1-ohp", "emoji": "🙌", "text": "Seated dumbbell shoulder press · 3×8–10", "xp": 25 },
             { "id": "g1-lateral", "emoji": "💪", "text": "Cable or dumbbell lateral raise · 4×12–15", "detail": "The single biggest visual driver. Slow, no swinging.", "xp": 40, "hero": true },
             { "id": "g1-row", "emoji": "🚣", "text": "Chest-supported row · 3×8–10", "xp": 25 },
-            { "id": "g1-tri", "emoji": "🔻", "text": "Overhead cable triceps extension · 3×10–12", "xp": 20 },
-            { "id": "g1-logged", "emoji": "📝", "text": "Logged every set", "xp": 20 }
+            { "id": "g1-tri", "emoji": "🔻", "text": "Overhead cable triceps extension · 3×10–12", "xp": 20 }
           ]
         },
         {
@@ -122,8 +117,7 @@
             { "id": "g2-rdl", "emoji": "🪢", "text": "Romanian deadlift · 3×8–10", "xp": 25 },
             { "id": "g2-press", "emoji": "🦿", "text": "Leg press or split squat · 3×10–12", "xp": 20 },
             { "id": "g2-calf", "emoji": "🦶", "text": "Standing calf raise · 3×12–15", "xp": 15 },
-            { "id": "g2-legraise", "emoji": "🧗", "text": "Hanging leg raise · 3×10–15", "xp": 15 },
-            { "id": "g2-logged", "emoji": "📝", "text": "Logged every set", "xp": 20 }
+            { "id": "g2-legraise", "emoji": "🧗", "text": "Hanging leg raise · 3×10–15", "xp": 15 }
           ]
         },
         {
@@ -135,8 +129,7 @@
             { "id": "g3-row", "emoji": "🚣", "text": "Barbell or dumbbell row · 3×8–10", "xp": 25 },
             { "id": "g3-lateral", "emoji": "💪", "text": "Lateral raise, machine or leaning cable · 4×12–15", "detail": "Yes, again. Different angle.", "xp": 40, "hero": true },
             { "id": "g3-reardelt", "emoji": "🪽", "text": "Rear-delt flye or face pull · 3×15", "detail": "Shoulder health and width.", "xp": 20 },
-            { "id": "g3-curl", "emoji": "💪", "text": "Incline dumbbell curl · 3×10–12", "xp": 15 },
-            { "id": "g3-logged", "emoji": "📝", "text": "Logged every set", "xp": 20 }
+            { "id": "g3-curl", "emoji": "💪", "text": "Incline dumbbell curl · 3×10–12", "xp": 15 }
           ]
         },
         {
@@ -148,8 +141,7 @@
             { "id": "g4-lateral", "emoji": "💪", "text": "Lateral raise, third variation · 4×12–20", "xp": 40, "hero": true },
             { "id": "g4-curl", "emoji": "💪", "text": "Cable curl · 3×10–12", "xp": 15 },
             { "id": "g4-pushdown", "emoji": "🔻", "text": "Cable triceps pushdown · 3×12–15", "xp": 15 },
-            { "id": "g4-shrug", "emoji": "🤷", "text": "Shrug or upright row · 3×12", "xp": 15 },
-            { "id": "g4-logged", "emoji": "📝", "text": "Logged every set", "xp": 20 }
+            { "id": "g4-shrug", "emoji": "🤷", "text": "Shrug or upright row · 3×12", "xp": 15 }
           ]
         }
       ]
@@ -172,7 +164,6 @@
       "items": [
         { "id": "e-anchor-1", "emoji": "🥣", "text": "Breakfast protein anchor", "detail": "Greek yoghurt or skyr + eggs, or a shake with milk.", "xp": 15 },
         { "id": "e-anchor-2", "emoji": "🥗", "text": "Lunch protein anchor", "detail": "Palm-and-a-half of chicken / fish / beef / tofu.", "xp": 15 },
-        { "id": "e-anchor-3", "emoji": "🥤", "text": "Afternoon anchor", "detail": "Whey shake or cottage cheese.", "xp": 15 },
         { "id": "e-anchor-4", "emoji": "🍽️", "text": "Dinner protein anchor", "detail": "The one that usually rescues the day's total.", "xp": 15 },
         { "id": "e-water", "emoji": "💧", "text": "Water through the day", "detail": "Pale straw, not clear. Creatine raises water needs slightly.", "xp": 10 },
         { "id": "e-track", "emoji": "🔢", "text": "Logged protein today", "detail": "Only needed for the first 2–3 weeks, to calibrate. After that you'll know your portions by eye.", "xp": 15 },
@@ -193,7 +184,7 @@
       "emoji": "🌙",
       "items": [
         { "id": "r-sleep", "emoji": "😴", "text": "7–9 hours, consistent wake time", "detail": "Short sleep measurably suppresses muscle gain and raises appetite. Consistent wake time matters more than consistent bedtime.", "xp": 20 },
-        { "id": "r-no-weed", "emoji": "🚫", "text": "No weed today", "detail": "Tick it on the days you didn't. Worth tracking next to sleep — it changes sleep architecture, and sleep is the recovery lever the plan leans on hardest.", "xp": 20 },
+        { "id": "r-smoked-weed", "emoji": "🌿", "text": "Smoked weed", "detail": "Tick it on the days you did. Costs XP on purpose — it changes sleep architecture, and sleep is the recovery lever the plan leans on hardest. A new id, so the old inverted ticks aren't read backwards.", "xp": -20 },
         { "id": "r-cold-shower", "emoji": "🧊", "text": "Cold shower", "detail": "Not in the hour after training — cold blunts the growth signal.", "xp": 15 },
         { "id": "r-meditation", "emoji": "🧘", "text": "Meditation", "xp": 15 }
       ]
