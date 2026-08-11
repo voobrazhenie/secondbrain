@@ -856,14 +856,33 @@ function itemText(it) {
 /* ---------- recurrence ----------
    An item can repeat on a cycle rather than daily:
      every:  14            repeat every 14 days
-     anchor: "2026-08-05"  the day the cycle starts from (defaults to plan start)
+     anchor: "2026-08-05"  the day the first cycle is due (defaults to plan start)
    and it can stand down on days when another item is showing:
      skipWhen: ["c-microneedling"]
-   which is how minoxidil gets out of the way on microneedling days. */
+   which is how minoxidil gets out of the way on microneedling days.
+
+   Due-ness is measured from when the item was actually last ticked, not from
+   the calendar: miss a day and it stays due — carries forward — until it's
+   done, then the next cycle counts `every` days from that real completion
+   instead of from the original anchor. Before it's ever been ticked, the
+   anchor plays the same role a real completion would (as if one had landed
+   `every` days before it), so a missed first occurrence carries forward the
+   exact same way rather than silently vanishing until the next multiple. */
+function lastTicked(id, exceptDate) {
+  let last = null;
+  for (const [date, h] of history) {
+    if (date < exceptDate && h.ticks && h.ticks[id] && (!last || date > last)) last = date;
+  }
+  for (const date of storedDates()) {
+    if (date < exceptDate && loadTicks(date)[id] && (!last || date > last)) last = date;
+  }
+  return last;
+}
 function onCycle(it, date) {
   if (!it.every) return true;
-  const n = daysBetween(it.anchor || program.startDate, date);
-  return n >= 0 && n % it.every === 0;
+  const anchor = it.anchor || program.startDate;
+  const baseline = lastTicked(it.id, date) || shiftDate(anchor, -it.every);
+  return date >= shiftDate(baseline, it.every);
 }
 
 function scheduleFilter(items, date) {
