@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#F2EDE0">
+<title>Exercise — Second Brain</title>
+<!--
+  The doing-surface for a training session: one checkbox per SET, plus a rest
+  timer between them. DailyPlan stays exactly as it was — it keeps its single
+  per-exercise checkbox, and this page keeps its own per-set state in its own
+  Firestore doc. Nothing here writes into the day's ticks.
+
+  Which session shows is the same rotation DailyPlan uses (completed sessions
+  modulo the session count), read from the same data, so the two pages never
+  disagree about what today is.
+-->
+<style>
+  /* Same neo-brutalist system as dailyplan/ — identical tokens, deliberately. */
+  :root{
+    --paper:#F2EDE0; --card:#FFFDF7; --sunk:#E8E4D6; --ink:#111111;
+    --yellow:#FFD53D; --teal:#00C2CB; --pink:#FF3D8B; --lime:#B8E62E;
+    --grey:#7A756A; --faint:#A39D91;
+    --stroke:2.5px; --shadow:4px 4px 0 var(--ink);
+    --maxw:430px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    padding:
+      calc(14px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
+      calc(30px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+    font:15px/1.4 "Archivo","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--maxw);margin:0 auto}
+  .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;letter-spacing:-.01em}
+  .grow{flex:1}
+
+  /* ---------- header ---------- */
+  .topbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .home{
+    font-family:"Arial Black",Impact,sans-serif;font-weight:900;
+    font-size:9px;letter-spacing:.09em;color:var(--ink);text-decoration:none;
+  }
+  .home:hover{color:var(--pink)}
+  .datechip{
+    font-size:9px;letter-spacing:.07em;font-family:"Arial Black",Impact,sans-serif;
+    background:var(--ink);color:var(--paper);padding:3px 7px;
+  }
+  .eyebrow{display:inline-block;background:var(--ink);color:var(--paper);
+    font-size:10px;letter-spacing:.1em;padding:4px 9px;margin-bottom:10px}
+  h1{font-size:clamp(24px,6.5vw,30px);margin:0 0 6px;line-height:1.05;letter-spacing:-.02em}
+  .headline{color:var(--grey);font-weight:600;margin:0 0 6px;font-size:12.5px;line-height:1.4}
+  .tally{font-size:10px;letter-spacing:.06em;color:var(--grey);margin-bottom:14px;
+    font-family:"Arial Black",Impact,sans-serif}
+
+  .notice{
+    border:2.5px dashed var(--ink);padding:11px 13px;margin-bottom:14px;
+    font-size:12px;font-weight:700;color:var(--grey);line-height:1.45;
+  }
+  .notice b{color:var(--ink)}
+
+  /* ---------- rest timer ----------
+     Sticky so it stays in view while you scroll down to the next exercise —
+     "above" the work, wherever you are in the list. The paper-coloured band
+     keeps scrolled content from showing through above the card. */
+  .restwrap{position:sticky;top:0;z-index:20;background:var(--paper);padding:8px 0 10px}
+  .restwrap[hidden]{display:none}
+  .rest{
+    background:var(--ink);color:var(--paper);
+    border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:11px 14px 13px;display:flex;align-items:center;gap:13px;
+  }
+  .rest.done{background:var(--lime);color:var(--ink)}
+  .rest .l{font-size:8px;letter-spacing:.1em;color:var(--faint);
+    font-family:"Arial Black",Impact,sans-serif}
+  .rest.done .l{color:var(--ink)}
+  .rest .t{
+    font-size:34px;line-height:1;margin-top:2px;
+    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
+    font-variant-numeric:tabular-nums;
+  }
+  .rest .acts{display:flex;gap:7px;margin-left:auto}
+  .rest .acts button{
+    font:inherit;font-size:10px;font-weight:900;letter-spacing:.05em;cursor:pointer;
+    font-family:"Arial Black",Impact,sans-serif;
+    padding:9px 11px;background:var(--paper);color:var(--ink);
+    border:2px solid var(--ink);box-shadow:2px 2px 0 var(--paper);
+  }
+  .rest.done .acts button{box-shadow:2px 2px 0 var(--ink)}
+  .rest .acts button:active{transform:translate(2px,2px);box-shadow:none}
+
+  /* ---------- exercises ---------- */
+  .ex{
+    background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:11px 12px 12px;margin-bottom:11px;
+  }
+  .ex.hero-item{background:var(--yellow)}
+  .ex.all-done{background:var(--sunk);box-shadow:2px 2px 0 var(--ink)}
+  .exhead{display:flex;align-items:baseline;gap:8px}
+  .exhead .emoji{flex:0 0 auto;font-size:14px;line-height:1}
+  .exhead .name{flex:1;min-width:0;font-size:14px;font-weight:800;line-height:1.25;
+    overflow-wrap:break-word}
+  .ex.all-done .name{color:var(--grey)}
+  .exhead .cnt{
+    flex:0 0 auto;font-size:9.5px;font-family:"Arial Black",Impact,sans-serif;
+    border:2px solid var(--ink);padding:2px 5px;background:var(--paper);
+  }
+  .ex.all-done .cnt{background:transparent;border-color:var(--faint);color:var(--faint)}
+  .reps{font-size:11px;font-weight:800;color:var(--grey);margin:3px 0 0;letter-spacing:.02em}
+  .ex.hero-item .reps{color:var(--ink)}
+  .detail{font-size:10.5px;font-weight:600;color:var(--grey);margin-top:5px;line-height:1.4}
+  .ex.hero-item .detail{color:var(--ink)}
+
+  /* Big square tap targets — this gets used mid-set with shaky hands. */
+  .sets{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+  .set{
+    font:inherit;cursor:pointer;
+    width:46px;height:46px;flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;
+    font-family:"Arial Black",Impact,sans-serif;font-size:15px;
+    background:var(--card);color:var(--ink);
+    border:var(--stroke) solid var(--ink);box-shadow:3px 3px 0 var(--ink);
+    transition:transform .07s, box-shadow .07s, background .12s;
+  }
+  .set:active{transform:translate(3px,3px);box-shadow:none}
+  .set[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .set:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
+
+  /* ---------- sync (bottom, like streams/) ---------- */
+  .sync{
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:20px 0 0;
+    padding:9px 11px;background:var(--card);
+    border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
+    font-size:12px;font-weight:700;color:var(--grey);
+  }
+  .sync .dot{flex:0 0 auto;width:9px;height:9px;border:2px solid var(--ink);background:var(--sunk)}
+  .sync.on .dot{background:var(--lime)}
+  .sync.err .dot{background:var(--pink)}
+  .sync .msg{flex:1;min-width:120px}
+  .btn{
+    font:inherit;font-size:11px;font-weight:800;letter-spacing:.03em;cursor:pointer;
+    padding:6px 11px;background:var(--card);color:var(--ink);
+    border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
+  }
+  .btn:active{transform:translate(2px,2px);box-shadow:none}
+
+  footer{
+    margin-top:20px;padding-top:12px;border-top:2px solid var(--ink);
+    font-size:10px;font-weight:700;color:var(--grey);line-height:1.55;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <a class="home" href="../">&lsaquo; SECOND BRAIN</a>
+    <span class="grow"></span>
+    <span class="datechip" id="dateChip"></span>
+  </div>
+
+  <span class="eyebrow">EXERCISE</span>
+  <h1 class="blk" id="sessionLabel">Loading&hellip;</h1>
+  <p class="headline" id="headline"></p>
+  <div class="tally" id="tally"></div>
+
+  <div class="restwrap" id="restWrap" hidden>
+    <div class="rest" id="rest">
+      <div>
+        <div class="l" id="restLabel">REST</div>
+        <div class="t" id="restTime">01:00</div>
+      </div>
+      <div class="acts">
+        <button id="restPlus" type="button">+30s</button>
+        <button id="restStop" type="button">SKIP</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="notice"></div>
+  <div id="list"></div>
+
+  <div class="sync" id="sync">
+    <span class="dot"></span>
+    <span class="msg" id="syncMsg">Checking sync&hellip;</span>
+    <button class="btn" id="authBtn" hidden></button>
+  </div>
+
+  <footer>Sets are tracked here only — DailyPlan keeps its own checkboxes and is untouched. Signed out, sets stay in this browser; signed in, they sync to your own account.</footer>
+</div>
+
+<script type="module">
+"use strict";
+
+const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
+const LS_SETS = "secondbrain.exercise.v1.";     // + date
+const LS_REST = "secondbrain.exercise.rest";
+const LS_META = "secondbrain.fitness.meta.";    // written by dailyplan — read only here
+const REST_MS = 60 * 1000;
+const WEEKDAYS = ["sun","mon","tue","wed","thu","fri","sat"];
+const $ = id => document.getElementById(id);
+
+/* ---------- dates ---------- */
+function localISO(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+const DEV_DATE = (() => {
+  const q = new URLSearchParams(location.search).get("date");
+  return /^\d{4}-\d{2}-\d{2}$/.test(q || "") ? q : null;
+})();
+const DATE = DEV_DATE || localISO();
+function weekdayOf(iso) {
+  const [y,m,d] = iso.split("-").map(Number);
+  return WEEKDAYS[new Date(y, m-1, d).getDay()];
+}
+function prettyShort(iso) {
+  const [y,m,d] = iso.split("-").map(Number);
+  return new Date(y, m-1, d).toLocaleDateString(undefined, { weekday:"short", day:"numeric", month:"short" });
+}
+
+/* ---------- state ---------- */
+let program = null;
+let session = null;      // the session object from plan.json
+let training = false;    // is DATE a scheduled training day
+let sets = {};           // { itemId: [bool, ...] }  — array index is the set number
+let remoteSessionDates = new Set();   // sessionDone dates known from Firestore
+const setEls = new Map();             // `${itemId}#${i}` -> <button>
+const countEls = new Map();           // itemId -> count chip
+const cardEls = new Map();            // itemId -> .ex card
+
+/* ---------- set storage ----------
+   Whole-document writes, no merge — the same contract dailyplan's `custom` doc
+   and the streams doc use. A merge would resurrect set indexes that a changed
+   rep scheme has since removed. */
+function loadSets() {
+  try { sets = JSON.parse(localStorage.getItem(LS_SETS + DATE) || "{}"); }
+  catch { sets = {}; }
+}
+function saveSets({ push = true } = {}) {
+  try { localStorage.setItem(LS_SETS + DATE, JSON.stringify(sets)); } catch {}
+  if (push) sync.push();
+}
+
+/* ---------- session derivation ----------
+   Mirrors dailyplan's rotation exactly: how many sessions have actually been
+   completed on other days, modulo the session count. Driven by what was done
+   rather than by the calendar, so a missed week doesn't skip anyone's turn. */
+function completedSessions(exceptDate) {
+  const seen = new Set(remoteSessionDates);
+  seen.delete(exceptDate);
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith(LS_META)) continue;
+    const d = k.slice(LS_META.length);
+    if (d === exceptDate) continue;
+    try { if (JSON.parse(localStorage.getItem(k) || "{}").sessionDone) seen.add(d); } catch {}
+  }
+  return seen.size;
+}
+
+function deriveSession() {
+  const prog = program.programs[program.activeProgram];
+  if (!prog || !(prog.sessions || []).length) return false;
+  training = program.schedule[weekdayOf(DATE)] === "train";
+  session = prog.sessions[completedSessions(DATE) % prog.sessions.length];
+  return true;
+}
+
+/* A ladder item's name is whichever rung it is currently on. The gym programme
+   writes reps into the text instead of a `reps` field ("Incline press · 4×6–8"),
+   so split those apart rather than showing the reps twice. */
+function nameAndReps(it) {
+  let name = it.text || (it.ladder ? it.ladder[Math.min(it.rung || 0, it.ladder.length - 1)] : "");
+  let reps = it.reps || "";
+  if (!reps) {
+    const i = name.lastIndexOf("·");
+    if (i > -1) {
+      const tail = name.slice(i + 1).trim();
+      if (/\d\s*[×x]\s*\d/.test(tail)) { reps = tail; name = name.slice(0, i).trim(); }
+    }
+  }
+  return { name, reps };
+}
+
+/* "4 × 6–12" -> 4 checkboxes. Anything without a set count (the log-the-session
+   task, say) is a single tick, not a set. */
+function setCount(reps) {
+  const m = /(\d+)\s*[×x]\s*\d/.exec(reps || "");
+  const n = m ? parseInt(m[1], 10) : 1;
+  return Math.min(Math.max(n, 1), 12);
+}
+
+/* Stored arrays can outlive a change to the rep scheme, so read them to the
+   length the plan currently asks for rather than trusting what's on disk. */
+function setsFor(id, n) {
+  const stored = Array.isArray(sets[id]) ? sets[id] : [];
+  return Array.from({ length: n }, (_, i) => !!stored[i]);
+}
+function doneCount(id, n) { return setsFor(id, n).filter(Boolean).length; }
+
+/* ---------- render ---------- */
+function render() {
+  const list = $("list");
+  list.textContent = "";
+  setEls.clear(); countEls.clear(); cardEls.clear();
+
+  $("dateChip").textContent = prettyShort(DATE).toUpperCase();
+  $("sessionLabel").textContent = session.label;
+  $("headline").textContent = session.headline || "";
+
+  const notice = $("notice");
+  notice.textContent = "";
+  if (!training) {
+    const n = document.createElement("div");
+    n.className = "notice";
+    const b = document.createElement("b");
+    b.textContent = (program.restDay && program.restDay.label) || "Rest day";
+    n.append(b, document.createTextNode(
+      " by the schedule — this is the session that's next up, here if you want it anyway."
+    ));
+    notice.appendChild(n);
+  }
+
+  for (const it of session.items || []) {
+    const { name, reps } = nameAndReps(it);
+    const n = setCount(reps);
+    const flags = setsFor(it.id, n);
+
+    const card = document.createElement("div");
+    card.className = "ex" + (it.hero ? " hero-item" : "") +
+      (flags.every(Boolean) ? " all-done" : "");
+
+    const head = document.createElement("div");
+    head.className = "exhead";
+    const em = document.createElement("span");
+    em.className = "emoji"; em.textContent = it.emoji || "•";
+    const nm = document.createElement("span");
+    nm.className = "name"; nm.textContent = name;
+    const cnt = document.createElement("span");
+    cnt.className = "cnt"; cnt.textContent = `${flags.filter(Boolean).length}/${n}`;
+    head.append(em, nm, cnt);
+    card.appendChild(head);
+
+    if (reps) {
+      const r = document.createElement("div");
+      r.className = "reps"; r.textContent = reps;
+      card.appendChild(r);
+    }
+    if (it.detail) {
+      const d = document.createElement("div");
+      d.className = "detail"; d.textContent = it.detail;
+      card.appendChild(d);
+    }
+
+    const row = document.createElement("div");
+    row.className = "sets";
+    for (let i = 0; i < n; i++) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "set";
+      b.textContent = String(i + 1);
+      b.setAttribute("aria-pressed", flags[i] ? "true" : "false");
+      b.setAttribute("aria-label", `${name} — set ${i + 1} of ${n}`);
+      b.addEventListener("click", () => toggleSet(it.id, i, n));
+      row.appendChild(b);
+      setEls.set(`${it.id}#${i}`, b);
+    }
+    card.appendChild(row);
+
+    countEls.set(it.id, cnt);
+    cardEls.set(it.id, card);
+    list.appendChild(card);
+  }
+
+  refreshTally();
+}
+
+/* Ticking a set must never rebuild the list — the button would be replaced
+   under the finger that pressed it. Only the affected elements are touched. */
+function toggleSet(id, i, n) {
+  const flags = setsFor(id, n);
+  const on = !flags[i];
+  flags[i] = on;
+  sets[id] = flags;
+  saveSets();
+
+  const btn = setEls.get(`${id}#${i}`);
+  if (btn) btn.setAttribute("aria-pressed", on ? "true" : "false");
+  const cnt = countEls.get(id);
+  if (cnt) cnt.textContent = `${flags.filter(Boolean).length}/${n}`;
+  const card = cardEls.get(id);
+  if (card) card.classList.toggle("all-done", flags.every(Boolean));
+  refreshTally();
+
+  // Finishing a set starts the rest clock; correcting a mis-tap shouldn't.
+  if (on) restStart();
+}
+
+function refreshTally() {
+  let done = 0, total = 0;
+  for (const it of session.items || []) {
+    const n = setCount(nameAndReps(it).reps);
+    total += n;
+    done += doneCount(it.id, n);
+  }
+  $("tally").textContent = `${done}/${total} SETS DONE`;
+}
+
+/* ---------- rest timer ----------
+   Local only — a 60-second rest is not worth a round trip, and it should keep
+   counting if the screen locks mid-set. The stored endAt is the single source
+   of truth, so a throttled or backgrounded tab never drifts. */
+let restInterval = null;
+let audioCtx = null;
+let restAnnounced = false;   // true once this completion has already sounded
+
+function loadRest() {
+  try { return JSON.parse(localStorage.getItem(LS_REST) || "null"); }
+  catch { return null; }
+}
+function saveRest(state) {
+  try {
+    if (state) localStorage.setItem(LS_REST, JSON.stringify(state));
+    else localStorage.removeItem(LS_REST);
+  } catch {}
+}
+
+// Two soft sine tones, quiet and short — audible in a quiet room without
+// being an alarm. Needs a context created or resumed inside a user gesture,
+// which is why restStart() (called from the tap) primes it.
+function restBeep() {
+  try {
+    if (!audioCtx) return;
+    const ctx = audioCtx, t0 = ctx.currentTime;
+    [[660, 0], [880, 0.16]].forEach(([freq, offset]) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t0 + offset);
+      gain.gain.exponentialRampToValueAtTime(0.12, t0 + offset + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + offset + 0.45);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t0 + offset);
+      osc.stop(t0 + offset + 0.5);
+    });
+  } catch {}
+}
+function ensureAudio() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx && !audioCtx) audioCtx = new Ctx();
+    else if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  } catch {}
+}
+
+/* announce controls whether a completion seen right now makes a sound: true
+   for a live tick or a tab regaining focus, false for the check on load, so
+   reopening the page later doesn't chime for a rest that ended hours ago. */
+function restTick(announce) {
+  const state = loadRest();
+  if (!state) { stopInterval(); $("restWrap").hidden = true; return; }
+
+  $("restWrap").hidden = false;
+  const remain = state.endAt - Date.now();
+
+  if (remain <= 0) {
+    stopInterval();
+    // visibilitychange fires restTick(true) on every return to the tab; without
+    // this guard an already-finished, unacknowledged rest would chime again
+    // each time.
+    if (announce && !restAnnounced) {
+      restAnnounced = true;
+      restBeep();
+      if (navigator.vibrate) navigator.vibrate(120);
+    }
+    $("rest").classList.add("done");
+    $("restLabel").textContent = "REST OVER";
+    $("restTime").textContent = "GO";
+    $("restStop").textContent = "DONE";
+    return;
+  }
+
+  restAnnounced = false;   // still counting — arm for the next completion
+  $("rest").classList.remove("done");
+  $("restLabel").textContent = "REST";
+  $("restStop").textContent = "SKIP";
+  const s = Math.ceil(remain / 1000);
+  $("restTime").textContent = `${String(Math.floor(s / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`;
+  if (!restInterval) restInterval = setInterval(() => restTick(true), 250);
+}
+function stopInterval() { clearInterval(restInterval); restInterval = null; }
+
+function restStart() {
+  ensureAudio();
+  restAnnounced = false;
+  saveRest({ endAt: Date.now() + REST_MS });
+  restTick(true);
+}
+function restAdd(ms) {
+  const state = loadRest();
+  if (!state) return;
+  // Extending a finished rest counts from now, not from the moment it ended.
+  const base = Math.max(state.endAt, Date.now());
+  restAnnounced = false;
+  saveRest({ endAt: base + ms });
+  restTick(true);
+}
+function restStop() {
+  saveRest(null);
+  stopInterval();
+  $("restWrap").hidden = true;
+}
+
+/* ---------- sync ---------- */
+const sync = {
+  fb: null, uid: null, mode: "checking",
+
+  setUI(state, msg, btnLabel, btnAction) {
+    $("sync").className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
+    $("syncMsg").textContent = msg;
+    const btn = $("authBtn");
+    if (btnLabel) { btn.hidden = false; btn.textContent = btnLabel; btn.onclick = btnAction; }
+    else { btn.hidden = true; btn.onclick = null; }
+  },
+
+  async init() {
+    let config = null;
+    try { ({ firebaseConfig: config } = await import("./firebase-config.js")); }
+    catch { /* file:// origin, or the file is missing — stay local */ }
+    if (!config || !config.projectId) {
+      this.mode = "local";
+      this.setUI("off", "Local only — no Firebase config.");
+      return;
+    }
+    try {
+      const [{ initializeApp }, authMod, fsMod] = await Promise.all([
+        import(SDK + "firebase-app.js"),
+        import(SDK + "firebase-auth.js"),
+        import(SDK + "firebase-firestore.js")
+      ]);
+      const app = initializeApp(config);
+      const db = fsMod.initializeFirestore(app, {
+        localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() })
+      });
+      this.fb = { auth: authMod.getAuth(app), db, a: authMod, f: fsMod };
+      this.mode = "signed-out";
+      authMod.getRedirectResult(this.fb.auth).catch(() => {});
+      authMod.onAuthStateChanged(this.fb.auth, u => this.onAuth(u));
+    } catch (e) {
+      console.warn("Firebase unavailable, staying local:", e);
+      this.setUI("err", "Couldn't reach Firebase. Local only.", "Retry", () => location.reload());
+    }
+  },
+
+  onAuth(user) {
+    if (!user) {
+      this.mode = "signed-out";
+      this.uid = null;
+      this.setUI("off", "Not syncing — sets stay in this browser.",
+        "Sign in with Google", () => this.signIn());
+      return;
+    }
+    this.uid = user.uid;
+    this.mode = "signed-in";
+    this.setUI("on", `Synced — signed in as ${user.email || "your account"}`,
+      "Sign out", () => this.signOut());
+    this.pullRotation();
+    this.pull();
+  },
+
+  async signIn() {
+    const { a, auth } = this.fb;
+    try {
+      this.setUI("off", "Opening Google sign-in…");
+      await a.signInWithPopup(auth, new a.GoogleAuthProvider());
+    } catch (e) {
+      const code = (e && e.code) || "";
+      if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+        try { await a.signInWithRedirect(auth, new a.GoogleAuthProvider()); return; }
+        catch (e2) { e = e2; }
+      }
+      const msg =
+        code === "auth/unauthorized-domain" ? "This domain isn't authorised in Firebase Auth yet."
+      : code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" ? "Sign-in was cancelled."
+      : `Sign-in failed (${e.code || e.message}).`;
+      this.setUI("err", msg, "Try again", () => this.signIn());
+    }
+  },
+
+  async signOut() {
+    try { await this.fb.a.signOut(this.fb.auth); }
+    catch (e) { this.setUI("err", `Couldn't sign out (${e.message}).`, "Try again", () => this.signOut()); }
+  },
+
+  ref() {
+    const { f, db } = this.fb;
+    return f.doc(db, "users", this.uid, "exercise", DATE);
+  },
+
+  async push() {
+    if (this.mode !== "signed-in") return;
+    const { f } = this.fb;
+    try {
+      await f.setDoc(this.ref(), {
+        date: DATE, sessionId: session ? session.id : null,
+        sets, updatedAt: f.serverTimestamp()
+      });
+    } catch (e) {
+      this.setUI("err", `Couldn't save to sync (${e.code || e.message}). Saved on this device.`,
+        "Retry", () => this.push());
+    }
+  },
+
+  async pull() {
+    const { f } = this.fb;
+    try {
+      let snap;
+      try { snap = await f.getDocFromServer(this.ref()); }
+      catch { snap = await f.getDoc(this.ref()); }
+      if (snap.exists()) {
+        sets = snap.data().sets || {};
+        saveSets({ push: false });
+        render();
+      } else if (Object.keys(sets).length) {
+        await this.push();   // first sign-in with sets already ticked locally
+      }
+    } catch { /* offline — the local copy stands */ }
+  },
+
+  /* Which session is up depends on how many were completed, and that history
+     lives in dailyplan's `days` docs. Signed out we only see this browser's
+     copy; signed in, this is the cross-device truth. */
+  async pullRotation() {
+    const { f, db } = this.fb;
+    try {
+      const snap = await f.getDocs(f.query(
+        f.collection(db, "users", this.uid, "days"),
+        f.orderBy(f.documentId(), "desc"),
+        f.limit(400)
+      ));
+      remoteSessionDates = new Set();
+      snap.forEach(d => { if (d.data().sessionDone) remoteSessionDates.add(d.id); });
+      const before = session && session.id;
+      deriveSession();
+      if (session.id !== before) render();
+    } catch { /* offline — the local rotation stands */ }
+  }
+};
+
+/* ---------- boot ---------- */
+$("restPlus").addEventListener("click", () => { ensureAudio(); restAdd(30 * 1000); });
+$("restStop").addEventListener("click", restStop);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) restTick(true); });
+
+(async function boot() {
+  try {
+    const r = await fetch(`../dailyplan/plan.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!r.ok) throw new Error(`plan.json returned ${r.status}`);
+    program = await r.json();
+  } catch (e) {
+    $("sessionLabel").textContent = "Couldn't load the plan";
+    $("headline").textContent = `${e.message}. The exercise list comes from dailyplan/plan.json — reload once it's reachable.`;
+    return;
+  }
+  loadSets();
+  if (!deriveSession()) {
+    $("sessionLabel").textContent = "No sessions in the plan";
+    $("headline").textContent =
+      `The "${program.activeProgram}" programme in dailyplan/plan.json has no sessions to show.`;
+    return;
+  }
+  render();
+  restTick(false);   // a rest still running from before the reload, silently
+  sync.init();
+})();
+</script>
+</body>
+</html>
