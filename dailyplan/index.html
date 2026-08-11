@@ -135,8 +135,11 @@
   .pill.cost{background:var(--ink);color:var(--paper)}
   .row.done .pill.cost{background:transparent;border-color:var(--faint);color:var(--faint)}
 
-  /* Owned by another page — it shows state, it doesn't take input. */
-  .row.locked{cursor:default}
+  /* Owned by another page — it shows state, it doesn't take input. Its note
+     is always visible, notes mode or not: without it the row just looks like
+     a checkbox that won't tick. */
+  .row.locked .detail{display:block}
+  .row.locked{cursor:default;padding-top:9px;padding-bottom:9px}
   .row.locked:active{transform:none;box-shadow:var(--shadow)}
   .row.locked.done:active{box-shadow:2px 2px 0 var(--ink)}
   .row.locked .box{border-style:dashed}
