@@ -300,6 +300,38 @@
   .direction .skipped .k{flex:1;min-width:190px}
   .direction .skipped button{padding:6px 9px;font-size:9px;background:var(--card)}
 
+  /* ---------- level ---------- */
+  .level{
+    background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:12px 14px 13px;margin:0 0 16px;
+  }
+  .level[hidden]{display:none}
+  .lv-top{display:flex;align-items:baseline;gap:10px;margin-bottom:9px}
+  .lv-num{
+    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
+    font-size:30px;line-height:1;font-variant-numeric:tabular-nums;
+  }
+  .lv-num::before{
+    content:"LV ";font-size:11px;color:var(--faint);letter-spacing:.06em;
+  }
+  .lv-today{
+    margin-left:auto;font-size:9.5px;letter-spacing:.05em;font-weight:900;
+    font-family:"Arial Black",Impact,sans-serif;font-variant-numeric:tabular-nums;
+    background:var(--yellow);border:2px solid var(--ink);padding:3px 7px;
+  }
+  .lv-today.cost{background:var(--ink);color:var(--paper)}
+  .lv-today.zero{background:var(--sunk);color:var(--grey)}
+  .lv-bar{background:var(--sunk);border:2px solid var(--ink);height:15px;padding:2px}
+  .lv-fill{
+    height:100%;background:var(--lime);width:0%;
+    transition:width .45s cubic-bezier(.2,.7,.3,1);
+  }
+  .lv-cap{
+    margin-top:6px;font-size:9.5px;letter-spacing:.04em;font-weight:800;color:var(--grey);
+    font-family:"Arial Black",Impact,sans-serif;font-variant-numeric:tabular-nums;
+  }
+  @media (prefers-reduced-motion: reduce){ .lv-fill{transition:none} }
+
   /* ---------- main focus ---------- */
   .focus{
     background:var(--ink);color:var(--paper);
@@ -433,6 +465,15 @@
     </div>
   </section>
 
+  <section class="level" id="level" aria-label="Level" hidden>
+    <div class="lv-top">
+      <span class="lv-num" id="lvNum">1</span>
+      <span class="lv-today" id="lvToday"></span>
+    </div>
+    <div class="lv-bar"><div class="lv-fill" id="lvFill"></div></div>
+    <div class="lv-cap" id="lvCap"></div>
+  </section>
+
   <main id="list"></main>
 
   <div class="sync" id="sync">
@@ -531,6 +572,8 @@ const LS_CUSTOM  = "secondbrain.fitness.custom";
 const LS_FOCUS   = "secondbrain.fitness.focus";
 const LS_COLLAPSED = "secondbrain.fitness.collapsed";
 const LS_DIRECTION = "secondbrain.daily.direction.";
+const LS_XPMONTH = "secondbrain.fitness.xpmonth.";   // + YYYY-MM
+const LS_XPPEAK  = "secondbrain.fitness.xppeak";
 const DIRECTION_PROMPTS = [
   { id:"meaningfully-better", text:"What would make today meaningfully better?" },
   { id:"beyond-urgent", text:"What matters today beyond what feels urgent?" },
@@ -1096,6 +1139,93 @@ function totalXp() {
   return sum;
 }
 
+/* ---------- levels ----------
+   XP has always been recorded per day; this is what spends it. Two problems had
+   to be solved for a level to be trustworthy:
+
+   1. History is a bounded 90-day query, and signed out it is empty altogether,
+      so summing it would make the level stall and then run backwards. Instead a
+      total per month is kept (users/{uid}/xp/{YYYY-MM}, mirrored locally) and
+      lifetime is the sum of those — a dozen small numbers a year. Each month is
+      recomputed wholesale from the day records rather than incremented, so a
+      wrong total repairs itself on the next tick instead of drifting forever.
+
+   2. Items can cost XP as well as pay it, so a total can shrink. Level and bar
+      are therefore read off `peakXp` — the high-water mark — not off the live
+      total. Peak only ever rises, so the level never drops and the bar never
+      rewinds; a dip just means the bar pauses until the old best is passed.
+      Today's XP is shown separately and is free to move both ways. */
+
+function monthKey(date) { return date.slice(0, 7); }
+
+/* Rising cost per level: 400, 560, 740, 940, 1160 … ~2,560 by level 10. A
+   formula rather than a table so it never runs out of levels. */
+function costForLevel(n) { return 400 + 150 * (n - 1) + 10 * (n - 1) * (n - 1); }
+
+function levelFromXp(xp) {
+  let level = 1, remaining = Math.max(0, xp);
+  while (remaining >= costForLevel(level)) { remaining -= costForLevel(level); level++; }
+  return { level, into: remaining, need: costForLevel(level) };
+}
+
+/* Same dual-scan shape as lastTicked()/completedSessions(). Precedence matters:
+   this browser's day meta is only what this device saw, so Firestore history
+   overrides it for past days — it carries the other devices' writes too. Local
+   still covers everything outside the 90-day window, and everything when signed
+   out. The day in view beats both, read live so it moves as you tick. */
+function monthTotal(key) {
+  const seen = new Map();
+  for (const date of storedDates()) {
+    if (monthKey(date) !== key) continue;
+    const m = loadDayMeta(date);
+    if (m && typeof m.xpEarned === "number") seen.set(date, m.xpEarned);
+  }
+  for (const [date, h] of history) {
+    if (monthKey(date) === key) seen.set(date, h.xpEarned || 0);
+  }
+  if (plan && monthKey(plan.date) === key) seen.set(plan.date, todayXp());
+  let sum = 0;
+  for (const v of seen.values()) sum += v;
+  return sum;
+}
+
+function storedMonths() {
+  const out = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(LS_XPMONTH)) out.push(k.slice(LS_XPMONTH.length));
+  }
+  return out;
+}
+function loadMonthXp(key) {
+  const v = parseInt(localStorage.getItem(LS_XPMONTH + key) || "0", 10);
+  return Number.isFinite(v) ? v : 0;
+}
+function lifetimeXp() {
+  let sum = 0;
+  for (const key of storedMonths()) sum += loadMonthXp(key);
+  return sum;
+}
+function loadPeak() {
+  const v = parseInt(localStorage.getItem(LS_XPPEAK) || "0", 10);
+  return Number.isFinite(v) ? v : 0;
+}
+
+/* Recompute the month being looked at, roll it into lifetime, and raise the peak
+   if that beat it. Returns the peak so the caller can render straight from it. */
+function bumpPeak() {
+  if (!plan) return loadPeak();
+  const key = monthKey(plan.date);
+  const total = monthTotal(key);
+  try { localStorage.setItem(LS_XPMONTH + key, String(total)); } catch {}
+
+  const peak = Math.max(loadPeak(), lifetimeXp());
+  try { localStorage.setItem(LS_XPPEAK, String(peak)); } catch {}
+
+  sync.queueXp(key, total, peak);
+  return peak;
+}
+
 /* ---------- category collapse ----------
    Display-only: never filters plan.groups itself, so counts, XP, streak and
    sync all keep computing from the full data regardless of what's collapsed. */
@@ -1242,6 +1372,7 @@ function render() {
   }
 
   renderStreak();
+  renderLevel();
   renderPrinciple();
   renderDayNav();
   renderDirection();
@@ -1406,6 +1537,7 @@ function refreshDerived() {
     if (cnt) cnt.textContent = `${(g.items || []).filter(i => ticks[i.id]).length}/${(g.items || []).length}`;
   }
   renderStreak();
+  renderLevel();
 }
 
 function renderStreak() {
@@ -1413,6 +1545,24 @@ function renderStreak() {
   $("streakN").textContent = s;
   $("streakLbl").textContent = s === 1 ? "DAY" : "DAYS";
   $("streak").className = "streak" + (s === 0 ? " cold" : "");
+}
+
+function renderLevel() {
+  if (!plan) return;
+  const { level, into, need } = levelFromXp(bumpPeak());
+  $("level").hidden = false;
+  $("lvNum").textContent = level;
+  $("lvFill").style.width = Math.max(0, Math.min(100, Math.round((into / need) * 100))) + "%";
+  $("lvCap").textContent =
+    `${into.toLocaleString()} / ${need.toLocaleString()} XP TO LEVEL ${level + 1}`;
+
+  // The day's own number, free to move both ways — unlike the level above it.
+  // Says TODAY only when today is what's on screen; the day nav can be on a past one.
+  const day = todayXp();
+  const pill = $("lvToday");
+  pill.className = "lv-today" + (day < 0 ? " cost" : day === 0 ? " zero" : "");
+  pill.textContent = `${day < 0 ? "−" : "+"}${Math.abs(day).toLocaleString()} XP` +
+    (plan.date === todayISO() ? " TODAY" : "");
 }
 
 /* One principle per day, walked in order from the plan's start date so the same
@@ -1462,7 +1612,10 @@ function setTick(id, on) {
   saveTicks(plan.date, t);
   const row = rowEls.get(id);
   if (row) row.classList.toggle("done", on);
-  saveDayMeta(plan.date, { sessionId: plan.sessionId, sessionDone: isSessionDone(plan.date) });
+  // xpEarned is kept locally too, so lifetime XP still adds up signed out.
+  saveDayMeta(plan.date, {
+    sessionId: plan.sessionId, sessionDone: isSessionDone(plan.date), xpEarned: todayXp()
+  });
   refreshDerived();
   sync.queueTick(plan.date, id, on);
 }
@@ -1545,6 +1698,8 @@ const sync = {
   timer: null,
   queue: new Map(),
   queueDate: null,
+  xpTimer: null,
+  xpPending: null,
 
   setUI(state, msg, btnLabel, btnAction) {
     const row = $("sync"), btn = $("authBtn");
@@ -1596,7 +1751,63 @@ const sync = {
     this.attach();
     this.loadHistory();
     this.loadCustomRemote();
+    this.loadXp();
     reconcilePhysical();   // the account's exercise doc may differ from this device's
+  },
+
+  /* ---------- lifetime XP ----------
+     A month total and a peak, both whole-value writes with no merge — they are
+     recomputed figures, not accumulating maps, so the no-merge rule that guards
+     the ticks applies here for the same reason. */
+  xpRef(id) {
+    const { f, db } = this.fb;
+    return f.doc(db, "users", this.uid, "xp", id);
+  },
+
+  queueXp(monthKeyStr, total, peak) {
+    if (this.mode !== "signed-in") return;
+    this.xpPending = { monthKeyStr, total, peak };
+    clearTimeout(this.xpTimer);
+    this.xpTimer = setTimeout(() => this.flushXp(), 800);
+  },
+
+  async flushXp() {
+    clearTimeout(this.xpTimer);
+    if (this.mode !== "signed-in" || !this.xpPending) return;
+    const { monthKeyStr, total, peak } = this.xpPending;
+    this.xpPending = null;
+    const { f } = this.fb;
+    try {
+      await Promise.all([
+        f.setDoc(this.xpRef(monthKeyStr),
+          { month: monthKeyStr, total, updatedAt: f.serverTimestamp() }),
+        f.setDoc(this.xpRef("peak"), { peakXp: peak, updatedAt: f.serverTimestamp() })
+      ]);
+    } catch { /* offline — the local copy stands and the next tick retries */ }
+  },
+
+  /* Pull the other devices' months in, then let bumpPeak() re-derive. Peak is
+     reconciled as a max, so it needs no conflict resolution. */
+  async loadXp() {
+    const { f, db } = this.fb;
+    try {
+      const snap = await f.getDocs(f.collection(db, "users", this.uid, "xp"));
+      let remotePeak = 0;
+      snap.forEach(d => {
+        const v = d.data();
+        if (d.id === "peak") { remotePeak = v.peakXp || 0; return; }
+        if (!/^\d{4}-\d{2}$/.test(d.id)) return;
+        // The month in view is authoritative locally — it is being edited now.
+        if (plan && d.id === monthKey(plan.date)) return;
+        try { localStorage.setItem(LS_XPMONTH + d.id, String(v.total || 0)); } catch {}
+      });
+      if (remotePeak > loadPeak()) {
+        try { localStorage.setItem(LS_XPPEAK, String(remotePeak)); } catch {}
+      }
+      renderLevel();
+    } catch (e) {
+      console.warn("XP totals unavailable:", e);
+    }
   },
 
   async signIn() {
@@ -1960,7 +2171,7 @@ $("copyBtn").addEventListener("click", () =>
 $("resetBtn").addEventListener("click", () => {
   if (!confirm("Clear every tick for " + plan.date + "?")) return;
   saveTicks(plan.date, {});
-  saveDayMeta(plan.date, { sessionId: plan.sessionId, sessionDone: false });
+  saveDayMeta(plan.date, { sessionId: plan.sessionId, sessionDone: false, xpEarned: 0 });
   render();
   sync.clearDay(plan.date);
   setStatus("Cleared.");
