@@ -39,7 +39,7 @@
   "programs": {
     "home": {
       "label": "Bodyweight",
-      "note": "No equipment. Progression is by variation and tempo instead of weight: when you hit the top of the rep range on every set, move up a rung and drop back to the bottom of the range.",
+      "note": "No equipment. Progression is by variation and tempo instead of weight: when you hit the top of the rep range on every set, move up a rung and drop back to the bottom of the range. Currently weighted towards upper body, with glutes twice a week — general leg work is parked until the upper body catches up.",
       "sessions": [
         {
           "id": "h1",
@@ -54,16 +54,16 @@
         },
         {
           "id": "h2",
-          "label": "Core & Back",
-          "headline": "Trunk and mid-back. Two leg moves at the end so they don't vanish entirely.",
+          "label": "Back, Glutes & Core",
+          "headline": "The general leg work is gone — upper body and glutes are the priority now. Glutes come early, while you're fresh.",
           "items": [
             { "id": "h2-row", "emoji": "🪽", "ladder": ["Reverse snow angel", "Reverse snow angel, paused at the top", "Reverse snow angel, slow"], "rung": 0, "reps": "3 × 12–15", "detail": "Face down, arms out on the floor, palms up. Sweep them from beside your hips up over your head and back, keeping hands lifted the whole time. Burns the mid-back and rear delts.", "xp": 25, "hero": true },
+            { "id": "h2-bridge", "emoji": "🍑", "ladder": ["Glute bridge", "Glute bridge, paused at the top", "Feet-elevated glute bridge", "Single-leg glute bridge", "Shoulder-elevated hip thrust", "Single-leg hip thrust"], "rung": 0, "reps": "4 × 12–20", "detail": "Heels close to your backside, drive through them and squeeze hard at the top for a full second. This is the main glute builder — a six-rung ladder, so it keeps getting harder without any weight.", "xp": 25 },
+            { "id": "h2-ytw", "emoji": "🪽", "ladder": ["Prone Y-T-W", "Prone Y-T-W, paused", "Prone Y-T-W, slow eccentric"], "rung": 0, "reps": "3 × 8 each shape", "detail": "Second back exposure of the week. Frequency is what you have instead of load.", "xp": 20 },
+            { "id": "h2-abduct", "emoji": "🦿", "ladder": ["Side-lying leg raise", "Side-lying leg raise, paused at the top", "Side-lying leg raise, slow"], "rung": 0, "reps": "3 × 15–20 each side", "detail": "Hits the side of the glute — that's the part that adds shape rather than just size. Toes pointed slightly down, not up.", "xp": 15 },
             { "id": "h2-hollow", "emoji": "🌙", "ladder": ["Bent-knee hollow hold", "Hollow hold", "Hollow rock"], "rung": 0, "reps": "3 × 20–40 s", "detail": "Lower back pressed flat into the floor the whole time.", "xp": 20 },
             { "id": "h2-plank", "emoji": "🧱", "ladder": ["Plank", "Long-lever plank", "Plank with shoulder taps"], "rung": 0, "reps": "3 × 30–60 s", "xp": 20 },
-            { "id": "h2-side", "emoji": "📐", "ladder": ["Knee side plank", "Side plank", "Side plank with reach"], "rung": 0, "reps": "3 × 20–40 s each side", "detail": "Builds the waist taper from the side.", "xp": 15 },
-            { "id": "h2-superman", "emoji": "🦸", "ladder": ["Superman hold", "Superman hold, arms extended"], "rung": 0, "reps": "3 × 20–30 s", "detail": "Lower back and spinal erectors.", "xp": 15 },
-            { "id": "h2-squat", "emoji": "🦵", "ladder": ["Bodyweight squat", "3-second tempo squat", "Split squat"], "rung": 1, "reps": "3 × 12–20", "detail": "Legs kept ticking over, not the focus any more.", "xp": 15 },
-            { "id": "h2-calf", "emoji": "🦶", "ladder": ["Calf raise", "Single-leg calf raise", "Single-leg calf raise off a step"], "rung": 0, "reps": "3 × 15–20", "xp": 10 }
+            { "id": "h2-side", "emoji": "📐", "ladder": ["Knee side plank", "Side plank", "Side plank with reach"], "rung": 0, "reps": "3 × 20–40 s each side", "detail": "Builds the waist taper from the side.", "xp": 15 }
           ]
         },
         {
@@ -74,6 +74,7 @@
             { "id": "h3-row", "emoji": "🤝", "ladder": ["Self-resistance row", "Self-resistance row, slow", "Self-resistance row, paused"], "rung": 0, "reps": "3 × 10 each arm", "detail": "Grip one hand with the other in front of your chest. Pull the working arm back into a row while the other hand fights it. Push hard — you only get out what you put in.", "xp": 25, "hero": true },
             { "id": "h3-swimmer", "emoji": "🏊", "ladder": ["Prone swimmer", "Prone swimmer, slow", "Prone swimmer, paused"], "rung": 0, "reps": "3 × 30–40 s", "detail": "Face down, arms and legs lifted, flutter opposite arm and leg. Lower back and the whole rear chain.", "xp": 20 },
             { "id": "h3-ytw", "emoji": "🪽", "ladder": ["Prone Y-T-W", "Prone Y-T-W, paused", "Prone Y-T-W, slow eccentric"], "rung": 0, "reps": "3 × 8 each shape", "detail": "Face down, arms making a Y then T then W. Rear delts and mid-back — this is genuinely useful equipment-free work and it protects your shoulders for the gym later.", "xp": 20 },
+            { "id": "h3-hinge", "emoji": "🍑", "ladder": ["Hip hinge, hands on hips", "Single-leg Romanian deadlift", "Single-leg Romanian deadlift, slow", "Single-leg Romanian deadlift, paused at the bottom"], "rung": 0, "reps": "3 × 10 each leg", "detail": "Second glute session of the week, and a different angle from the bridge — this one stretches the glute under load instead of squeezing it short. Push your hips back, keep a soft knee, feel it in the back of the leg.", "xp": 20 },
             { "id": "h3-superman", "emoji": "🦸", "ladder": ["Superman hold", "Superman hold, arms extended"], "rung": 0, "reps": "3 × 20–30 s", "detail": "Lower back and spinal erectors.", "xp": 15 }
           ]
         },
