@@ -129,6 +129,32 @@
   .set[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
   .set:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
 
+  /* ---------- hold timer ----------
+     Only on exercises measured in seconds. It lives inside the exercise's own
+     card rather than the sticky bar: the rest timer is about the gap between
+     sets, this is about the set you are in the middle of. */
+  .hold{display:flex;align-items:center;gap:11px;margin-top:10px}
+  .hold-go{
+    font:inherit;font-size:10px;font-weight:900;letter-spacing:.05em;cursor:pointer;
+    font-family:"Arial Black",Impact,sans-serif;
+    padding:9px 12px;background:var(--card);color:var(--ink);
+    border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
+    transition:transform .07s, box-shadow .07s;
+  }
+  .hold-go:active{transform:translate(3px,3px);box-shadow:none}
+  .hold-go:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
+  .hold.running .hold-go{background:var(--ink);color:var(--paper);box-shadow:3px 3px 0 var(--faint)}
+  .hold-t{
+    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
+    font-size:26px;line-height:1;font-variant-numeric:tabular-nums;
+  }
+  .hold-t[hidden]{display:none}
+  .hold-side{
+    font-size:8.5px;letter-spacing:.09em;color:var(--grey);
+    font-family:"Arial Black",Impact,sans-serif;
+  }
+  .hold-side[hidden]{display:none}
+
   /* The session sign-off. Deliberately not a set: it is the one thing that
      marks training done over on the daily page, and it is ticked by hand
      rather than inferred from the sets above. */
@@ -317,6 +343,7 @@ let remoteSessionDates = new Set();   // sessionDone dates known from Firestore
 const setEls = new Map();             // `${itemId}#${i}` -> <button>
 const countEls = new Map();           // itemId -> count chip
 const cardEls = new Map();            // itemId -> .ex card
+const holdEls = new Map();            // itemId -> { wrap, btn, time, side } for timed exercises
 
 /* ---------- set storage ----------
    Whole-document writes, no merge — the same contract dailyplan's `custom` doc
@@ -380,6 +407,19 @@ function setCount(reps) {
   return Math.min(Math.max(n, 1), 12);
 }
 
+/* Seconds to hold, for the exercises measured in time rather than reps:
+   "3 × 30–60 s" -> 60, "3 × 20–30 s each side" -> 30, "3 × 12–15" -> null.
+   The top of the range is the target because the programme's rule is to move up
+   a rung once you hit the top of the range on every set. Deliberately strict
+   about the trailing "s": "3 × 8 each shape" is reps, not 8 seconds. */
+function holdSeconds(reps) {
+  const m = /[×x]\s*(?:\d+\s*[–—-]\s*)?(\d+)\s*s\b/.exec(reps || "");
+  return m ? parseInt(m[1], 10) : null;
+}
+/* A side plank set is two holds, not one, so the timer runs twice before the
+   set counts as done. */
+function perSide(reps) { return /each side/i.test(reps || ""); }
+
 /* Stored arrays can outlive a change to the rep scheme, so read them to the
    length the plan currently asks for rather than trusting what's on disk. */
 function setsFor(id, n) {
@@ -392,7 +432,7 @@ function doneCount(id, n) { return setsFor(id, n).filter(Boolean).length; }
 function render() {
   const list = $("list");
   list.textContent = "";
-  setEls.clear(); countEls.clear(); cardEls.clear();
+  setEls.clear(); countEls.clear(); cardEls.clear(); holdEls.clear();
 
   $("dateChip").textContent = prettyShort(DATE).toUpperCase();
   $("sessionLabel").textContent = session.label;
@@ -442,6 +482,9 @@ function render() {
       card.appendChild(d);
     }
 
+    const secs = holdSeconds(reps);
+    if (secs) card.appendChild(holdRow(it.id, n, secs, perSide(reps)));
+
     const row = document.createElement("div");
     row.className = "sets";
     for (let i = 0; i < n; i++) {
@@ -463,6 +506,7 @@ function render() {
   }
 
   list.appendChild(signoffRow());
+  restoreHold();
   refreshTally();
 }
 
@@ -657,6 +701,135 @@ function shiftMonth(delta) {
   while (monthCursor.m < 0)  { monthCursor.m += 12; monthCursor.y--; }
   while (monthCursor.m > 11) { monthCursor.m -= 12; monthCursor.y++; }
   loadMonth();
+}
+
+/* ---------- hold timer ----------
+   For the exercises held for time. Counts the hold down, then ticks the set off
+   and rolls straight into the rest timer, so a plank needs one tap at the start
+   and nothing at the end — which matters when you are face down on the floor.
+
+   Kept in memory rather than localStorage, unlike the rest timer: a rest is
+   something you might wander off during, a hold is not. */
+let hold = null;          // { id, n, secs, phases, phase, endAt }
+let holdInterval = null;
+
+function holdRow(id, n, secs, twoSided) {
+  const wrap = document.createElement("div");
+  wrap.className = "hold";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "hold-go";
+
+  const time = document.createElement("span");
+  time.className = "hold-t";
+  time.hidden = true;
+
+  const side = document.createElement("span");
+  side.className = "hold-side";
+  side.hidden = true;
+
+  wrap.append(btn, time, side);
+  const els = { wrap, btn, time, side, secs, twoSided };
+  holdEls.set(id, els);
+  resetHoldUI(els);
+
+  btn.addEventListener("click", () => {
+    if (hold && hold.id === id) stopHold();          // tapping again cancels
+    else startHold(id, n, secs, twoSided ? 2 : 1);
+  });
+  return wrap;
+}
+
+function resetHoldUI(els) {
+  els.wrap.classList.remove("running");
+  els.btn.textContent = `START ${els.secs}S HOLD`;
+  els.time.hidden = true;
+  els.side.hidden = true;
+}
+
+function paintHold(els, ms) {
+  if (!els) return;
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  els.time.textContent = `${String(Math.floor(s / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`;
+}
+
+function startHold(id, n, secs, phases) {
+  ensureAudio();          // must happen inside the tap for the beep to be allowed
+  stopHold();
+  restStop();             // you are working, not resting
+  hold = { id, n, secs, phases, phase: 1, endAt: Date.now() + secs * 1000 };
+
+  const els = holdEls.get(id);
+  if (els) {
+    els.wrap.classList.add("running");
+    els.btn.textContent = "STOP";
+    els.time.hidden = false;
+    els.side.hidden = phases < 2;
+    els.side.textContent = "SIDE 1";
+  }
+  paintHold(els, secs * 1000);
+  holdInterval = setInterval(holdTick, 200);
+}
+
+function stopHold() {
+  clearInterval(holdInterval);
+  holdInterval = null;
+  if (!hold) return;
+  const els = holdEls.get(hold.id);
+  hold = null;
+  if (els) resetHoldUI(els);
+}
+
+/* A pull from Firestore rebuilds the list, which would otherwise throw away the
+   card a hold is counting inside. The clock itself never stopped — this just
+   puts the running state back onto the freshly built card. */
+function restoreHold() {
+  if (!hold) return;
+  const els = holdEls.get(hold.id);
+  if (!els) { stopHold(); return; }   // that exercise is not in this session
+  els.wrap.classList.add("running");
+  els.btn.textContent = "STOP";
+  els.time.hidden = false;
+  els.side.hidden = hold.phases < 2;
+  els.side.textContent = `SIDE ${hold.phase}`;
+  paintHold(els, hold.endAt - Date.now());
+}
+
+/* Reads the deadline rather than counting ticks, so a throttled tab doesn't
+   drift — same reason the rest timer stores endAt. */
+function holdTick() {
+  if (!hold) return;
+  const els = holdEls.get(hold.id);
+  const remain = hold.endAt - Date.now();
+  if (remain > 0) { paintHold(els, remain); return; }
+
+  // Halfway through a two-sided hold: chime, flip sides, keep going.
+  if (hold.phase < hold.phases) {
+    hold.phase++;
+    hold.endAt = Date.now() + hold.secs * 1000;
+    restBeep();
+    if (navigator.vibrate) navigator.vibrate(90);
+    if (els) els.side.textContent = `SIDE ${hold.phase}`;
+    paintHold(els, hold.secs * 1000);
+    return;
+  }
+
+  const { id, n } = hold;
+  stopHold();
+  restBeep();
+  if (navigator.vibrate) navigator.vibrate([90, 70, 90]);
+  // Marks the set and starts the rest through the ordinary path, so the count
+  // chip, the all-done state and the sync write all happen exactly as they do
+  // for a tapped set. If every set was already ticked, just rest.
+  if (!tickNextSet(id, n)) restStart();
+}
+
+function tickNextSet(id, n) {
+  const idx = setsFor(id, n).findIndex(v => !v);
+  if (idx === -1) return false;
+  toggleSet(id, idx, n);
+  return true;
 }
 
 /* ---------- rest timer ----------
