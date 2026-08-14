@@ -1,0 +1,28 @@
+{
+  "extraKnownMarketplaces": {
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "caveman@caveman": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude plugin marketplace add JuliusBrussee/caveman >/dev/null 2>&1; claude plugin install caveman@caveman >/dev/null 2>&1; true",
+            "statusMessage": "Setting up caveman plugin...",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
