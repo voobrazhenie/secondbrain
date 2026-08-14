@@ -6,6 +6,17 @@
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#F2EDE0">
 <title>Startup-up Ideas — Second Brain</title>
+
+<!-- Add to Home Screen. iOS ignores the manifest's name/display, so the
+     apple-* metas below are what actually make it launch standalone.
+     One manifest for the whole Second Brain, so moving between sections
+     never falls back to Safari. -->
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Second Brain">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
   :root{
     --paper:#F2EDE0; --card:#FFFDF7; --sunk:#E8E4D6; --ink:#111111;

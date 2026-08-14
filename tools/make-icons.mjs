@@ -3,7 +3,11 @@
  *
  *   node tools/make-icons.mjs
  *
- * Draws the NOW -> WANT arrow: an orange arrow on the page's dark background.
+ * Two installable apps, so two icon sets, and they have to be tellable apart on
+ * a home screen at 60px:
+ *   - dailyplan/ — the NOW -> WANT arrow, black on yellow.
+ *   - the repo root ("Second Brain") — a 2x2 block of pages, black on teal.
+ *
  * iOS applies its own corner rounding to home-screen icons, so these are drawn as
  * full squares with no rounding of their own.
  */
@@ -13,11 +17,12 @@ import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "fitness");
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-/* Neo-brutalist: solid yellow block, thick black arrow, heavy black border.
+/* Neo-brutalist: one solid accent block, a heavy black border, black mark.
    High contrast so it still reads at 60px on a home screen. */
-const BG     = [0xff, 0xd5, 0x3d];
+const YELLOW = [0xff, 0xd5, 0x3d];
+const TEAL   = [0x00, 0xc2, 0xcb];
 const ACCENT = [0x11, 0x11, 0x11];
 const BORDER = 0.055;   // fraction of the icon size
 
@@ -87,11 +92,33 @@ function arrow(x, y, S) {
     head = dy <= 0.24 * S * (1 - t);
   }
 
-  return shaft || head ? ACCENT : BG;
+  return shaft || head ? ACCENT : YELLOW;
 }
 
-for (const size of [180, 192, 512]) {
-  const file = join(OUT, `icon-${size}.png`);
-  writeFileSync(file, png(size, arrow));
-  console.log(`wrote ${file}`);
+/* Four solid blocks in a 2x2 grid — the small pages the app is made of. */
+function pages(x, y, S) {
+  const b = BORDER * S;
+  if (x < b || y < b || x > S - b || y > S - b) return ACCENT;
+
+  const lo = 0.20 * S, hi = 0.80 * S;      // outer bounds of the grid
+  const gap = 0.055 * S;                    // gutter between the blocks
+  const mid = (lo + hi) / 2;
+
+  const inCol = (x >= lo && x <= mid - gap) || (x >= mid + gap && x <= hi);
+  const inRow = (y >= lo && y <= mid - gap) || (y >= mid + gap && y <= hi);
+
+  return inCol && inRow ? ACCENT : TEAL;
+}
+
+const SETS = [
+  { dir: "dailyplan", draw: arrow },
+  { dir: ".",         draw: pages }
+];
+
+for (const { dir, draw } of SETS) {
+  for (const size of [180, 192, 512]) {
+    const file = join(ROOT, dir, `icon-${size}.png`);
+    writeFileSync(file, png(size, draw));
+    console.log(`wrote ${file}`);
+  }
 }

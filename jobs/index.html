@@ -7,6 +7,17 @@
 <meta name="theme-color" content="#F2EDE0">
 <meta name="robots" content="noindex, nofollow">
 <title>Jobs — Second Brain</title>
+
+<!-- Add to Home Screen. iOS ignores the manifest's name/display, so the
+     apple-* metas below are what actually make it launch standalone.
+     One manifest for the whole Second Brain, so moving between sections
+     never falls back to Safari. -->
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Second Brain">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <!--
   PRIVATE MODULE. This file ships no job data at all — not a company name, not a
   link, not a note. Everything renders from users/{uid}/jobs in Firestore, which
