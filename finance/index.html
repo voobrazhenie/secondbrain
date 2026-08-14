@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#F2EDE0">
+<title>Finance — Second Brain</title>
+<style>
+  /* Same neo-brutalist system as the rest of Second Brain — thick strokes,
+     squared corners, solid accent blocks, hard zero-blur shadows. Tokens
+     copied verbatim from dailyplan/index.html (the most complete set). */
+  :root{
+    --paper:#F2EDE0; --card:#FFFDF7; --sunk:#E8E4D6; --ink:#111111;
+    --yellow:#FFD53D; --teal:#00C2CB; --pink:#FF3D8B; --lime:#B8E62E;
+    --grey:#7A756A; --faint:#A39D91;
+    --stroke:2.5px; --shadow:4px 4px 0 var(--ink);
+    --maxw:430px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    padding:
+      calc(14px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
+      calc(40px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+    font:15px/1.4 "Archivo","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input,select{font:inherit}
+  button{cursor:pointer}
+  .wrap{max-width:var(--maxw);margin:0 auto}
+  .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;letter-spacing:-.01em}
+
+  /* ---------- header ---------- */
+  a.back{
+    display:inline-block;font-size:11px;font-weight:800;letter-spacing:.08em;
+    text-decoration:none;color:var(--ink);border-bottom:2px solid var(--ink);margin-bottom:10px;
+  }
+  a.back:hover{color:var(--pink)}
+  .eyebrow{
+    display:inline-block;background:var(--ink);color:var(--paper);
+    font-size:10px;letter-spacing:.1em;padding:4px 9px;margin:0 0 14px;
+    font-family:"Arial Black",Impact,sans-serif;
+  }
+
+  /* ---------- hero: net worth ---------- */
+  .hero{
+    background:var(--teal);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:15px 16px 16px;margin-bottom:10px;
+  }
+  .hero .k{font-size:8px;letter-spacing:.1em;color:#164F52;
+    font-family:"Arial Black",Impact,sans-serif}
+  .hero .total{
+    font-size:clamp(36px,11vw,46px);line-height:1;margin:6px 0 9px;letter-spacing:-.01em;
+    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
+    font-variant-numeric:tabular-nums;
+  }
+  .hero .split{font-size:11.5px;font-weight:800;color:#164F52;margin-bottom:10px}
+  .hero .split b{color:var(--ink)}
+  .hero .bar{height:14px;border:2px solid var(--ink);background:var(--card);display:flex;overflow:hidden}
+  .hero .bar .seg{height:100%;transition:width .4s cubic-bezier(.2,.7,.3,1)}
+  .hero .bar .assets{background:var(--lime)}
+  .hero .bar .debts{background:var(--ink)}
+  .hero .barlbl{
+    display:flex;justify-content:space-between;margin-top:5px;
+    font-size:8.5px;font-weight:900;letter-spacing:.05em;color:#164F52;
+    font-family:"Arial Black",Impact,sans-serif;
+  }
+  @media (prefers-reduced-motion: reduce){ .hero .bar .seg{transition:none} }
+
+  /* ---------- rate chips ---------- */
+  .rates{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .ratechip{
+    display:flex;align-items:center;gap:7px;background:var(--card);
+    border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
+    padding:6px 10px;font-size:11.5px;font-weight:800;cursor:pointer;min-height:32px;
+  }
+  .ratechip:active{transform:translate(2px,2px);box-shadow:none}
+  .ratechip .lbl{color:var(--grey);font-size:9px;letter-spacing:.03em;font-weight:800}
+  .ratechip input{
+    width:64px;font:inherit;font-size:14px;font-weight:800;padding:2px 5px;
+    background:var(--paper);color:var(--ink);border:2px solid var(--ink);
+    font-variant-numeric:tabular-nums;
+  }
+  .ratechip button{padding:3px 8px;font-size:11px;min-height:28px}
+
+  /* ---------- gentle staleness nudge ---------- */
+  .nudge{
+    display:flex;align-items:flex-start;gap:9px;background:var(--card);
+    border:2px solid var(--ink);padding:9px 11px;margin-bottom:16px;
+    font-size:11.5px;font-weight:700;color:var(--grey);line-height:1.4;
+  }
+  .nudge[hidden]{display:none}
+  .nudge .dot{flex:0 0 auto;width:9px;height:9px;margin-top:3px;background:var(--yellow);border:2px solid var(--ink)}
+  .nudge b{color:var(--ink)}
+
+  /* ---------- section dividers ---------- */
+  .sec{display:flex;align-items:center;gap:8px;margin:18px 0 8px}
+  .sec .t{
+    font-size:11px;font-weight:900;letter-spacing:.07em;
+    background:var(--ink);color:var(--paper);padding:3px 8px;
+    font-family:"Arial Black",Impact,sans-serif;
+  }
+  .sec .r{flex:1;height:2px;background:var(--ink)}
+  .sec .n{font-size:9px;font-weight:900;color:var(--grey)}
+  .sec .add{
+    flex:0 0 auto;width:26px;height:26px;padding:0;font-size:15px;line-height:1;
+    background:var(--card);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
+    font-family:"Arial Black",Impact,sans-serif;cursor:pointer;
+  }
+  .sec .add:active{transform:translate(2px,2px);box-shadow:none}
+
+  /* ---------- account / debt rows ---------- */
+  .row{
+    position:relative;display:flex;align-items:center;gap:11px;
+    background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:9px 12px;min-height:58px;margin-bottom:9px;cursor:pointer;
+    transition:transform .07s, box-shadow .07s, background .15s;
+  }
+  .row:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+  .row.settled{background:var(--sunk);box-shadow:2px 2px 0 var(--ink)}
+  .row.flash{animation:flashok .6s ease}
+  @keyframes flashok{0%{background:var(--lime)}100%{background:var(--card)}}
+  @media (prefers-reduced-motion: reduce){ .row.flash{animation:none} }
+
+  .row .mark{
+    flex:0 0 auto;width:38px;height:38px;border:2.5px solid var(--ink);
+    display:flex;align-items:center;justify-content:center;font-size:17px;
+    background:var(--lime);
+  }
+  .row.debt .mark{background:var(--ink)}
+  .row.settled .mark{background:var(--sunk);filter:grayscale(1) opacity(.7)}
+
+  .row .info{flex:1;min-width:0}
+  .row .name{font-size:13.5px;font-weight:800;line-height:1.2;overflow-wrap:break-word}
+  .row .meta{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:var(--grey);margin-top:3px}
+  .row .meta .fdot{flex:0 0 auto;width:6px;height:6px;background:var(--lime);border:1.5px solid var(--ink)}
+  .row .meta.stale .fdot{background:var(--yellow)}
+  .row .due{
+    display:inline-block;margin-top:4px;font-size:8.5px;font-weight:900;letter-spacing:.04em;
+    font-family:"Arial Black",Impact,sans-serif;padding:2px 6px;
+    border:1.5px solid var(--ink);background:var(--sunk);color:var(--grey);
+  }
+  .row .due.soon{background:var(--yellow);color:var(--ink)}
+  .row .due.urgent{background:var(--pink);color:var(--ink)}
+  .row .due.paid{background:var(--lime);color:var(--ink);border-style:solid}
+
+  .row .amt-wrap{flex:0 0 auto;text-align:right}
+  .row .amt{
+    font-size:15px;font-variant-numeric:tabular-nums;
+    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
+  }
+  .row.debt .amt::before{content:"\2212"}
+  .row.settled .amt{color:var(--grey)}
+  .row .conv{font-size:9.5px;font-weight:700;color:var(--grey);margin-top:2px;font-variant-numeric:tabular-nums}
+
+  /* ---------- inline quick-edit ---------- */
+  .row.editing{cursor:default}
+  .row .editform{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+  .row .editform .cur{flex:0 0 auto;font-size:13px;font-weight:900;color:var(--grey)}
+  .row .editform input{
+    flex:1;min-width:0;font:inherit;font-size:18px;font-weight:900;
+    font-family:"Arial Black","Archivo Black",Impact,sans-serif;
+    padding:8px 9px;background:var(--paper);color:var(--ink);border:2px solid var(--ink);
+    font-variant-numeric:tabular-nums;
+  }
+  .row .editform button{
+    flex:0 0 auto;min-width:44px;min-height:44px;font-size:17px;padding:0;
+  }
+
+  /* ---------- empty state — same class as ideas/index.html ---------- */
+  .empty{
+    border:2.5px dashed var(--ink);padding:20px;text-align:center;
+    color:var(--grey);font-weight:700;font-size:13px;
+  }
+  .empty b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:2px}
+
+  /* ---------- sync bar (same contract as streams/ and ideas/) ---------- */
+  .sync{
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:20px 0 0;
+    padding:9px 11px;background:var(--card);
+    border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
+    font-size:12px;font-weight:700;color:var(--grey);
+  }
+  .sync .dot{flex:0 0 auto;width:9px;height:9px;border:2px solid var(--ink);background:var(--sunk)}
+  .sync.on .dot{background:var(--lime)}
+  .sync.err .dot{background:var(--pink)}
+  .sync .msg{flex:1;min-width:120px}
+  .sync .btn{padding:6px 11px;font-size:11px;box-shadow:2px 2px 0 var(--ink)}
+  .sync .btn:active{transform:translate(2px,2px);box-shadow:none}
+
+  footer{
+    margin-top:18px;padding-top:12px;border-top:2px solid var(--ink);
+    font-size:10px;font-weight:700;color:var(--grey);line-height:1.55;
+  }
+
+  /* ---------- buttons ---------- */
+  button{
+    font:inherit;font-size:11px;font-weight:900;letter-spacing:.05em;cursor:pointer;
+    font-family:"Arial Black",Impact,sans-serif;
+    padding:9px 13px;background:var(--card);color:var(--ink);
+    border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
+    transition:transform .07s, box-shadow .07s;
+  }
+  button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  button.primary{background:var(--yellow)}
+  button:focus-visible, .row:focus-visible, .ratechip:focus-visible{outline:2.5px solid var(--ink);outline-offset:2px}
+
+  /* ---------- modal (reused as-is from dailyplan) ---------- */
+  .scrim{
+    position:fixed;inset:0;background:rgba(17,17,17,.55);
+    display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;
+  }
+  .scrim[hidden]{display:none}
+  .modal{
+    width:100%;max-width:400px;background:var(--card);
+    border:var(--stroke) solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:16px;
+    max-height:90vh;overflow-y:auto;
+  }
+  .modal h3{margin:0 0 3px;font-size:14px;letter-spacing:.05em;
+    font-family:"Arial Black",Impact,sans-serif}
+  .modal .sub{font-size:11px;font-weight:700;color:var(--grey);margin-bottom:6px}
+  .modal label{display:block;font-size:9px;letter-spacing:.08em;color:var(--grey);
+    font-family:"Arial Black",Impact,sans-serif;margin:10px 0 4px}
+  .modal input,.modal select{
+    width:100%;font:inherit;font-size:16px;font-weight:700;padding:9px 10px;
+    background:var(--paper);color:var(--ink);border:2px solid var(--ink);
+  }
+  #mCurrency{text-transform:uppercase}
+  .modal .rowpair{display:flex;gap:9px}
+  .modal .rowpair>div{flex:1;min-width:0}
+  .modal .acts{display:flex;gap:9px;margin-top:16px}
+  .modal .acts button{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back" href="../">&larr; SECOND BRAIN</a>
+  <span class="eyebrow">FINANCE</span>
+
+  <div class="hero">
+    <div class="k">NET WORTH, IN EUR</div>
+    <div class="total" id="heroTotal">&euro;0</div>
+    <div class="split" id="heroSplit"></div>
+    <div class="bar"><div class="seg assets" id="barAssets"></div><div class="seg debts" id="barDebts"></div></div>
+    <div class="barlbl"><span>ASSETS</span><span>DEBTS</span></div>
+  </div>
+
+  <div class="rates" id="rates"></div>
+
+  <div class="nudge" id="nudge" hidden>
+    <span class="dot"></span>
+    <span id="nudgeText"></span>
+  </div>
+
+  <div class="sec">
+    <span class="t">ASSETS</span><span class="r"></span>
+    <span class="n" id="assetsCount"></span>
+    <button class="add" id="addAsset" title="Add account" aria-label="Add account">+</button>
+  </div>
+  <div id="assetsList"></div>
+
+  <div class="sec">
+    <span class="t">DEBTS</span><span class="r"></span>
+    <span class="n" id="debtsCount"></span>
+    <button class="add" id="addDebt" title="Add debt" aria-label="Add debt">+</button>
+  </div>
+  <div id="debtsList"></div>
+
+  <div class="sync" id="sync">
+    <span class="dot"></span>
+    <span class="msg" id="syncMsg">Checking sync&hellip;</span>
+    <button class="btn" id="authBtn" hidden></button>
+  </div>
+
+  <footer>
+    Signed out, balances stay in this browser. Signed in, they sync to your own
+    account — readable only by you. Not financial advice.
+  </footer>
+
+</div>
+
+<div class="scrim" id="scrim" hidden>
+  <div class="modal">
+    <h3 id="mTitle">ADD ACCOUNT</h3>
+    <div class="sub" id="mSub">Name it, pick a currency, enter what's in it now.</div>
+    <label for="mName">NAME</label>
+    <input id="mName" type="text" maxlength="40" placeholder="e.g. Revolut">
+    <div class="rowpair">
+      <div>
+        <label for="mEmoji">ICON</label>
+        <input id="mEmoji" type="text" maxlength="4" placeholder="💳">
+      </div>
+      <div>
+        <label for="mCurrency">CURRENCY</label>
+        <input id="mCurrency" type="text" maxlength="4" placeholder="EUR">
+      </div>
+    </div>
+    <div id="mRateWrap" hidden>
+      <label for="mRate">RATE TO EUR &mdash; 1 EUR =</label>
+      <input id="mRate" type="number" inputmode="decimal" step="0.0001" placeholder="e.g. 43.2">
+    </div>
+    <label for="mAmount" id="mAmountLbl">BALANCE</label>
+    <input id="mAmount" type="number" inputmode="decimal" step="0.01" placeholder="0">
+    <div id="mDueWrap" hidden>
+      <label for="mDue">DUE DATE &mdash; OPTIONAL</label>
+      <input id="mDue" type="date">
+    </div>
+    <div class="acts">
+      <button id="mCancel">CANCEL</button>
+      <button class="primary" id="mSave">SAVE</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+"use strict";
+const $ = id => document.getElementById(id);
+
+const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
+const LS_FINANCE = "secondbrain.finance.v1";
+const newId = () => "a-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+const localISO = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const daysBetween = (a, b) => {
+  const [ay,am,ad] = a.split("-").map(Number), [by,bm,bd] = b.split("-").map(Number);
+  return Math.round((Date.UTC(by,bm-1,bd) - Date.UTC(ay,am-1,ad)) / 86400000);
+};
+function daysSince(iso) { return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); }
+function agoLabel(iso) {
+  if (!iso) return "never updated";
+  const d = daysSince(iso);
+  if (d <= 0) return "just now";
+  if (d === 1) return "1d ago";
+  return `${d}d ago`;
+}
+// "urgent" | "soon" | "quiet" | null — null (no due date) renders as the
+// base .due look, same visual as "quiet", so no CSS modifier exists for it.
+function dueTier(dueDateISO) {
+  if (!dueDateISO) return null;
+  const days = daysBetween(localISO(), dueDateISO);
+  return days <= 3 ? "urgent" : days <= 14 ? "soon" : "quiet";
+}
+function dueLabelText(dueDateISO) {
+  if (!dueDateISO) return "no deadline";
+  const days = daysBetween(localISO(), dueDateISO);
+  const d = new Date(dueDateISO + "T00:00:00");
+  const dtxt = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  if (days < 0) return `overdue · was ${dtxt}`;
+  if (days === 0) return "due today";
+  return `due ${dtxt} · ${days}d`;
+}
+
+// No hardcoded seed data — real boot starts empty, filled in from
+// localStorage/Firestore. accounts: { [id]: {id,name,kind,emoji,currency,
+// amount,updatedAt,dueDate,note} }. rates: { [currencyCode]: number } —
+// units of that currency per 1 EUR. EUR itself needs no rate.
+let accounts = {};
+let rates = {};
+
+function loadLocal() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_FINANCE) || "{}");
+    accounts = saved.accounts || {};
+    rates = saved.rates || {};
+  } catch { accounts = {}; rates = {}; }
+}
+function saveLocal() {
+  try { localStorage.setItem(LS_FINANCE, JSON.stringify({ accounts, rates })); } catch {}
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+function fmtAmt(amount, currency) {
+  const n = Math.round(amount).toLocaleString("en-US");
+  return currency === "EUR" ? `€${n}` : currency === "UAH" ? `${n} ₴` : `${n} ${currency}`;
+}
+function toEUR(amount, currency) {
+  if (currency === "EUR") return amount;
+  const r = rates[currency];
+  return r ? amount / r : amount;
+}
+
+function chipDisplayHTML(cur) {
+  return `<span class="lbl">RATE</span><span class="val">1 EUR = ${rates[cur]} ${cur === "UAH" ? "₴" : cur}</span>`;
+}
+
+function renderRates() {
+  const wrap = $("rates");
+  wrap.innerHTML = "";
+  Object.keys(rates).forEach(cur => {
+    const chip = document.createElement("div");
+    chip.className = "ratechip";
+    chip.tabIndex = 0;
+    chip.dataset.cur = cur;
+    chip.innerHTML = chipDisplayHTML(cur);
+    chip.addEventListener("click", () => editRate(chip, cur));
+    wrap.appendChild(chip);
+  });
+}
+
+function updateConvForCurrency(cur) {
+  Object.values(accounts).filter(a => a.currency === cur).forEach(a => {
+    const row = document.querySelector(`.row[data-id="${a.id}"]`);
+    if (!row || row.classList.contains("editing")) return;
+    const conv = row.querySelector(".conv");
+    if (conv) conv.textContent = `≈ ${fmtAmt(toEUR(a.amount, a.currency), "EUR")}`;
+  });
+}
+
+function editRate(chip, cur) {
+  if (chip.classList.contains("editing")) return;
+  chip.classList.add("editing");
+  chip.innerHTML = `<span class="lbl">1 EUR =</span>
+    <input type="number" inputmode="decimal" step="0.0001" value="${rates[cur]}">
+    <span class="lbl">${cur === "UAH" ? "₴" : cur}</span>
+    <button aria-label="Save">✓</button>`;
+  const input = chip.querySelector("input");
+  input.focus(); input.select();
+  let done = false;
+  const commit = () => {
+    if (done) return;
+    done = true;
+    document.removeEventListener("click", outside, true);
+    const v = parseFloat(input.value);
+    if (v > 0) {
+      rates[cur] = v;
+      saveLocal();
+      sync.pushRate(cur, v);
+    }
+    chip.classList.remove("editing");
+    chip.innerHTML = chipDisplayHTML(cur);
+    updateConvForCurrency(cur);
+    renderTotals();
+  };
+  const cancel = () => {
+    if (done) return;
+    done = true;
+    document.removeEventListener("click", outside, true);
+    chip.classList.remove("editing");
+    chip.innerHTML = chipDisplayHTML(cur);
+  };
+  const outside = e => { if (!chip.contains(e.target)) commit(); };
+  chip.querySelector("button").onclick = e => { e.stopPropagation(); commit(); };
+  input.onkeydown = e => {
+    if (e.key === "Enter") { e.stopPropagation(); commit(); }
+    else if (e.key === "Escape") { e.stopPropagation(); cancel(); }
+  };
+  input.onclick = e => e.stopPropagation();
+  document.addEventListener("click", outside, true);
+}
+
+function rowHTML(a) {
+  const settled = a.kind === "debt" && a.amount === 0;
+  const stale = daysSince(a.updatedAt) >= 14;
+  const metaCls = stale ? "meta stale" : "meta";
+  const metaTxt = `updated ${agoLabel(a.updatedAt)}`;
+  let due = "";
+  if (a.kind === "debt") {
+    if (settled) {
+      due = `<span class="due paid">PAID</span>`;
+    } else {
+      const tier = dueTier(a.dueDate);
+      const cls = (tier === "urgent" || tier === "soon") ? ` ${tier}` : "";
+      due = `<span class="due${cls}">${esc(dueLabelText(a.dueDate).toUpperCase())}</span>`;
+    }
+  }
+  const conv = a.currency !== "EUR" ? `<div class="conv">≈ ${fmtAmt(toEUR(a.amount, a.currency), "EUR")}</div>` : "";
+  return `
+    <span class="mark">${esc(a.emoji || (a.kind === "debt" ? "🧾" : "💳"))}</span>
+    <div class="info">
+      <div class="name">${esc(a.name)}</div>
+      <div class="${metaCls}">${settled ? "" : `<span class="fdot"></span>`}${metaTxt}</div>
+      ${due}
+    </div>
+    <div class="amt-wrap">
+      <div class="amt">${fmtAmt(a.amount, a.currency)}</div>
+      ${conv}
+    </div>`;
+}
+
+function renderTotals() {
+  const all = Object.values(accounts);
+  const assets = all.filter(a => a.kind === "asset");
+  const debts = all.filter(a => a.kind === "debt");
+
+  const assetsEUR = assets.reduce((s, a) => s + toEUR(a.amount, a.currency), 0);
+  const debtsEUR = debts.reduce((s, a) => s + toEUR(a.amount, a.currency), 0);
+  const net = assetsEUR - debtsEUR;
+
+  $("heroTotal").textContent = `${net < 0 ? "−" : ""}${fmtAmt(Math.abs(net), "EUR")}`;
+  $("heroSplit").innerHTML = `assets <b>${fmtAmt(assetsEUR, "EUR")}</b> &middot; debts <b>${fmtAmt(debtsEUR, "EUR")}</b>`;
+  const total = Math.max(assetsEUR + debtsEUR, 1);
+  $("barAssets").style.width = `${(assetsEUR / total) * 100}%`;
+  $("barDebts").style.width = `${(debtsEUR / total) * 100}%`;
+
+  $("assetsCount").textContent = assets.length;
+  $("debtsCount").textContent = debts.length;
+
+  const staleAssets = assets.filter(a => daysSince(a.updatedAt) >= 14);
+  const staleDebts = debts.filter(a => daysSince(a.updatedAt) >= 14 && a.amount !== 0);
+  const staleAll = [...staleAssets, ...staleDebts];
+  if (staleAll.length) {
+    $("nudge").hidden = false;
+    const names = staleAll.map(a => esc(a.name)).join(" and ");
+    $("nudgeText").innerHTML = `<b>${names}</b> ${staleAll.length > 1 ? "haven't" : "hasn't"} been checked in a while. Worth a peek when you have a sec &mdash; no rush.`;
+  } else {
+    $("nudge").hidden = true;
+  }
+}
+
+function renderLists() {
+  const assets = Object.values(accounts).filter(a => a.kind === "asset");
+  const debts  = Object.values(accounts).filter(a => a.kind === "debt");
+
+  const assetsList = $("assetsList");
+  assetsList.innerHTML = "";
+  if (assets.length) assets.forEach(a => assetsList.appendChild(buildRow(a)));
+  else assetsList.innerHTML = `<div class="empty"><b>No accounts logged yet.</b> Tap + above to add the first one.</div>`;
+
+  const debtsList = $("debtsList");
+  debtsList.innerHTML = "";
+  if (debts.length) debts.forEach(a => debtsList.appendChild(buildRow(a)));
+  else debtsList.innerHTML = `<div class="empty"><b>No debts logged.</b> Nice — or tap + above to add one, so it doesn't quietly go untracked instead.</div>`;
+}
+
+function render() {
+  renderTotals();
+  renderLists();
+  renderRates();
+}
+
+function buildRow(a) {
+  const settled = a.kind === "debt" && a.amount === 0;
+  const row = document.createElement("div");
+  row.className = "row" + (a.kind === "debt" ? " debt" : "") + (settled ? " settled" : "");
+  row.tabIndex = 0;
+  row.dataset.id = a.id;
+  row.innerHTML = rowHTML(a);
+  row.addEventListener("click", () => startEdit(row, a));
+  row.addEventListener("keydown", e => { if (e.key === "Enter") startEdit(row, a); });
+  return row;
+}
+
+function startEdit(row, a) {
+  if (row.classList.contains("editing")) return;
+  row.classList.add("editing");
+  const curSym = a.currency === "EUR" ? "€" : a.currency === "UAH" ? "₴" : a.currency;
+  row.innerHTML = `
+    <span class="mark">${esc(a.emoji || "💰")}</span>
+    <div class="editform">
+      <span class="cur">${esc(curSym)}</span>
+      <input type="number" inputmode="decimal" step="0.01" value="${a.amount}">
+      <button aria-label="Save">✓</button>
+    </div>`;
+  const input = row.querySelector("input");
+  input.focus(); input.select();
+
+  let done = false;
+  const backToDisplay = () => {
+    const settled = a.kind === "debt" && a.amount === 0;
+    row.className = "row" + (a.kind === "debt" ? " debt" : "") + (settled ? " settled" : "");
+    row.innerHTML = rowHTML(a);
+  };
+  const commit = () => {
+    if (done) return;
+    done = true;
+    document.removeEventListener("click", outside, true);
+    const v = parseFloat(input.value);
+    if (!isNaN(v) && v >= 0) {
+      a.amount = v;
+      a.updatedAt = new Date().toISOString();
+      saveLocal();
+      sync.pushAccountField(a.id, { amount: a.amount, updatedAt: a.updatedAt });
+    }
+    backToDisplay();
+    row.classList.add("flash");
+    setTimeout(() => row.classList.remove("flash"), 650);
+    renderTotals();
+  };
+  const cancel = () => {
+    if (done) return;
+    done = true;
+    document.removeEventListener("click", outside, true);
+    backToDisplay();
+  };
+  const outside = e => { if (!row.contains(e.target)) commit(); };
+
+  row.querySelector("button").onclick = e => { e.stopPropagation(); commit(); };
+  input.onkeydown = e => {
+    if (e.key === "Enter") { e.stopPropagation(); commit(); }
+    else if (e.key === "Escape") { e.stopPropagation(); cancel(); }
+  };
+  input.onclick = e => e.stopPropagation();
+  document.addEventListener("click", outside, true);
+}
+
+/* ---------- add account / debt ---------- */
+let addKind = "asset";
+
+function updateRateFieldVisibility() {
+  const cur = $("mCurrency").value.trim().toUpperCase();
+  if (cur && cur !== "EUR") {
+    $("mRateWrap").hidden = false;
+    $("mRate").value = rates[cur] != null ? rates[cur] : "";
+  } else {
+    $("mRateWrap").hidden = true;
+    $("mRate").value = "";
+  }
+}
+
+function openAdd(kind) {
+  addKind = kind;
+  $("mTitle").textContent = kind === "asset" ? "ADD ACCOUNT" : "ADD DEBT";
+  $("mSub").textContent = kind === "asset"
+    ? "Name it, pick a currency, enter what's in it now."
+    : "Name it, how much is owed, and when it's due if that matters.";
+  $("mAmountLbl").textContent = kind === "asset" ? "BALANCE" : "AMOUNT OWED";
+  $("mDueWrap").hidden = kind !== "debt";
+  $("mName").value = "";
+  $("mEmoji").value = kind === "asset" ? "💳" : "🧾";
+  $("mCurrency").value = "EUR";
+  $("mAmount").value = "";
+  $("mDue").value = "";
+  updateRateFieldVisibility();
+  $("scrim").hidden = false;
+  $("mName").focus();
+}
+$("addAsset").onclick = () => openAdd("asset");
+$("addDebt").onclick = () => openAdd("debt");
+$("mCancel").onclick = () => { $("scrim").hidden = true; };
+$("scrim").addEventListener("click", e => { if (e.target === $("scrim")) $("scrim").hidden = true; });
+$("mCurrency").addEventListener("input", updateRateFieldVisibility);
+
+$("mSave").onclick = () => {
+  const name = $("mName").value.trim();
+  if (!name) { $("mName").focus(); return; }
+
+  const currency = $("mCurrency").value.trim().toUpperCase() || "EUR";
+
+  // Rate to EUR is collected inline, right here, for any non-EUR currency —
+  // not deferred to "notice the highlighted chip later". No silent default of 1.
+  let rateVal = null;
+  if (currency !== "EUR") {
+    rateVal = parseFloat($("mRate").value);
+    if (!(rateVal > 0)) { $("mRate").focus(); return; }
+  }
+
+  const amount = parseFloat($("mAmount").value) || 0;
+  const due = $("mDue").value;
+  const now = new Date().toISOString();
+
+  const entry = {
+    id: newId(), kind: addKind,
+    emoji: $("mEmoji").value.trim() || (addKind === "asset" ? "💳" : "🧾"),
+    name, currency, amount,
+    updatedAt: now,
+    dueDate: (addKind === "debt" && due) ? due : null,
+    note: ""
+  };
+
+  accounts[entry.id] = entry;
+  if (currency !== "EUR") rates[currency] = rateVal;
+  saveLocal();
+  sync.pushAccountField(entry.id, entry);
+  if (currency !== "EUR") sync.pushRate(currency, rateVal);
+
+  $("scrim").hidden = true;
+  render();
+};
+
+/* ---------- sync — one-shot pull on sign-in + targeted push per edit, same
+   profile as streams/ideas (infrequent, one row at a time), not dailyplan's
+   live onSnapshot listener. No echo guard needed: there's no listener to
+   echo against. ---------- */
+const sync = {
+  fb: null, uid: null, mode: "checking",
+
+  setUI(state, msg, btnLabel, btnAction) {
+    $("sync").className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
+    $("syncMsg").textContent = msg;
+    const btn = $("authBtn");
+    if (btnLabel) { btn.hidden = false; btn.textContent = btnLabel; btn.onclick = btnAction; }
+    else { btn.hidden = true; btn.onclick = null; }
+  },
+
+  async init() {
+    let config = null;
+    try { ({ firebaseConfig: config } = await import("./firebase-config.js")); }
+    catch { /* file:// origin, or the file is missing — stay local */ }
+    if (!config || !config.projectId) {
+      this.mode = "local";
+      this.setUI("off", "Local only — no Firebase config.");
+      return;
+    }
+    try {
+      const [{ initializeApp }, authMod, fsMod] = await Promise.all([
+        import(SDK + "firebase-app.js"),
+        import(SDK + "firebase-auth.js"),
+        import(SDK + "firebase-firestore.js")
+      ]);
+      const app = initializeApp(config);
+      const db = fsMod.initializeFirestore(app, {
+        localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() })
+      });
+      this.fb = { auth: authMod.getAuth(app), db, a: authMod, f: fsMod };
+      this.mode = "signed-out";
+      authMod.getRedirectResult(this.fb.auth).catch(() => {});
+      authMod.onAuthStateChanged(this.fb.auth, u => this.onAuth(u));
+    } catch (e) {
+      console.warn("Firebase unavailable, staying local:", e);
+      this.setUI("err", "Couldn't reach Firebase. Local only.", "Retry", () => location.reload());
+    }
+  },
+
+  onAuth(user) {
+    if (!user) {
+      this.mode = "signed-out";
+      this.uid = null;
+      this.setUI("off", "Not syncing — balances stay in this browser.",
+        "Sign in with Google", () => this.signIn());
+      return;
+    }
+    this.uid = user.uid;
+    this.mode = "signed-in";
+    this.setUI("on", `Synced — signed in as ${user.email || "your account"}`,
+      "Sign out", () => this.signOut());
+    this.pull();
+  },
+
+  async signIn() {
+    const { a, auth } = this.fb;
+    try {
+      this.setUI("off", "Opening Google sign-in…");
+      await a.signInWithPopup(auth, new a.GoogleAuthProvider());
+    } catch (e) {
+      const code = (e && e.code) || "";
+      if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+        try { await a.signInWithRedirect(auth, new a.GoogleAuthProvider()); return; }
+        catch (e2) { e = e2; }
+      }
+      const msg =
+        code === "auth/unauthorized-domain" ? "This domain isn't authorised in Firebase Auth yet."
+      : code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" ? "Sign-in was cancelled."
+      : `Sign-in failed (${e.code || e.message}).`;
+      this.setUI("err", msg, "Try again", () => this.signIn());
+    }
+  },
+
+  async signOut() {
+    try { await this.fb.a.signOut(this.fb.auth); }
+    catch (e) { this.setUI("err", `Couldn't sign out (${e.message}).`, "Try again", () => this.signOut()); }
+  },
+
+  ref() {
+    const { f, db } = this.fb;
+    return f.doc(db, "users", this.uid, "config", "finance");
+  },
+
+  async pull() {
+    const { f } = this.fb;
+    try {
+      let snap;
+      try { snap = await f.getDocFromServer(this.ref()); }
+      catch { snap = await f.getDoc(this.ref()); }
+      if (snap.exists()) {
+        const data = snap.data();
+        accounts = data.accounts || {};
+        rates = data.rates || {};
+        saveLocal();
+        render();
+      } else if (Object.keys(accounts).length || Object.keys(rates).length) {
+        try { await f.setDoc(this.ref(), { accounts, rates, updatedAt: f.serverTimestamp() }); } catch {}
+      }
+    } catch { /* offline — the local copy stands */ }
+  },
+
+  // patch: {amount, updatedAt} for a balance edit, or a full new-account object.
+  async pushAccountField(id, patch) {
+    if (this.mode !== "signed-in") return;
+    const { f } = this.fb;
+    const args = [];
+    for (const [k, v] of Object.entries(patch)) args.push(new f.FieldPath("accounts", id, k), v === undefined ? null : v);
+    args.push("updatedAt", f.serverTimestamp());
+    try {
+      await f.updateDoc(this.ref(), ...args);
+    } catch (e) {
+      if (e.code === "not-found") {
+        try { await f.setDoc(this.ref(), { accounts, rates, updatedAt: f.serverTimestamp() }); return; }
+        catch {}
+      }
+      this.setUI("err", `Couldn't save (${e.code || e.message}).`, "Retry", () => this.pushAccountField(id, patch));
+    }
+  },
+
+  async pushRate(ccy, value) {
+    if (this.mode !== "signed-in") return;
+    const { f } = this.fb;
+    try {
+      await f.updateDoc(this.ref(), new f.FieldPath("rates", ccy), value, "updatedAt", f.serverTimestamp());
+    } catch (e) {
+      if (e.code === "not-found") {
+        try { await f.setDoc(this.ref(), { accounts, rates, updatedAt: f.serverTimestamp() }); return; }
+        catch {}
+      }
+      this.setUI("err", `Couldn't save (${e.code || e.message}).`, "Retry", () => this.pushRate(ccy, value));
+    }
+  }
+};
+
+loadLocal();
+render();
+sync.init();
+</script>
+</body>
+</html>
