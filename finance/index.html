@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#F2EDE0">
 <title>Finance — Second Brain</title>
@@ -226,6 +226,9 @@
     width:100%;font:inherit;font-size:16px;font-weight:700;padding:9px 10px;
     background:var(--paper);color:var(--ink);border:2px solid var(--ink);
   }
+  .modal input[type=date]{
+    -webkit-appearance:none;appearance:none;font-size:15px;
+  }
   #mCurrency{text-transform:uppercase}
   .modal .rowpair{display:flex;gap:9px}
   .modal .rowpair>div{flex:1;min-width:0}
@@ -302,7 +305,7 @@
       <input id="mRate" type="number" inputmode="decimal" step="0.0001" placeholder="e.g. 43.2">
     </div>
     <label for="mAmount" id="mAmountLbl">BALANCE</label>
-    <input id="mAmount" type="number" inputmode="decimal" step="0.01" placeholder="0">
+    <input id="mAmount" type="number" step="0.01" placeholder="0">
     <div id="mDueWrap" hidden>
       <label for="mDue">DUE DATE &mdash; OPTIONAL</label>
       <input id="mDue" type="date">
@@ -553,7 +556,7 @@ function startEdit(row, a) {
     <span class="mark">${esc(a.emoji || "💰")}</span>
     <div class="editform">
       <span class="cur">${esc(curSym)}</span>
-      <input type="number" inputmode="decimal" step="0.01" value="${a.amount}">
+      <input type="number" step="0.01" value="${a.amount}">
       <button aria-label="Save">✓</button>
     </div>`;
   const input = row.querySelector("input");
@@ -570,7 +573,7 @@ function startEdit(row, a) {
     done = true;
     document.removeEventListener("click", outside, true);
     const v = parseFloat(input.value);
-    if (!isNaN(v) && v >= 0) {
+    if (!isNaN(v) && (a.kind === "asset" || v >= 0)) {
       a.amount = v;
       a.updatedAt = new Date().toISOString();
       saveLocal();
@@ -649,7 +652,8 @@ $("mSave").onclick = () => {
     if (!(rateVal > 0)) { $("mRate").focus(); return; }
   }
 
-  const amount = parseFloat($("mAmount").value) || 0;
+  let amount = parseFloat($("mAmount").value) || 0;
+  if (addKind === "debt") amount = Math.abs(amount);
   const due = $("mDue").value;
   const now = new Date().toISOString();
 
