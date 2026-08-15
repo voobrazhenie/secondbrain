@@ -61,6 +61,35 @@ widget. Two problems shaped the implementation, both still true for any future c
   table, so it never runs out of levels. Change the constants here if the pacing needs
   retuning; don't reintroduce a hardcoded array.
 
+## The day counter
+
+`noWeedDays()` counts days since the last `r-smoked-weed` tick, inclusive of today.
+It stores nothing of its own — `lastTicked()` already scans Firestore `history` and
+localStorage together, so the counter works signed out and across devices for free.
+Don't add a "last smoked" field: it would be a second source of truth for something
+the ticks already answer, and would drift the moment a past day is edited.
+
+Two deliberate choices:
+
+- **A day with no record counts as a no-weed day.** The alternative punishes forgetting
+  to open the app rather than smoking. The cost is that a week away reads as 7.
+- **It reads `todayISO()`, not `plan.date`** — same as `computeStreak()`. It's a fact
+  about now, not about whichever day the nav is showing. Ticking the weed row on a past
+  day still moves it, because `lastTicked()` rescans.
+
+The markup is `.counter` — square, unit, name — and nothing in it is weed-specific.
+More trackers (screen time, habits to build) are meant to stack as sibling rows; only
+this one exists so far. The square is filled while the count runs and empty at zero,
+which is the same shape as an unticked box — no red, no message. A bad day gets the
+colour drained out, not a telling-off, and that is the point rather than a detail.
+
+The top-bar pill is a *different* count (days anything was ticked) and is labelled
+SHOWING UP for that reason — two unlabelled day counts side by side read as the same
+number.
+
+`program.principles` is still in `plan.json` but nothing renders it any more; the Tilda
+Swinton box was removed. Left in place so `plan.json`/`FALLBACK` didn't need re-embedding.
+
 ## Local writes must never be dropped or overwritten
 
 Every write path stays usable signed out. `queueTick()` and `pushCustom()` record the intent

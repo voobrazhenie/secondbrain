@@ -57,18 +57,36 @@
   .streak b{font-size:12px}
   .streak.cold{background:var(--sunk);color:var(--grey)}
 
-  /* ---------- principle of the day ---------- */
-  .principle{
-    background:var(--yellow);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
-    padding:12px 14px 11px;margin-bottom:14px;
+  /* ---------- day counter ----------
+     One tracked thing, one row: a square holding the number, the unit, the name.
+     Built to take more of these later (screen time, habits to build) — nothing
+     in it is weed-specific. Same box metrics as a checklist .row on purpose, so
+     it sits in the page rather than shouting over it. */
+  .counter{
+    display:flex;align-items:center;gap:11px;
+    background:var(--card);color:var(--ink);
+    border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:9px 11px;min-height:56px;margin-bottom:14px;
   }
-  .principle .k{font-size:8px;letter-spacing:.1em;
-    font-family:"Arial Black",Impact,sans-serif}
-  .principle .p{
-    font-size:21px;line-height:1.1;margin:5px 0 6px;letter-spacing:-.01em;
-    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
+  /* Filled while the count is running, empty at zero — the same shape as a box
+     you haven't ticked. No red: a bad day gets the colour drained out, not a
+     telling-off. */
+  .counter .sq{
+    flex:0 0 auto;width:36px;height:36px;
+    border:var(--stroke) solid var(--ink);background:var(--card);
+    display:flex;align-items:center;justify-content:center;
+    font-family:"Arial Black",Impact,sans-serif;font-weight:900;font-size:17px;line-height:1;
+    font-variant-numeric:tabular-nums;letter-spacing:-.02em;
+    transition:background-color .2s linear;
   }
-  .principle .a{font-size:9.5px;font-weight:700;color:#6B5A14}
+  .counter .sq.on{background:var(--lime)}
+  .counter .sq.d3{font-size:13px;letter-spacing:-.04em}
+  .counter .unit{
+    flex:0 0 auto;font-family:"Arial Black",Impact,sans-serif;
+    font-size:9px;letter-spacing:.07em;color:var(--grey);
+  }
+  .counter .nm{flex:1;min-width:0;font-size:13px;font-weight:900;line-height:1.15}
+  @media (prefers-reduced-motion: reduce){ .counter .sq{transition:none} }
 
   /* ---------- day switcher ---------- */
   .daynav{
@@ -315,33 +333,6 @@
   }
   @media (prefers-reduced-motion: reduce){ .lv-fill{transition:none} }
 
-  /* ---------- main focus ---------- */
-  .focus{
-    background:var(--ink);color:var(--paper);
-    border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
-    padding:14px 16px 16px;margin-bottom:14px;
-  }
-  .focus .k{font-size:8px;letter-spacing:.1em;color:var(--faint);
-    font-family:"Arial Black",Impact,sans-serif}
-  .focus .p{
-    font-size:22px;line-height:1.05;margin:4px 0 6px;letter-spacing:-.01em;
-    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
-  }
-  .focus .sub{font-size:11px;font-weight:600;color:var(--faint);margin-bottom:12px}
-  .focus-btn{
-    display:block;width:100%;min-height:52px;font-size:14px;
-    box-shadow:3px 3px 0 var(--paper);
-  }
-  .focus-btn:active{box-shadow:1px 1px 0 var(--paper)}
-  .focus-timer{
-    font-size:42px;line-height:1;margin:2px 0 6px;
-    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
-    font-variant-numeric:tabular-nums;
-  }
-  .focus-msg{font-size:12px;font-weight:700;color:var(--paper)}
-  .focus-acts{display:flex;gap:9px;margin-top:14px}
-  .focus-acts button{flex:1;background:var(--paper);box-shadow:2px 2px 0 var(--paper)}
-  .focus-acts button:active{box-shadow:none;transform:translate(2px,2px)}
 </style>
 </head>
 <body>
@@ -353,51 +344,10 @@
     <span class="streak" id="streak"><b id="streakN">0</b><span id="streakLbl">days</span></span>
   </div>
 
-  <div class="focus" id="focus">
-    <div id="focusIdle" hidden>
-      <div class="k">MAIN FOCUS</div>
-      <div class="p">NO WEED TODAY</div>
-      <div class="sub">Clearer mornings, better sleep, more control.</div>
-      <button class="primary focus-btn" id="focusHelp">I NEED HELP NOW</button>
-    </div>
-    <div id="focusActive" hidden>
-      <div class="k">STAY WITH IT</div>
-      <div class="focus-timer" id="focusTime">10:00</div>
-      <div class="focus-msg">Leave the room and take a walk until the timer ends.</div>
-      <div class="focus-acts">
-        <button id="focusStop">STOP</button>
-        <button id="focusReset">RESET</button>
-      </div>
-    </div>
-    <div id="focusDone" hidden>
-      <div class="k">TIME'S UP</div>
-      <div class="p">You made it through.</div>
-      <button class="primary focus-btn" id="focusOk">OK</button>
-    </div>
-  </div>
-  <script>
-    // Runs immediately, before the rest of the page parses, so a reload mid-
-    // countdown (or after completion) never flashes the idle state first.
-    // Key is duplicated from LS_FOCUS below on purpose — this has to run
-    // before that script block exists. Checks the pre-rename key too, since
-    // the migration in that later script hasn't had a chance to run yet.
-    (function () {
-      var el = "focusIdle";
-      try {
-        var raw = localStorage.getItem("secondbrain.fitness.focus")
-          || localStorage.getItem("lifeinterface.fitness.focus");
-        var s = JSON.parse(raw || "null");
-        if (s && s.endAt - Date.now() > 0) el = "focusActive";
-        else if (s) el = "focusDone";
-      } catch (e) {}
-      document.getElementById(el).hidden = false;
-    })();
-  </script>
-
-  <div class="principle" id="principle" hidden>
-    <div class="k" id="prTitle">NOTES FOR RADICAL LIVING</div>
-    <div class="p" id="prText"></div>
-    <div class="a" id="prAuthor"></div>
+  <div class="counter" id="counter" hidden>
+    <span class="sq" id="counterN">0</span>
+    <span class="unit">DAYS</span>
+    <span class="nm">No weed</span>
   </div>
 
   <div class="daynav">
@@ -521,7 +471,6 @@ const LS_PREFIX  = "secondbrain.fitness.v1.";
 const LS_META    = "secondbrain.fitness.meta.";
 const LS_NOTES   = "secondbrain.fitness.notes";
 const LS_CUSTOM  = "secondbrain.fitness.custom";
-const LS_FOCUS   = "secondbrain.fitness.focus";
 const LS_COLLAPSED = "secondbrain.fitness.collapsed";
 const LS_DIRECTION = "secondbrain.daily.direction.";
 const LS_XPMONTH = "secondbrain.fitness.xpmonth.";   // + YYYY-MM
@@ -555,104 +504,6 @@ const HISTORY_DAYS = 90;
 const RING_C     = 2 * Math.PI * 33;   // matches r=33 in the svg
 const WEEKDAYS   = ["sun","mon","tue","wed","thu","fri","sat"];
 const $ = id => document.getElementById(id);
-
-/* ---------- main focus: craving-interrupt timer ----------
-   Deliberately separate from the day/session model above — one ongoing timer,
-   local only. Nothing here is worth syncing across devices, so it never
-   touches Firestore or `custom`; localStorage is the whole story. */
-const FOCUS_MS = 10 * 60 * 1000;
-let focusInterval = null;
-let focusAudioCtx = null;
-let focusAnnounced = false;   // true once this completion has already beeped
-
-function loadFocus() {
-  try { return JSON.parse(localStorage.getItem(LS_FOCUS) || "null"); }
-  catch { return null; }
-}
-function saveFocus(state) {
-  try {
-    if (state) localStorage.setItem(LS_FOCUS, JSON.stringify(state));
-    else localStorage.removeItem(LS_FOCUS);
-  } catch {}
-}
-
-// Three short tones — noticeable without being harsh. Needs an AudioContext
-// that was created (or resumed) during a user gesture, or autoplay rules
-// mute it — see focusStart().
-function focusBeep() {
-  try {
-    if (!focusAudioCtx) return;
-    const ctx = focusAudioCtx, t0 = ctx.currentTime;
-    [0, 0.35, 0.7].forEach(offset => {
-      const osc = ctx.createOscillator(), gain = ctx.createGain();
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.0001, t0 + offset);
-      gain.gain.exponentialRampToValueAtTime(0.3, t0 + offset + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + offset + 0.25);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(t0 + offset);
-      osc.stop(t0 + offset + 0.3);
-    });
-  } catch {}
-}
-
-function focusEnsureAudio() {
-  try {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (Ctx && !focusAudioCtx) focusAudioCtx = new Ctx();
-    else if (focusAudioCtx && focusAudioCtx.state === "suspended") focusAudioCtx.resume();
-  } catch {}
-}
-
-function focusShow(id) {
-  $("focusIdle").hidden = id !== "focusIdle";
-  $("focusActive").hidden = id !== "focusActive";
-  $("focusDone").hidden = id !== "focusDone";
-}
-
-/* The single source of truth is the stored endAt timestamp, not an elapsed
-   count — so a backgrounded or throttled tab is never off by the drift a
-   naive setInterval countdown would accumulate. announce controls whether a
-   completion seen right now plays the sound/vibration: true for a live tick
-   or a tab regaining visibility, false for the check on page load, so
-   reopening the app hours later doesn't retroactively buzz. */
-function focusTick(announce) {
-  const state = loadFocus();
-  if (!state) { clearInterval(focusInterval); focusInterval = null; focusShow("focusIdle"); return; }
-
-  const remain = state.endAt - Date.now();
-  if (remain <= 0) {
-    clearInterval(focusInterval); focusInterval = null;
-    // Guard against re-announcing: visibilitychange fires focusTick(true)
-    // every time the tab regains focus, which without this would re-beep on
-    // each return visit to an already-finished, not-yet-acknowledged timer.
-    if (announce && !focusAnnounced) {
-      focusAnnounced = true;
-      focusBeep();
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
-    }
-    focusShow("focusDone");
-    return;
-  }
-
-  focusAnnounced = false;   // still counting down — arm for the next completion
-  const s = Math.ceil(remain / 1000);
-  $("focusTime").textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-  focusShow("focusActive");
-  if (!focusInterval) focusInterval = setInterval(() => focusTick(true), 250);
-}
-
-function focusStart() {
-  focusEnsureAudio();
-  focusAnnounced = false;
-  saveFocus({ endAt: Date.now() + FOCUS_MS });
-  focusTick(true);
-}
-function focusStop() {
-  saveFocus(null);
-  focusShow("focusIdle");
-  clearInterval(focusInterval); focusInterval = null;
-}
 
 /* Dev-only: ?date=2026-08-05 pretends it is that day, so the rotation and rest
    days can be stepped through without waiting a fortnight. */
@@ -698,7 +549,7 @@ function weekdayOf(iso) {
 
 /* ---------- daily direction ----------
    One date-scoped, user-written orientation. It is intentionally separate from
-   tasks, XP and the craving-interrupt focus timer. */
+   tasks and XP. */
 let directionEditDate = null;
 
 function directionPromptFor(date, record = null) {
@@ -1332,8 +1183,8 @@ function render() {
   }
 
   renderStreak();
+  renderCounter();
   renderLevel();
-  renderPrinciple();
   renderDayNav();
   renderDirection();
 }
@@ -1497,13 +1348,16 @@ function refreshDerived() {
     if (cnt) cnt.textContent = `${(g.items || []).filter(i => ticks[i.id]).length}/${(g.items || []).length}`;
   }
   renderStreak();
+  renderCounter();
   renderLevel();
 }
 
+/* Labelled SHOWING UP, not DAYS: the no-weed counter below it is also a day
+   count, and two unlabelled numbers next to each other read as the same thing. */
 function renderStreak() {
   const s = computeStreak();
   $("streakN").textContent = s;
-  $("streakLbl").textContent = s === 1 ? "DAY" : "DAYS";
+  $("streakLbl").textContent = "SHOWING UP";
   $("streak").className = "streak" + (s === 0 ? " cold" : "");
 }
 
@@ -1529,17 +1383,34 @@ function renderLevel() {
     (plan.date === todayISO() ? " TODAY" : "");
 }
 
-/* One principle per day, walked in order from the plan's start date so the same
-   day always shows the same note. */
-function renderPrinciple() {
-  const p = program.principles;
-  const box = $("principle");
-  if (!p || !p.list || !p.list.length) { box.hidden = true; return; }
-  const n = Math.max(0, daysBetween(program.startDate, plan.date));
-  box.hidden = false;
-  $("prTitle").textContent = (p.title || "").toUpperCase();
-  $("prText").textContent = p.list[n % p.list.length];
-  $("prAuthor").textContent = [p.author, p.source].filter(Boolean).join(" — ");
+/* ---------- day counter ----------
+   Days since the last recorded smoke, counting today. There is no new stored
+   field: lastTicked() already scans Firestore history and localStorage
+   together, so this works signed out and across devices for free.
+
+   A day with no record at all counts as a no-weed day. That is deliberate —
+   the alternative punishes forgetting to open an app rather than smoking. The
+   cost is that a week away reads as 7.
+
+   Read off todayISO() rather than plan.date, like computeStreak(): this is a
+   fact about right now, not about the day the nav happens to be showing. */
+const WEED_ID = "r-smoked-weed";
+
+function noWeedDays() {
+  const today = todayISO();
+  if (loadTicks(today)[WEED_ID]) return 0;
+  // Nothing logged yet means nothing to count from, so fall back to the plan's
+  // own start date instead of showing a misleading 0.
+  const last = lastTicked(WEED_ID, today) || program.startDate;
+  return Math.max(0, daysBetween(last, today));
+}
+
+function renderCounter() {
+  const n = noWeedDays();
+  const sq = $("counterN");
+  $("counter").hidden = false;
+  sq.textContent = n;
+  sq.className = "sq" + (n > 0 ? " on" : "") + (String(n).length > 2 ? " d3" : "");
 }
 
 /* ---------- moving between days ---------- */
@@ -2146,20 +2017,12 @@ document.addEventListener("keydown", e => {
   else if (directionEditDate) cancelDirectionEdit();
 });
 
-$("focusHelp").addEventListener("click", focusStart);
-$("focusReset").addEventListener("click", focusStart);
-$("focusStop").addEventListener("click", focusStop);
-$("focusOk").addEventListener("click", focusStop);
-// A backgrounded tab throttles setInterval, so catch up the instant it's
-// looked at again rather than waiting for the next (possibly late) tick.
+// Coming back from the Exercise page is the usual way the training row
+// changes, so re-check it whenever this tab is looked at again.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) return;
-  focusTick(true);
-  // Coming back from the Exercise page is the usual way the training row
-  // changes, so re-check it whenever this tab is looked at again.
   reconcilePhysical();
 });
-focusTick(false);
 
 loadCustom();
 loadCollapsed();
