@@ -169,24 +169,7 @@
   button.primary{background:var(--yellow)}
   button.on{background:var(--teal)}
   button:disabled{opacity:.5;cursor:default;transform:none}
-  .status{font-size:11.5px;font-weight:700;color:var(--grey);margin-top:10px;min-height:1.2em}
-  .status.ok{color:var(--ink)}
 
-  /* ---------- plan ---------- */
-  details.plan{margin-top:22px;border-top:2px solid var(--ink);padding-top:14px}
-  details.plan summary{
-    cursor:pointer;font-size:10px;letter-spacing:.08em;color:var(--ink);
-    font-family:"Arial Black",Impact,sans-serif;font-weight:900;list-style:none;
-  }
-  details.plan summary::-webkit-details-marker{display:none}
-  details.plan summary::before{content:"\25B8 "}
-  details.plan[open] summary::before{content:"\25BE "}
-  .plan-body{margin-top:12px;font-size:12.5px;font-weight:600;color:var(--grey)}
-  .plan-body h4{margin:14px 0 5px;font-size:11px;color:var(--ink);
-    font-family:"Arial Black",Impact,sans-serif;font-weight:900;letter-spacing:.05em}
-  .plan-body ul{list-style:none;padding:0;margin:0}
-  .plan-body li{padding-left:15px;position:relative;margin-bottom:4px}
-  .plan-body li::before{content:"\25A0";position:absolute;left:0;color:var(--ink);font-size:8px;top:3px}
   footer{
     margin-top:22px;padding-top:12px;border-top:2px solid var(--ink);
     font-size:10px;font-weight:700;color:var(--grey);line-height:1.55;
@@ -483,39 +466,8 @@
   </div>
 
   <div class="actions">
-    <button class="primary" id="refreshBtn">Refresh for today</button>
     <button id="notesBtn">Notes</button>
-    <button id="copyBtn">Copy status</button>
-    <button id="resetBtn">Clear</button>
   </div>
-  <div class="status" id="status"></div>
-
-  <details class="plan">
-    <summary>The plan, at a glance</summary>
-    <div class="plan-body">
-      <p><strong>Goal:</strong> lean gain, not weight loss. Add roughly 3–5 kg of muscle — mostly lateral delts, upper chest and arms — while holding or slightly reducing body fat. Started 29 July 2026; realistic horizon 8–14 months.</p>
-      <h4>The four things that waste a year</h4>
-      <ul>
-        <li>Program hopping — twelve weeks minimum before changing anything</li>
-        <li>Under-eating protein — 1.8–2.2 g per kg per day</li>
-        <li>Never adding weight to the bar — double progression, logged every set</li>
-        <li>Sleeping badly — 7–9 hours, consistent wake time</li>
-      </ul>
-      <h4>The weekly shape</h4>
-      <ul>
-        <li>Day 1 — Upper, push emphasis</li>
-        <li>Day 2 — Lower</li>
-        <li>Day 3 — Upper, pull emphasis</li>
-        <li>Day 4 — Weak-point: arms &amp; delts</li>
-      </ul>
-      <h4>What "working" looks like at week 6</h4>
-      <ul>
-        <li>Key lifts up 15–25%</li>
-        <li>Bodyweight up 0.3–0.8 kg total</li>
-        <li>Barely any visual change — trust the logbook over the mirror</li>
-      </ul>
-    </div>
-  </details>
 
   <footer>
     Signed out, ticks stay in this browser. Signed in, they sync to your own
@@ -988,12 +940,12 @@ function isSessionDone(date) {
    you add, edit or delete lives here instead and is layered over the derived day.
    Kept in localStorage and mirrored to Firestore so it follows you between
    devices like the ticks do. */
-let custom = { added: [], hidden: {}, edits: {} };
+let custom = { added: [], hidden: {}, doneOnce: {}, edits: {} };
 
 function loadCustom() {
   try {
     const raw = JSON.parse(localStorage.getItem(LS_CUSTOM) || "null");
-    if (raw) custom = { added: [], hidden: {}, edits: {}, ...raw };
+    if (raw) custom = { added: [], hidden: {}, doneOnce: {}, edits: {}, ...raw };
   } catch { /* keep the empty default */ }
 }
 function saveCustom({ push = true } = {}) {
@@ -1070,7 +1022,12 @@ function deriveDay(date) {
     if (items.length) groups.push({ ...g, items });
   }
 
-  const pending = (program.oneOffs?.items || []).filter(i => !everTicked(i.id, date));
+  /* custom.doneOnce is the durable record — it rides in the synced custom
+     document, so a completed one-off stays gone even on a browser whose
+     localStorage never saw the tick. everTicked() stays as the fallback, which
+     is what keeps one-offs finished before this existed still hidden. */
+  const pending = (program.oneOffs?.items || []).filter(i =>
+    !(custom.doneOnce && custom.doneOnce[i.id]) && !everTicked(i.id, date));
   if (pending.length) {
     groups.push({ ...program.oneOffs, items: pending.map(i => ({ ...i, text: itemText(i) })) });
   }
@@ -1150,11 +1107,13 @@ function totalXp() {
       recomputed wholesale from the day records rather than incremented, so a
       wrong total repairs itself on the next tick instead of drifting forever.
 
-   2. Items can cost XP as well as pay it, so a total can shrink. Level and bar
-      are therefore read off `peakXp` — the high-water mark — not off the live
-      total. Peak only ever rises, so the level never drops and the bar never
-      rewinds; a dip just means the bar pauses until the old best is passed.
-      Today's XP is shown separately and is free to move both ways. */
+   2. Items can cost XP as well as pay it, so a total can shrink. The level and
+      bar used to be read off `peakXp` — a high-water mark — so they could never
+      go backwards. That made the bar sit still for days after a negative tick,
+      and freeze outright whenever the stored peak was above what localStorage
+      could see, which defeated the point of having it. Both now read live
+      lifetime XP, so every tick moves the bar, and a negative item moves it
+      back. `peakXp` is still recorded (see bumpPeak) but no longer drawn. */
 
 function monthKey(date) { return date.slice(0, 7); }
 
@@ -1212,7 +1171,8 @@ function loadPeak() {
 }
 
 /* Recompute the month being looked at, roll it into lifetime, and raise the peak
-   if that beat it. Returns the peak so the caller can render straight from it. */
+   if that beat it. The peak is kept for the record and mirrored to Firestore, but
+   nothing renders from it any more — renderLevel() reads lifetimeXp() live. */
 function bumpPeak() {
   if (!plan) return loadPeak();
   const key = monthKey(plan.date);
@@ -1549,7 +1509,11 @@ function renderStreak() {
 
 function renderLevel() {
   if (!plan) return;
-  const { level, into, need } = levelFromXp(bumpPeak());
+  // Live lifetime XP, not the high-water mark: the bar has to answer every tick,
+  // which is the whole point of it. bumpPeak() still recomputes the month and
+  // keeps the peak up to date — it just no longer drives what's drawn.
+  bumpPeak();
+  const { level, into, need } = levelFromXp(lifetimeXp());
   $("level").hidden = false;
   $("lvNum").textContent = level;
   $("lvFill").style.width = Math.max(0, Math.min(100, Math.round((into / need) * 100))) + "%";
@@ -1606,10 +1570,21 @@ async function goToDay(date) {
   await rebuild();
 }
 
+const isOneOff = id => (program.oneOffs?.items || []).some(i => i.id === id);
+
 function setTick(id, on) {
   const t = loadTicks(plan.date);
   if (on) t[id] = true; else delete t[id];
   saveTicks(plan.date, t);
+
+  // A one-off is done for good, so say so explicitly rather than leaving it to
+  // be re-inferred from day records that this browser may not have.
+  if (isOneOff(id)) {
+    if (on) custom.doneOnce[id] = plan.date;
+    else delete custom.doneOnce[id];
+    saveCustom();
+  }
+
   const row = rowEls.get(id);
   if (row) row.classList.toggle("done", on);
   // xpEarned is kept locally too, so lifetime XP still adds up signed out.
@@ -1657,34 +1632,6 @@ async function reconcilePhysical() {
   if (!plan || plan.date !== date) return;    // the day was changed while we waited
   if (want === !!loadTicks(date)[PHYSICAL_ID]) return;
   setTick(PHYSICAL_ID, want);
-}
-
-/* ---------- copy status ---------- */
-function summaryFor(date) {
-  const ticks = loadTicks(date);
-  const lines = [`Fitness tracker — results for ${date} (${prettyDate(date)})`, ""];
-  if (date === plan.date) {
-    for (const g of plan.groups || []) {
-      lines.push(`${g.title}:`);
-      for (const it of g.items || []) lines.push(`  [${ticks[it.id] ? "x" : " "}] ${it.text}`);
-      lines.push("");
-    }
-    const items = allItems();
-    lines.push(`Completed ${items.filter(i => ticks[i.id]).length} of ${items.length} — ${todayXp()} XP.`);
-  } else {
-    const ids = Object.keys(ticks);
-    lines.push(ids.length ? `Ticked: ${ids.join(", ")}` : "Nothing was ticked.");
-  }
-  return lines.join("\n");
-}
-async function copy(text, okMsg) {
-  try { await navigator.clipboard.writeText(text); setStatus(okMsg, true); }
-  catch { setStatus("Clipboard was blocked — select the text above and copy it manually."); }
-}
-function setStatus(msg, ok = false) {
-  const el = $("status");
-  el.textContent = msg;
-  el.className = "status" + (ok ? " ok" : "");
 }
 
 /* ================= sync layer =================
@@ -1748,6 +1695,10 @@ const sync = {
     }
     this.uid = user.uid; this.mode = "signed-in";
     this.setUI("on", `Syncing as ${user.email || "your account"}`, "Sign out", () => this.signOut());
+    // Anything ticked or removed before auth resolved goes up FIRST, so the
+    // read-back below can't overwrite it with an older server copy.
+    this.flush();
+    if (this.customPending) this.pushCustom();
     this.attach();
     this.loadHistory();
     this.loadCustomRemote();
@@ -1925,7 +1876,9 @@ const sync = {
       catch { snap = await f.getDoc(ref); }
       if (snap.exists()) {
         const data = snap.data();
-        this.adopt(data.ticks || {}, date);
+        // Same guard the live listener uses: a tick still on its way up must not
+        // be undone by the copy we just read back.
+        if (!(this.queue.size && this.queueDate === date)) this.adopt(data.ticks || {}, date);
         await this.ensureMeta(data, date);
         await this.reconcileDirection(data, date);
       } else {
@@ -1959,17 +1912,28 @@ const sync = {
     return f.doc(db, "users", this.uid, "config", "custom");
   },
 
+  /* Signed out this is remembered rather than dropped, and sent from onAuth().
+     Losing it here is what let removed tasks come back: the removal lived only
+     in localStorage, and the next sign-in overwrote it with the older remote copy. */
+  customPending: false,
+
   async pushCustom() {
-    if (this.mode !== "signed-in") return;
+    if (this.mode !== "signed-in") { this.customPending = true; return; }
     const { f } = this.fb;
+    this.customPending = false;
     try {
       await f.setDoc(this.customRef(), { ...custom, updatedAt: f.serverTimestamp() });
     } catch (e) {
+      this.customPending = true;
       this.setUI("err", `Couldn't save your changes to sync (${e.code || e.message}). Saved on this device.`,
         "Retry", () => this.pushCustom());
     }
   },
 
+  /* Merged, never replaced. Replacing wholesale meant any removal or edit made on
+     this device while signed out was destroyed the moment the remote copy arrived.
+     Removals and completed one-offs are unions — something dismissed on any device
+     stays dismissed — and the merged result is pushed back so both sides converge. */
   async loadCustomRemote() {
     if (this.mode !== "signed-in") return;
     const { f } = this.fb;
@@ -1977,14 +1941,21 @@ const sync = {
       let snap;
       try { snap = await f.getDocFromServer(this.customRef()); }
       catch { snap = await f.getDoc(this.customRef()); }
-      if (snap.exists()) {
-        const v = snap.data();
-        custom = { added: v.added || [], hidden: v.hidden || {}, edits: v.edits || {} };
-        saveCustom({ push: false });
-        rebuild();
-      } else if (custom.added.length || Object.keys(custom.hidden).length || Object.keys(custom.edits).length) {
-        await this.pushCustom();   // first sign-in with changes already made here
-      }
+
+      const v = snap.exists() ? snap.data() : {};
+      const byId = new Map();
+      for (const a of (v.added || [])) byId.set(a.id, a);
+      for (const a of custom.added) byId.set(a.id, a);   // this device's version wins
+
+      custom = {
+        added: [...byId.values()],
+        hidden:   { ...(v.hidden   || {}), ...custom.hidden   },
+        doneOnce: { ...(v.doneOnce || {}), ...custom.doneOnce },
+        edits:    { ...(v.edits    || {}), ...custom.edits    }
+      };
+      saveCustom({ push: false });
+      rebuild();
+      await this.pushCustom();
     } catch { /* offline — the local copy stands */ }
   },
 
@@ -2019,14 +1990,19 @@ const sync = {
     }
   },
 
+  /* Queued whatever the auth state is. A tick made before onAuthStateChanged has
+     fired used to be dropped here and then overwritten by the server's copy on
+     sign-in, which is how ticked one-offs came back. Recording the intent costs
+     nothing; onAuth() flushes it once there's somewhere to send it. */
   queueTick(date, id, on) {
-    if (this.mode !== "signed-in") return;
     if (this.queueDate !== date) { this.queue.clear(); this.queueDate = date; }
     this.queue.set(id, on);
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.flush(), 500);
   },
 
+  /* Signed out the queue just sits there and waits — it is flushed from onAuth()
+     before anything reads the server back. */
   async flush() {
     clearTimeout(this.timer);
     if (this.mode !== "signed-in" || !this.queue.size) return;
@@ -2059,6 +2035,8 @@ const sync = {
     }
   },
 
+  /* Unused since the Clear button was removed. Kept because it is the only
+     merge-safe way to wipe a day without taking its Daily Direction with it. */
   async clearDay(date) {
     if (this.mode !== "signed-in") return;
     this.queue.clear();
@@ -2108,7 +2086,7 @@ const sync = {
    The page derives the day itself, so it can no longer go stale waiting for
    someone to publish a new list. An override file is the rare escape hatch for
    a day that needs something the rules can't express. */
-async function loadProgram({ announce = false } = {}) {
+async function loadProgram() {
   let fetched = null;
   try {
     const res = await fetch(`plan.json?t=${Date.now()}`, { cache:"no-store" });
@@ -2117,13 +2095,6 @@ async function loadProgram({ announce = false } = {}) {
 
   program = fetched || FALLBACK;
   await rebuild();
-
-  if (announce) {
-    const prog = program.programs[program.activeProgram];
-    setStatus(plan.sessionId
-      ? `Up to date — ${prog.label}, ${plan.sessionLabel}.`
-      : `Up to date — ${plan.sessionLabel}.`, true);
-  }
 }
 
 async function rebuild() {
@@ -2147,34 +2118,10 @@ async function applyOverride() {
   } catch { /* absent or unparseable — the derived day stands */ }
 }
 
-$("refreshBtn").addEventListener("click", async e => {
-  const btn = e.currentTarget;
-  btn.disabled = true;
-  const was = btn.textContent;
-  btn.textContent = "Checking…";
-  setStatus("");
-  if (sync.mode === "signed-in") await sync.loadHistory();
-  await loadProgram({ announce:true });
-  btn.textContent = was;
-  btn.disabled = false;
-});
-
 $("notesBtn").addEventListener("click", e => {
   const on = document.body.classList.toggle("notes");
   e.currentTarget.classList.toggle("on", on);
   try { localStorage.setItem(LS_NOTES, on ? "1" : "0"); } catch {}
-});
-
-$("copyBtn").addEventListener("click", () =>
-  copy(summaryFor(plan.date), "Copied — paste it into Claude Code."));
-
-$("resetBtn").addEventListener("click", () => {
-  if (!confirm("Clear every tick for " + plan.date + "?")) return;
-  saveTicks(plan.date, {});
-  saveDayMeta(plan.date, { sessionId: plan.sessionId, sessionDone: false, xpEarned: 0 });
-  render();
-  sync.clearDay(plan.date);
-  setStatus("Cleared.");
 });
 
 $("dayPrev").addEventListener("click", () => goToDay(shiftDate(plan.date, -1)));

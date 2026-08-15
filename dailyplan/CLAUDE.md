@@ -49,12 +49,42 @@ widget. Two problems shaped the implementation, both still true for any future c
   of those small monthly numbers. Each month is recomputed wholesale on every tick, not
   incremented — a wrong total self-heals on the next tick instead of drifting.
 - **XP can go negative** (e.g. "Smoked weed" is −20), so a live total can shrink. Level and the
-  progress bar are read off `peakXp` — a high-water mark (`bumpPeak()`, `:1216`, mirrored to
-  `users/{uid}/xp/peak`) — never off the live total, so the level never drops. Today's own XP
-  is shown separately and is free to move both ways.
+  progress bar used to be read off `peakXp` — a high-water mark (`bumpPeak()`, mirrored to
+  `users/{uid}/xp/peak`) — so they could never go backwards. That made the bar sit still for
+  days after a negative tick, and freeze outright whenever the stored peak sat above what
+  localStorage could see, which defeated the point of having a bar at all. Both now read
+  `lifetimeXp()` live, so every tick moves the bar and a negative item moves it back.
+  `peakXp` is still computed and synced (cheap, and it makes the decision reversible) but
+  nothing renders from it — don't reintroduce it as the render source without solving the
+  freeze first.
 - Level cost curve: `costForLevel(n)` (`:1163`) = `400 + 150(n−1) + 10(n−1)²` — a formula, not a
   table, so it never runs out of levels. Change the constants here if the pacing needs
   retuning; don't reintroduce a hardcoded array.
+
+## Local writes must never be dropped or overwritten
+
+Every write path stays usable signed out. `queueTick()` and `pushCustom()` record the intent
+regardless of auth state — `pushCustom()` sets `customPending` — and `onAuth()` flushes both
+**before** `attach()` and `loadCustomRemote()` read the server back. Getting this wrong is not
+a sync nicety: ticks and removals made before `onAuthStateChanged` fires (or in the standalone
+PWA, which is a separate storage and auth context) were silently discarded, then erased by the
+older server copy on the next sign-in. That is what made ticked one-offs and removed tasks
+reappear.
+
+`loadCustomRemote()` **merges, never replaces**: `hidden` and `doneOnce` are unions, so
+anything dismissed on any device stays dismissed; `added` is unioned by id with this device
+winning; the merged result is pushed straight back so both sides converge. `attach()`'s first
+read carries the same `queue.size && queueDate === date` guard the live listener has, so a
+tick still on its way up can't be undone by the copy just read back.
+
+## One-offs — `custom.doneOnce`
+
+A completed one-off is recorded explicitly as `custom.doneOnce[id] = date` (set in `setTick()`
+via `isOneOff()`, cleared on untick so same-day undo still works) and rides in the synced
+`custom` document. `deriveDay()` checks it first and falls back to `everTicked()`. The fallback
+is what keeps one-offs finished before this existed hidden, but it is only a fallback — it
+scans day records, which depend on this browser's localStorage or the 90-day Firestore window,
+so it cannot be the durable answer on its own.
 
 ## `plan.json` / `FALLBACK`
 
