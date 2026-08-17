@@ -2,10 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#F2EDE0">
 <title>Second Brain</title>
+
+<!-- Add to Home Screen. iOS ignores the manifest's name/display, so the
+     apple-* metas below are what actually make it launch standalone.
+     One manifest for the whole Second Brain, so moving between sections
+     never falls back to Safari. -->
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Second Brain">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
   /* Same neo-brutalist system as dailyplan/ — thick strokes, squared corners,
      solid accent blocks, hard zero-blur shadows. */
@@ -32,13 +43,9 @@
     font-size:10px;letter-spacing:.1em;padding:4px 9px;margin-bottom:16px;
   }
   h1{
-    font-size:clamp(30px,8.5vw,42px);margin:0 0 14px;line-height:1.02;
+    font-size:clamp(30px,8.5vw,42px);margin:0 0 22px;line-height:1.02;
     letter-spacing:-.02em;
   }
-  h1 em{font-style:normal;background:var(--yellow);
-    border:var(--stroke) solid var(--ink);padding:0 8px;box-shadow:4px 4px 0 var(--ink);
-    display:inline-block;}
-  .lede{color:var(--grey);font-weight:600;margin:0 0 32px;max-width:44ch;font-size:15px}
 
   a.card{
     display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;
@@ -58,92 +65,16 @@
     margin-top:4px;line-height:1.4}
   a.card .go{flex:0 0 auto;font-size:18px}
 
-  .soon{
-    border:2.5px dashed var(--ink);padding:15px 18px;margin-bottom:14px;
-    color:var(--grey);font-weight:700;font-size:13px;
-  }
   footer{
     margin-top:40px;padding-top:14px;border-top:2px solid var(--ink);
     font-size:11px;font-weight:700;color:var(--grey);line-height:1.6;
   }
-
-  /* ---------- fit progress ---------- */
-  .fit{
-    background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
-    padding:15px 16px 14px;margin-bottom:14px;
-  }
-  .fit .head{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
-  .fit .head .l{font-size:10px;letter-spacing:.09em;
-    font-family:"Arial Black",Impact,sans-serif}
-  .fit .head .grow{flex:1}
-  .fit .head .pc{font-size:22px;font-family:"Arial Black",Impact,sans-serif}
-  .fit .sub{font-size:11px;font-weight:700;color:var(--grey);margin-bottom:11px}
-
-  /* the bar carries two things: how much work is banked (fill) and where the
-     calendar has got to (marker), so being behind is visible rather than implied */
-  .track{position:relative;height:26px;border:var(--stroke) solid var(--ink);background:var(--paper)}
-  .track .fill{height:100%;background:var(--teal);transition:width .5s cubic-bezier(.4,0,.2,1)}
-  .track .fill.ahead{background:var(--lime)}
-  .track .mark{
-    position:absolute;top:-5px;bottom:-5px;width:3px;background:var(--ink);
-    transition:left .5s cubic-bezier(.4,0,.2,1);
-  }
-  .track .mark::after{
-    content:"NOW";position:absolute;top:-13px;left:50%;transform:translateX(-50%);
-    font-size:7px;letter-spacing:.06em;font-family:"Arial Black",Impact,sans-serif;
-    background:var(--ink);color:var(--paper);padding:1px 3px;white-space:nowrap;
-  }
-  .ends{display:flex;justify-content:space-between;margin-top:7px;
-    font-size:8.5px;letter-spacing:.07em;color:var(--grey);
-    font-family:"Arial Black",Impact,sans-serif}
-
-  .fit .stats{display:flex;gap:8px;margin-top:13px}
-  .fit .stat{flex:1;border:2px solid var(--ink);padding:6px 8px;background:var(--paper)}
-  .fit .stat .v{font-size:16px;font-family:"Arial Black",Impact,sans-serif;line-height:1.1}
-  .fit .stat .k{font-size:7.5px;letter-spacing:.06em;color:var(--grey);margin-top:2px;
-    font-family:"Arial Black",Impact,sans-serif}
-  .verdict{
-    margin-top:12px;padding:8px 10px;border:2px solid var(--ink);
-    font-size:11px;font-weight:700;line-height:1.4;
-  }
-  .verdict.behind{background:var(--yellow)}
-  .verdict.ahead{background:var(--lime)}
-  .verdict.idle{background:var(--paper);color:var(--grey)}
-  .fit .note{margin-top:10px;font-size:10px;font-weight:700;color:var(--grey);line-height:1.45}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="eyebrow blk">SECOND BRAIN</div>
-  <h1 class="blk">A place for the things<br>I'm <em>tracking</em>.</h1>
-  <p class="lede">Small pages, each one pointed at a single thing worth keeping honest.</p>
-
-  <div class="fit" id="fit" hidden>
-    <div class="head">
-      <span class="l">PROGRESS</span>
-      <span class="grow"></span>
-      <span class="pc" id="fitPc">0%</span>
-    </div>
-    <div class="sub" id="fitSub">Work banked toward the goal</div>
-
-    <div class="track">
-      <div class="fill" id="fitFill" style="width:0%"></div>
-      <div class="mark" id="fitMark" style="left:0%"></div>
-    </div>
-    <div class="ends"><span>NOW</span><span>WANT</span></div>
-
-    <div class="stats">
-      <div class="stat"><div class="v" id="fitSessions">0</div><div class="k">SESSIONS</div></div>
-      <div class="stat"><div class="v" id="fitDays">0</div><div class="k">DAY OF PLAN</div></div>
-      <div class="stat"><div class="v" id="fitStreak">0</div><div class="k">STREAK</div></div>
-    </div>
-
-    <div class="verdict idle" id="fitVerdict">Loading…</div>
-    <div class="note">
-      This measures training banked, not how you look. The mirror runs months behind
-      the work — that gap is normal and expected.
-    </div>
-  </div>
+  <h1 class="blk">Second Brain</h1>
 
   <a class="card" href="dailyplan/">
     <span class="mark">💪</span>
@@ -199,163 +130,7 @@
     <span class="go blk">→</span>
   </a>
 
-  <div class="soon">Room here for the next one.</div>
-
   <footer>Static pages on GitHub Pages. Data syncs to your own account and is readable only by you — the job module ships no content in the repo at all.</footer>
 </div>
-
-<script>
-"use strict";
-/* Fit progress.
-   The fill is work banked — training sessions actually completed. The marker is
-   where the calendar has reached. Showing both means the bar can't flatter you:
-   fill behind marker is literally being behind schedule.
-
-   Reads localStorage first so it renders instantly and still works signed out,
-   then refines from Firestore, which is the cross-device truth. */
-
-const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
-const LS_TICKS = "secondbrain.fitness.v1.";
-const LS_META  = "secondbrain.fitness.meta.";
-
-/* One-time: the app was renamed from Life Interface to Second Brain. Carry
-   existing local data over to the new key prefix so it isn't orphaned. */
-(function migrateStorage() {
-  const OLD = "lifeinterface.fitness.", NEW = "secondbrain.fitness.";
-  try {
-    if (localStorage.getItem(NEW + "migrated")) return;
-    const keys = [];
-    for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
-    for (const k of keys) {
-      if (k && k.startsWith(OLD) && localStorage.getItem(NEW + k.slice(OLD.length)) === null) {
-        localStorage.setItem(NEW + k.slice(OLD.length), localStorage.getItem(k));
-      }
-    }
-    localStorage.setItem(NEW + "migrated", "1");
-  } catch {}
-})();
-
-// 4 sessions a week across the plan's realistic 9-month horizon.
-const TARGET_SESSIONS = 156;
-const TARGET_DAYS = 273;
-
-const $ = id => document.getElementById(id);
-const localISO = (d = new Date()) =>
-  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-const shiftDate = (iso, n) => {
-  const [y,m,d] = iso.split("-").map(Number);
-  return localISO(new Date(y, m-1, d + n));
-};
-const daysBetween = (a,b) => {
-  const [ay,am,ad] = a.split("-").map(Number), [by,bm,bd] = b.split("-").map(Number);
-  return Math.round((Date.UTC(by,bm-1,bd) - Date.UTC(ay,am-1,ad)) / 86400000);
-};
-
-let startDate = "2026-07-29";
-
-function fromLocal() {
-  const sessions = new Set(), active = new Set();
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (!k) continue;
-    if (k.startsWith(LS_META)) {
-      try {
-        if (JSON.parse(localStorage.getItem(k) || "{}").sessionDone) sessions.add(k.slice(LS_META.length));
-      } catch {}
-    } else if (k.startsWith(LS_TICKS)) {
-      try {
-        if (Object.keys(JSON.parse(localStorage.getItem(k) || "{}")).length) active.add(k.slice(LS_TICKS.length));
-      } catch {}
-    }
-  }
-  return { sessions, active };
-}
-
-function streakOf(active) {
-  const today = localISO();
-  let cur = active.has(today) ? today : shiftDate(today, -1), n = 0;
-  while (active.has(cur)) { n++; cur = shiftDate(cur, -1); }
-  return n;
-}
-
-function paint({ sessions, active }) {
-  const today = localISO();
-  const dayOfPlan = Math.max(0, daysBetween(startDate, today) + 1);
-
-  const workPct = Math.min(100, (sessions.size / TARGET_SESSIONS) * 100);
-  const timePct = Math.min(100, (dayOfPlan / TARGET_DAYS) * 100);
-  const expected = Math.round((dayOfPlan / 7) * 4);   // 4 sessions a week
-  const ahead = sessions.size >= expected;
-
-  $("fit").hidden = false;
-  $("fitPc").textContent = `${workPct.toFixed(1)}%`;
-  $("fitFill").style.width = `${workPct}%`;
-  $("fitFill").classList.toggle("ahead", ahead);
-  $("fitMark").style.left = `${timePct}%`;
-  $("fitSessions").textContent = sessions.size;
-  $("fitDays").textContent = dayOfPlan;
-  $("fitStreak").textContent = streakOf(active);
-
-  const v = $("fitVerdict");
-  const behindBy = expected - sessions.size;
-  if (dayOfPlan <= 0) {
-    v.className = "verdict idle";
-    v.textContent = "Not started yet.";
-  } else if (ahead) {
-    v.className = "verdict ahead";
-    v.textContent = `On track — ${sessions.size} sessions banked against ${expected} expected by now.`;
-  } else {
-    v.className = "verdict behind";
-    v.textContent = behindBy === 1
-      ? "One session behind the clock. Catch it up this week and nothing is lost."
-      : `${behindBy} sessions behind the clock. The bar only moves when you train.`;
-  }
-}
-
-async function boot() {
-  try {
-    const r = await fetch(`dailyplan/plan.json?t=${Date.now()}`, { cache: "no-store" });
-    if (r.ok) startDate = (await r.json()).startDate || startDate;
-  } catch {}
-
-  paint(fromLocal());   // instant, works signed out
-
-  // Then the cross-device truth, if we're signed in.
-  let config = null;
-  try { ({ firebaseConfig: config } = await import("./dailyplan/firebase-config.js")); } catch {}
-  if (!config || !config.projectId) return;
-
-  try {
-    const [{ initializeApp }, authMod, fsMod] = await Promise.all([
-      import(SDK + "firebase-app.js"),
-      import(SDK + "firebase-auth.js"),
-      import(SDK + "firebase-firestore.js")
-    ]);
-    const app = initializeApp(config);
-    const db = fsMod.initializeFirestore(app, {
-      localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() })
-    });
-    authMod.onAuthStateChanged(authMod.getAuth(app), async user => {
-      if (!user) return;
-      try {
-        const snap = await fsMod.getDocs(fsMod.query(
-          fsMod.collection(db, "users", user.uid, "days"),
-          fsMod.orderBy(fsMod.documentId(), "desc"),
-          fsMod.limit(400)
-        ));
-        const sessions = new Set(), active = new Set();
-        snap.forEach(d => {
-          const v = d.data();
-          if (v.sessionDone) sessions.add(d.id);
-          if ((v.ticked || 0) > 0) active.add(d.id);
-        });
-        paint({ sessions, active });
-      } catch { /* offline — the local figures stand */ }
-    });
-  } catch { /* no Firebase — local figures stand */ }
-}
-
-boot();
-</script>
 </body>
 </html>

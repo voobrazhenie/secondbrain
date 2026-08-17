@@ -2,10 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#F2EDE0">
 <title>Finance — Second Brain</title>
+
+<!-- Add to Home Screen. iOS ignores the manifest's name/display, so the
+     apple-* metas below are what actually make it launch standalone.
+     The manifest is the root one: the whole Second Brain installs as a
+     single app, so moving between sections never falls back to Safari. -->
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Second Brain">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
   /* Same neo-brutalist system as the rest of Second Brain — thick strokes,
      squared corners, solid accent blocks, hard zero-blur shadows. Tokens
@@ -111,6 +122,28 @@
   .sec .add:active{transform:translate(2px,2px);box-shadow:none}
 
   /* ---------- account / debt rows ---------- */
+  /* Same swipe mechanic as dailyplan: the row slides over a fixed backdrop, so
+     the delete intent is visible the whole way rather than only at the end. */
+  .rowwrap{position:relative;margin-bottom:9px}
+  .rowwrap .swipebg{
+    position:absolute;inset:0;background:var(--pink);
+    border:var(--stroke) solid var(--ink);
+    display:flex;align-items:center;justify-content:flex-end;
+    padding-right:16px;font-family:"Arial Black",Impact,sans-serif;
+    font-size:11px;letter-spacing:.08em;color:var(--ink);
+  }
+  .rowwrap.armed .swipebg{background:var(--ink);color:var(--paper)}
+  .rowwrap .row{margin-bottom:0;touch-action:pan-y}
+  .rowwrap .row.sliding{transition:none}
+
+  /* Desktop affordance — hidden on touch, where the gestures do the work.
+     Sits over the emoji mark, not the amount: the amount is the click target
+     for the quick balance edit and must stay reachable. */
+  .rowbtns{position:absolute;top:50%;left:8px;transform:translateY(-50%);
+    display:none;gap:5px;z-index:2}
+  @media (hover:hover){ .rowwrap:hover .rowbtns{display:flex} }
+  .rowbtns button{padding:2px 7px;font-size:11px;box-shadow:2px 2px 0 var(--ink)}
+
   .row{
     position:relative;display:flex;align-items:center;gap:11px;
     background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
@@ -151,6 +184,7 @@
     font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
   }
   .row.debt .amt::before{content:"\2212"}
+  .row.debt.settled .amt::before{content:""}
   .row.settled .amt{color:var(--grey)}
   .row .conv{font-size:9.5px;font-weight:700;color:var(--grey);margin-top:2px;font-variant-numeric:tabular-nums}
 
@@ -167,6 +201,17 @@
   .row .editform button{
     flex:0 0 auto;min-width:44px;min-height:44px;font-size:17px;padding:0;
   }
+
+  /* iOS's decimal keypad has no minus key, so the sign is a button, not a
+     keystroke. Assets only — debts are always a positive amount owed. */
+  .amtline{display:flex;gap:8px;align-items:stretch}
+  .amtline input{flex:1;min-width:0}
+  .amtline button{
+    flex:0 0 auto;min-width:52px;font-size:15px;padding:0 12px;
+    background:var(--card);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
+    font-family:"Arial Black",Impact,sans-serif;cursor:pointer;
+  }
+  .amtline button:active{transform:translate(2px,2px);box-shadow:none}
 
   /* ---------- empty state — same class as ideas/index.html ---------- */
   .empty{
@@ -206,6 +251,20 @@
   button.primary{background:var(--yellow)}
   button:focus-visible, .row:focus-visible, .ratechip:focus-visible{outline:2.5px solid var(--ink);outline-offset:2px}
 
+  /* ---------- toast (reused as-is from dailyplan) ---------- */
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:12px;z-index:60;
+    background:var(--ink);color:var(--paper);
+    border:2px solid var(--ink);box-shadow:4px 4px 0 var(--grey);
+    padding:10px 12px;font-size:12px;font-weight:700;max-width:92vw;
+  }
+  .toast[hidden]{display:none}
+  .toast button{
+    padding:5px 10px;font-size:10px;background:var(--yellow);color:var(--ink);
+    border:2px solid var(--paper);box-shadow:none;
+  }
+
   /* ---------- modal (reused as-is from dailyplan) ---------- */
   .scrim{
     position:fixed;inset:0;background:rgba(17,17,17,.55);
@@ -226,11 +285,15 @@
     width:100%;font:inherit;font-size:16px;font-weight:700;padding:9px 10px;
     background:var(--paper);color:var(--ink);border:2px solid var(--ink);
   }
+  .modal input[type=date]{
+    -webkit-appearance:none;appearance:none;font-size:15px;
+  }
   #mCurrency{text-transform:uppercase}
   .modal .rowpair{display:flex;gap:9px}
   .modal .rowpair>div{flex:1;min-width:0}
   .modal .acts{display:flex;gap:9px;margin-top:16px}
   .modal .acts button{flex:1}
+  .modal .danger{width:100%;margin-top:9px;background:var(--pink)}
 </style>
 </head>
 <body>
@@ -302,7 +365,10 @@
       <input id="mRate" type="number" inputmode="decimal" step="0.0001" placeholder="e.g. 43.2">
     </div>
     <label for="mAmount" id="mAmountLbl">BALANCE</label>
-    <input id="mAmount" type="number" inputmode="decimal" step="0.01" placeholder="0">
+    <div class="amtline">
+      <input id="mAmount" type="number" inputmode="decimal" step="0.01" placeholder="0">
+      <button type="button" id="mSign" title="Flip the sign" aria-label="Flip the sign">&plusmn;</button>
+    </div>
     <div id="mDueWrap" hidden>
       <label for="mDue">DUE DATE &mdash; OPTIONAL</label>
       <input id="mDue" type="date">
@@ -311,7 +377,13 @@
       <button id="mCancel">CANCEL</button>
       <button class="primary" id="mSave">SAVE</button>
     </div>
+    <button class="danger" id="mRemove" hidden>REMOVE</button>
   </div>
+</div>
+
+<div class="toast" id="toast" hidden>
+  <span id="toastMsg"></span>
+  <button id="toastUndo">UNDO</button>
 </div>
 
 <script type="module">
@@ -374,9 +446,14 @@ function saveLocal() {
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 }
+// The sign goes outside the currency symbol — "−€158", never "€-158".
 function fmtAmt(amount, currency) {
-  const n = Math.round(amount).toLocaleString("en-US");
-  return currency === "EUR" ? `€${n}` : currency === "UAH" ? `${n} ₴` : `${n} ${currency}`;
+  const rounded = Math.round(amount);
+  const sign = rounded < 0 ? "−" : "";
+  const n = Math.abs(rounded).toLocaleString("en-US");
+  return currency === "EUR" ? `${sign}€${n}`
+       : currency === "UAH" ? `${sign}${n} ₴`
+       : `${sign}${n} ${currency}`;
 }
 function toEUR(amount, currency) {
   if (currency === "EUR") return amount;
@@ -493,8 +570,11 @@ function renderTotals() {
 
   $("heroTotal").textContent = `${net < 0 ? "−" : ""}${fmtAmt(Math.abs(net), "EUR")}`;
   $("heroSplit").innerHTML = `assets <b>${fmtAmt(assetsEUR, "EUR")}</b> &middot; debts <b>${fmtAmt(debtsEUR, "EUR")}</b>`;
-  const total = Math.max(assetsEUR + debtsEUR, 1);
-  $("barAssets").style.width = `${(assetsEUR / total) * 100}%`;
+  // An overdrawn card can push the assets total negative; clamp so the bar
+  // never gets a negative width.
+  const posAssets = Math.max(assetsEUR, 0);
+  const total = Math.max(posAssets + debtsEUR, 1);
+  $("barAssets").style.width = `${(posAssets / total) * 100}%`;
   $("barDebts").style.width = `${(debtsEUR / total) * 100}%`;
 
   $("assetsCount").textContent = assets.length;
@@ -542,22 +622,131 @@ function buildRow(a) {
   row.innerHTML = rowHTML(a);
   row.addEventListener("click", () => startEdit(row, a));
   row.addEventListener("keydown", e => { if (e.key === "Enter") startEdit(row, a); });
-  return row;
+
+  const wrap = document.createElement("div");
+  wrap.className = "rowwrap";
+  const bg = document.createElement("div");
+  bg.className = "swipebg";
+  bg.textContent = "DELETE";
+
+  // Touch gets the gestures; a pointer device gets visible buttons instead.
+  const btns = document.createElement("div");
+  btns.className = "rowbtns";
+  const bEdit = document.createElement("button");
+  bEdit.textContent = "✎"; bEdit.title = "Edit";
+  bEdit.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); openEdit(a); });
+  const bDel = document.createElement("button");
+  bDel.textContent = "✕"; bDel.title = "Remove";
+  bDel.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); removeAccount(a.id); });
+  btns.append(bEdit, bDel);
+
+  wrap.append(bg, row, btns);
+  attachGestures(wrap, row, a);
+  return wrap;
+}
+
+/* ---------- gestures ----------
+   Ported from dailyplan. Swipe left to delete: the row tracks the finger 1:1
+   with no transition, and commits once it has passed a third of the screen.
+   Long press to edit. Vertical scrolling has to keep working, so the first few
+   pixels decide which gesture this is and the other one is then ignored. */
+const DELETE_FRACTION = 0.33;
+const LONG_PRESS_MS = 500;
+
+function attachGestures(wrap, row, a) {
+  let x0 = 0, y0 = 0, dx = 0;
+  let axis = null;          // null until decided, then "x" or "y"
+  let timer = null, suppress = false;
+
+  const threshold = () => window.innerWidth * DELETE_FRACTION;
+  const reset = () => {
+    row.classList.remove("sliding");
+    row.style.transform = "";
+    wrap.classList.remove("armed");
+  };
+
+  row.addEventListener("touchstart", e => {
+    if (e.touches.length !== 1) return;
+    if (row.classList.contains("editing")) return;   // mid quick-edit — leave it alone
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+    dx = 0; axis = null; suppress = false;
+    timer = setTimeout(() => {
+      if (axis === null) {           // still stationary — treat as a long press
+        suppress = true;
+        if (navigator.vibrate) navigator.vibrate(12);
+        openEdit(a);
+      }
+    }, LONG_PRESS_MS);
+  }, { passive: true });
+
+  row.addEventListener("touchmove", e => {
+    if (axis === null && row.classList.contains("editing")) return;
+    const ax = e.touches[0].clientX - x0;
+    const ay = e.touches[0].clientY - y0;
+
+    if (axis === null) {
+      if (Math.abs(ax) < 8 && Math.abs(ay) < 8) return;
+      axis = Math.abs(ax) > Math.abs(ay) ? "x" : "y";
+      clearTimeout(timer);
+      if (axis === "x") row.classList.add("sliding");
+    }
+    if (axis !== "x") return;
+
+    e.preventDefault();               // stop the page scrolling under the drag
+    dx = Math.min(0, ax);             // left only
+    suppress = true;
+    row.style.transform = `translateX(${dx}px)`;
+    wrap.classList.toggle("armed", -dx >= threshold());
+  }, { passive: false });
+
+  const end = () => {
+    clearTimeout(timer);
+    if (axis === "x" && -dx >= threshold()) {
+      row.classList.remove("sliding");
+      row.style.transform = `translateX(-${window.innerWidth}px)`;
+      setTimeout(() => removeAccount(a.id), 130);
+    } else {
+      reset();
+    }
+    axis = null;
+  };
+  row.addEventListener("touchend", end);
+  row.addEventListener("touchcancel", () => { clearTimeout(timer); reset(); axis = null; });
+
+  // A drag or long press must not also open the amount quick-edit.
+  row.addEventListener("click", e => {
+    if (suppress) { e.preventDefault(); e.stopPropagation(); suppress = false; }
+  }, true);
+
+  row.addEventListener("dblclick", e => { e.preventDefault(); openEdit(a); });
+  row.addEventListener("contextmenu", e => { e.preventDefault(); openEdit(a); });
 }
 
 function startEdit(row, a) {
   if (row.classList.contains("editing")) return;
   row.classList.add("editing");
   const curSym = a.currency === "EUR" ? "€" : a.currency === "UAH" ? "₴" : a.currency;
+  // inputmode="decimal" gives the numeric keypad; that pad has no minus key, so
+  // assets (which can be overdrawn) get a ± button to flip the sign.
+  const signBtn = a.kind === "asset" ? `<button class="signflip" aria-label="Flip the sign">±</button>` : "";
   row.innerHTML = `
     <span class="mark">${esc(a.emoji || "💰")}</span>
     <div class="editform">
       <span class="cur">${esc(curSym)}</span>
       <input type="number" inputmode="decimal" step="0.01" value="${a.amount}">
-      <button aria-label="Save">✓</button>
+      ${signBtn}
+      <button class="savebtn" aria-label="Save">✓</button>
     </div>`;
   const input = row.querySelector("input");
   input.focus(); input.select();
+
+  const flip = row.querySelector(".signflip");
+  if (flip) flip.onclick = e => {
+    e.stopPropagation();
+    const n = parseFloat(input.value);
+    input.value = isNaN(n) ? "-" : String(-n);
+    input.focus();
+  };
 
   let done = false;
   const backToDisplay = () => {
@@ -570,7 +759,7 @@ function startEdit(row, a) {
     done = true;
     document.removeEventListener("click", outside, true);
     const v = parseFloat(input.value);
-    if (!isNaN(v) && v >= 0) {
+    if (!isNaN(v) && (a.kind === "asset" || v >= 0)) {
       a.amount = v;
       a.updatedAt = new Date().toISOString();
       saveLocal();
@@ -589,7 +778,7 @@ function startEdit(row, a) {
   };
   const outside = e => { if (!row.contains(e.target)) commit(); };
 
-  row.querySelector("button").onclick = e => { e.stopPropagation(); commit(); };
+  row.querySelector(".savebtn").onclick = e => { e.stopPropagation(); commit(); };
   input.onkeydown = e => {
     if (e.key === "Enter") { e.stopPropagation(); commit(); }
     else if (e.key === "Escape") { e.stopPropagation(); cancel(); }
@@ -598,8 +787,10 @@ function startEdit(row, a) {
   document.addEventListener("click", outside, true);
 }
 
-/* ---------- add account / debt ---------- */
+/* ---------- add / edit / remove ---------- */
 let addKind = "asset";
+let editingId = null;   // null = adding; otherwise the account being changed
+let undoTimer = null;
 
 function updateRateFieldVisibility() {
   const cur = $("mCurrency").value.trim().toUpperCase();
@@ -612,8 +803,15 @@ function updateRateFieldVisibility() {
   }
 }
 
+// Only assets can be negative (an overdrawn card); a debt is always a positive
+// amount owed, so the sign flip has nothing to do there.
+function updateSignVisibility() {
+  $("mSign").hidden = addKind !== "asset";
+}
+
 function openAdd(kind) {
   addKind = kind;
+  editingId = null;
   $("mTitle").textContent = kind === "asset" ? "ADD ACCOUNT" : "ADD DEBT";
   $("mSub").textContent = kind === "asset"
     ? "Name it, pick a currency, enter what's in it now."
@@ -626,14 +824,67 @@ function openAdd(kind) {
   $("mAmount").value = "";
   $("mDue").value = "";
   updateRateFieldVisibility();
+  updateSignVisibility();
   $("scrim").hidden = false;
   $("mName").focus();
 }
-$("addAsset").onclick = () => openAdd("asset");
-$("addDebt").onclick = () => openAdd("debt");
-$("mCancel").onclick = () => { $("scrim").hidden = true; };
-$("scrim").addEventListener("click", e => { if (e.target === $("scrim")) $("scrim").hidden = true; });
+
+// Long press (or ✎ on a pointer device) — the full record, not just the amount.
+function openEdit(a) {
+  addKind = a.kind;
+  editingId = a.id;
+  $("mTitle").textContent = a.kind === "asset" ? "EDIT ACCOUNT" : "EDIT DEBT";
+  $("mSub").textContent = "Change anything, or remove it entirely.";
+  $("mAmountLbl").textContent = a.kind === "asset" ? "BALANCE" : "AMOUNT OWED";
+  $("mDueWrap").hidden = a.kind !== "debt";
+  $("mName").value = a.name || "";
+  $("mEmoji").value = a.emoji || "";
+  $("mCurrency").value = a.currency || "EUR";
+  $("mAmount").value = a.amount;
+  $("mDue").value = a.dueDate || "";
+  updateRateFieldVisibility();
+  updateSignVisibility();
+  $("mRemove").hidden = false;
+  $("scrim").hidden = false;
+}
+
+function closeModal() { $("scrim").hidden = true; editingId = null; $("mRemove").hidden = true; }
+
+$("addAsset").onclick = () => { $("mRemove").hidden = true; openAdd("asset"); };
+$("addDebt").onclick = () => { $("mRemove").hidden = true; openAdd("debt"); };
+$("mCancel").onclick = closeModal;
+$("scrim").addEventListener("click", e => { if (e.target === $("scrim")) closeModal(); });
 $("mCurrency").addEventListener("input", updateRateFieldVisibility);
+$("mSign").onclick = () => {
+  const n = parseFloat($("mAmount").value);
+  $("mAmount").value = isNaN(n) ? "-" : String(-n);
+  $("mAmount").focus();
+};
+$("mRemove").onclick = () => { const id = editingId; closeModal(); removeAccount(id); };
+
+function removeAccount(id) {
+  const snapshot = accounts[id];
+  if (!snapshot) return;
+  delete accounts[id];
+  saveLocal();
+  sync.deleteAccount(id);
+  render();
+  showToast(`Removed “${snapshot.name}”`, () => {
+    accounts[snapshot.id] = snapshot;
+    saveLocal();
+    sync.pushAccountField(snapshot.id, snapshot);
+    render();
+  });
+}
+
+function showToast(msg, onUndo) {
+  clearTimeout(undoTimer);
+  $("toastMsg").textContent = msg;
+  const btn = $("toastUndo");
+  btn.onclick = () => { clearTimeout(undoTimer); $("toast").hidden = true; onUndo(); };
+  $("toast").hidden = false;
+  undoTimer = setTimeout(() => { $("toast").hidden = true; }, 6000);
+}
 
 $("mSave").onclick = () => {
   const name = $("mName").value.trim();
@@ -649,17 +900,21 @@ $("mSave").onclick = () => {
     if (!(rateVal > 0)) { $("mRate").focus(); return; }
   }
 
-  const amount = parseFloat($("mAmount").value) || 0;
+  let amount = parseFloat($("mAmount").value) || 0;
+  if (addKind === "debt") amount = Math.abs(amount);
   const due = $("mDue").value;
   const now = new Date().toISOString();
 
+  const existing = editingId ? accounts[editingId] : null;
   const entry = {
-    id: newId(), kind: addKind,
+    id: existing ? existing.id : newId(), kind: addKind,
     emoji: $("mEmoji").value.trim() || (addKind === "asset" ? "💳" : "🧾"),
     name, currency, amount,
-    updatedAt: now,
+    // Only stamp updatedAt when the number actually moved — renaming an account
+    // shouldn't reset how long it's been since you last checked the balance.
+    updatedAt: (existing && existing.amount === amount) ? existing.updatedAt : now,
     dueDate: (addKind === "debt" && due) ? due : null,
-    note: ""
+    note: existing ? (existing.note || "") : ""
   };
 
   accounts[entry.id] = entry;
@@ -668,7 +923,7 @@ $("mSave").onclick = () => {
   sync.pushAccountField(entry.id, entry);
   if (currency !== "EUR") sync.pushRate(currency, rateVal);
 
-  $("scrim").hidden = true;
+  closeModal();
   render();
 };
 
@@ -793,6 +1048,20 @@ const sync = {
         catch {}
       }
       this.setUI("err", `Couldn't save (${e.code || e.message}).`, "Retry", () => this.pushAccountField(id, patch));
+    }
+  },
+
+  // deleteField on the account's key, so the sibling accounts survive — the same
+  // targeted-write idiom as the per-field push above.
+  async deleteAccount(id) {
+    if (this.mode !== "signed-in") return;
+    const { f } = this.fb;
+    try {
+      await f.updateDoc(this.ref(), new f.FieldPath("accounts", id), f.deleteField(),
+        "updatedAt", f.serverTimestamp());
+    } catch (e) {
+      if (e.code === "not-found") return;   // nothing stored yet — nothing to delete
+      this.setUI("err", `Couldn't save (${e.code || e.message}).`, "Retry", () => this.deleteAccount(id));
     }
   },
 

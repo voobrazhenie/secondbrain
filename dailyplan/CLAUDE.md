@@ -49,12 +49,71 @@ widget. Two problems shaped the implementation, both still true for any future c
   of those small monthly numbers. Each month is recomputed wholesale on every tick, not
   incremented — a wrong total self-heals on the next tick instead of drifting.
 - **XP can go negative** (e.g. "Smoked weed" is −20), so a live total can shrink. Level and the
-  progress bar are read off `peakXp` — a high-water mark (`bumpPeak()`, `:1216`, mirrored to
-  `users/{uid}/xp/peak`) — never off the live total, so the level never drops. Today's own XP
-  is shown separately and is free to move both ways.
+  progress bar used to be read off `peakXp` — a high-water mark (`bumpPeak()`, mirrored to
+  `users/{uid}/xp/peak`) — so they could never go backwards. That made the bar sit still for
+  days after a negative tick, and freeze outright whenever the stored peak sat above what
+  localStorage could see, which defeated the point of having a bar at all. Both now read
+  `lifetimeXp()` live, so every tick moves the bar and a negative item moves it back.
+  `peakXp` is still computed and synced (cheap, and it makes the decision reversible) but
+  nothing renders from it — don't reintroduce it as the render source without solving the
+  freeze first.
 - Level cost curve: `costForLevel(n)` (`:1163`) = `400 + 150(n−1) + 10(n−1)²` — a formula, not a
   table, so it never runs out of levels. Change the constants here if the pacing needs
   retuning; don't reintroduce a hardcoded array.
+
+## The day counter
+
+`noWeedDays()` counts days since the last `r-smoked-weed` tick, inclusive of today.
+It stores nothing of its own — `lastTicked()` already scans Firestore `history` and
+localStorage together, so the counter works signed out and across devices for free.
+Don't add a "last smoked" field: it would be a second source of truth for something
+the ticks already answer, and would drift the moment a past day is edited.
+
+Two deliberate choices:
+
+- **A day with no record counts as a no-weed day.** The alternative punishes forgetting
+  to open the app rather than smoking. The cost is that a week away reads as 7.
+- **It reads `todayISO()`, not `plan.date`** — same as `computeStreak()`. It's a fact
+  about now, not about whichever day the nav is showing. Ticking the weed row on a past
+  day still moves it, because `lastTicked()` rescans.
+
+The markup is `.counter` — square, unit, name — and nothing in it is weed-specific.
+More trackers (screen time, habits to build) are meant to stack as sibling rows; only
+this one exists so far. The square is filled while the count runs and empty at zero,
+which is the same shape as an unticked box — no red, no message. A bad day gets the
+colour drained out, not a telling-off, and that is the point rather than a detail.
+
+The top-bar pill is a *different* count (days anything was ticked) and is labelled
+SHOWING UP for that reason — two unlabelled day counts side by side read as the same
+number.
+
+`program.principles` is still in `plan.json` but nothing renders it any more; the Tilda
+Swinton box was removed. Left in place so `plan.json`/`FALLBACK` didn't need re-embedding.
+
+## Local writes must never be dropped or overwritten
+
+Every write path stays usable signed out. `queueTick()` and `pushCustom()` record the intent
+regardless of auth state — `pushCustom()` sets `customPending` — and `onAuth()` flushes both
+**before** `attach()` and `loadCustomRemote()` read the server back. Getting this wrong is not
+a sync nicety: ticks and removals made before `onAuthStateChanged` fires (or in the standalone
+PWA, which is a separate storage and auth context) were silently discarded, then erased by the
+older server copy on the next sign-in. That is what made ticked one-offs and removed tasks
+reappear.
+
+`loadCustomRemote()` **merges, never replaces**: `hidden` and `doneOnce` are unions, so
+anything dismissed on any device stays dismissed; `added` is unioned by id with this device
+winning; the merged result is pushed straight back so both sides converge. `attach()`'s first
+read carries the same `queue.size && queueDate === date` guard the live listener has, so a
+tick still on its way up can't be undone by the copy just read back.
+
+## One-offs — `custom.doneOnce`
+
+A completed one-off is recorded explicitly as `custom.doneOnce[id] = date` (set in `setTick()`
+via `isOneOff()`, cleared on untick so same-day undo still works) and rides in the synced
+`custom` document. `deriveDay()` checks it first and falls back to `everTicked()`. The fallback
+is what keeps one-offs finished before this existed hidden, but it is only a fallback — it
+scans day records, which depend on this browser's localStorage or the 90-day Firestore window,
+so it cannot be the durable answer on its own.
 
 ## `plan.json` / `FALLBACK`
 
