@@ -32,8 +32,12 @@ export async function loadCredentials() {
 
   if (email && rawKey) {
     /* Env values arrive as a single line: surrounding quotes may survive the
-     * .env parser, and newlines are literal backslash-n. Both must go. */
-    const privateKey = rawKey.replace(/^['"]|['"]$/g, "").replace(/\\n/g, "\n");
+     * .env parser, and newlines are literal backslash-n. Both must go. A key
+     * pasted from a phone can also pick up smart quotes from autocorrect
+     * (U+2018/2019/201C/201D) in place of straight ones, so strip those too. */
+    const privateKey = rawKey
+      .replace(/^[\s'"‘’“”]+|[\s'"‘’“”]+$/g, "")
+      .replace(/\\n/g, "\n");
     return {
       client_email: email,
       private_key: privateKey,
