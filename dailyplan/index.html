@@ -24,13 +24,13 @@
   :root{
     --paper:#F2EDE0; --card:#FFFDF7; --sunk:#E8E4D6; --ink:#111111;
     --yellow:#FFD53D; --teal:#00C2CB; --pink:#FF3D8B; --lime:#B8E62E;
-    --grey:#7A756A; --faint:#A39D91;
+    --grey:var(--ink); --faint:#A39D91;
     --stroke:2.5px; --shadow:4px 4px 0 var(--ink);
     --maxw:430px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
-    margin:0; background:var(--paper); color:var(--ink);
+    margin:0; background:var(--yellow); color:var(--ink);
     padding:
       calc(14px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
       calc(30px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
@@ -160,7 +160,7 @@
   .row.locked{cursor:default;padding-top:9px;padding-bottom:9px}
   .row.locked:active{transform:none;box-shadow:var(--shadow)}
   .row.locked.done:active{box-shadow:2px 2px 0 var(--ink)}
-  .row.locked .box{border-style:dashed}
+  .row.locked .box{border-style:dashed;border-width:2px}
   .row.locked.done .box{border-style:solid}
 
   /* ---------- sync + actions ---------- */
