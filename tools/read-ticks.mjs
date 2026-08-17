@@ -1,15 +1,9 @@
 #!/usr/bin/env node
 /* Read tick documents out of Firestore, for Claude Code.
  *
- * Uses a service-account key (Admin credentials) to mint an OAuth token and call
- * the Firestore REST API. No npm dependencies — just node's crypto.
- *
- * The key file bypasses every security rule, so it stays out of git (.gitignore)
- * and must never be pasted into the page or a public place.
- *
- * Setup:
- *   Firebase console -> Project settings -> Service accounts
- *   -> Generate new private key -> save as tools/service-account.json
+ * Credentials and the Firestore plumbing live in firebase-admin.mjs — either a
+ * local service-account key or the FIREBASE_SA_* environment variables a cloud
+ * session carries. See that file for setup.
  *
  * Usage:
  *   node tools/read-ticks.mjs --uid <UID>              # last 14 days
@@ -18,74 +12,13 @@
  *   node tools/read-ticks.mjs --uid <UID> --json       # raw, for piping
  */
 
-import { createSign } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const KEY_PATH = process.env.FIREBASE_SA_PATH || join(HERE, "service-account.json");
-const SCOPE = "https://www.googleapis.com/auth/datastore";
+import { connect } from "./firebase-admin.mjs";
 
 function arg(name, fallback = null) {
   const i = process.argv.indexOf("--" + name);
   if (i === -1) return fallback;
   const v = process.argv[i + 1];
   return v && !v.startsWith("--") ? v : true;
-}
-
-const b64url = buf =>
-  Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-
-async function accessToken(sa) {
-  const now = Math.floor(Date.now() / 1000);
-  const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-  const claims = b64url(JSON.stringify({
-    iss: sa.client_email,
-    scope: SCOPE,
-    aud: "https://oauth2.googleapis.com/token",
-    iat: now,
-    exp: now + 3600
-  }));
-  const signer = createSign("RSA-SHA256");
-  signer.update(`${header}.${claims}`);
-  const jwt = `${header}.${claims}.${b64url(signer.sign(sa.private_key))}`;
-
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt
-    })
-  });
-  const body = await res.json();
-  if (!res.ok) throw new Error(`token exchange failed: ${body.error_description || JSON.stringify(body)}`);
-  return body.access_token;
-}
-
-/* Firestore returns values wrapped by type; unwrap to plain JS. */
-function decode(v) {
-  if (v == null) return null;
-  if ("booleanValue"   in v) return v.booleanValue;
-  if ("stringValue"    in v) return v.stringValue;
-  if ("integerValue"   in v) return Number(v.integerValue);
-  if ("doubleValue"    in v) return v.doubleValue;
-  if ("timestampValue" in v) return v.timestampValue;
-  if ("nullValue"      in v) return null;
-  if ("mapValue"       in v) return decodeFields(v.mapValue.fields || {});
-  if ("arrayValue"     in v) return (v.arrayValue.values || []).map(decode);
-  return v;
-}
-const decodeFields = f => Object.fromEntries(Object.entries(f).map(([k, v]) => [k, decode(v)]));
-
-async function firestore(path, token, projectId, params = "") {
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}${params}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (res.status === 404) return null;
-  const body = await res.json();
-  if (!res.ok) throw new Error(`${res.status}: ${body.error?.message || JSON.stringify(body)}`);
-  return body;
 }
 
 async function main() {
@@ -96,29 +29,22 @@ async function main() {
     process.exit(2);
   }
 
-  let sa;
+  let db;
   try {
-    sa = JSON.parse(await readFile(KEY_PATH, "utf8"));
-  } catch {
-    console.error(`No service-account key at ${KEY_PATH}.\n` +
-                  "Firebase console -> Project settings -> Service accounts -> Generate new private key.");
+    db = await connect();
+  } catch (e) {
+    console.error(e.message);
     process.exit(2);
   }
 
-  const token = await accessToken(sa);
-  const projectId = sa.project_id;
   const one = arg("date");
 
   let days = [];
   if (typeof one === "string") {
-    const doc = await firestore(`users/${uid}/days/${one}`, token, projectId);
-    if (doc) days = [{ date: one, ...decodeFields(doc.fields || {}) }];
+    const doc = await db.get(`users/${uid}/days/${one}`);
+    if (doc) days = [{ date: one, ...doc }];
   } else {
-    const body = await firestore(`users/${uid}/days`, token, projectId, "?pageSize=300");
-    days = (body?.documents || []).map(d => ({
-      date: d.name.split("/").pop(),
-      ...decodeFields(d.fields || {})
-    }));
+    days = (await db.list(`users/${uid}/days`)).map(({ id, ...rest }) => ({ date: id, ...rest }));
     const limit = Number(arg("days", 14));
     days.sort((a, b) => a.date.localeCompare(b.date));
     if (Number.isFinite(limit) && limit > 0) days = days.slice(-limit);

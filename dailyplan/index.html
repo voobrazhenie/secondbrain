@@ -6,7 +6,7 @@
      iOS doesn't zoom the page when a field takes focus. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#F2EDE0">
+<meta name="theme-color" content="#FFD53D">
 <title>DailyPlan</title>
 
 <!-- Add to Home Screen. iOS ignores the manifest's name/display, so the
@@ -24,13 +24,13 @@
   :root{
     --paper:#F2EDE0; --card:#FFFDF7; --sunk:#E8E4D6; --ink:#111111;
     --yellow:#FFD53D; --teal:#00C2CB; --pink:#FF3D8B; --lime:#B8E62E;
-    --grey:#7A756A; --faint:#A39D91;
+    --grey:var(--ink); --faint:#A39D91;
     --stroke:2.5px; --shadow:4px 4px 0 var(--ink);
     --maxw:430px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
-    margin:0; background:var(--paper); color:var(--ink);
+    margin:0; background:var(--yellow); color:var(--ink);
     padding:
       calc(14px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
       calc(30px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
@@ -160,7 +160,7 @@
   .row.locked{cursor:default;padding-top:9px;padding-bottom:9px}
   .row.locked:active{transform:none;box-shadow:var(--shadow)}
   .row.locked.done:active{box-shadow:2px 2px 0 var(--ink)}
-  .row.locked .box{border-style:dashed}
+  .row.locked .box{border-style:dashed;border-width:2px}
   .row.locked.done .box{border-style:solid}
 
   /* ---------- sync + actions ---------- */
@@ -250,7 +250,9 @@
     position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
     display:flex;align-items:center;gap:12px;z-index:60;
     background:var(--ink);color:var(--paper);
-    border:2px solid var(--ink);box-shadow:4px 4px 0 var(--grey);
+    /* Fixed shadow color, not --grey: this box's fill is --ink, so once --grey
+       became black too the shadow would match the card and vanish. */
+    border:2px solid var(--ink);box-shadow:4px 4px 0 #7A756A;
     padding:10px 12px;font-size:12px;font-weight:700;max-width:92vw;
   }
   .toast[hidden]{display:none}
@@ -475,6 +477,7 @@ const LS_COLLAPSED = "secondbrain.fitness.collapsed";
 const LS_DIRECTION = "secondbrain.daily.direction.";
 const LS_XPMONTH = "secondbrain.fitness.xpmonth.";   // + YYYY-MM
 const LS_XPPEAK  = "secondbrain.fitness.xppeak";
+const LS_TRACKER = "secondbrain.fitness.tracker.";   // + item id
 const DIRECTION_PROMPTS = [
   { id:"meaningfully-better", text:"What would make today meaningfully better?" },
   { id:"beyond-urgent", text:"What matters today beyond what feels urgent?" },
@@ -1384,9 +1387,30 @@ function renderLevel() {
 }
 
 /* ---------- day counter ----------
-   Days since the last recorded smoke, counting today. There is no new stored
-   field: lastTicked() already scans Firestore history and localStorage
-   together, so this works signed out and across devices for free.
+   Days since the last recorded smoke, counting today.
+
+   The date itself is stored (LS_TRACKER + id, mirrored to
+   users/{uid}/config/trackers, live-subscribed in sync.attachTrackers()) —
+   deliberately a second copy of what the ticks already say, traded off against
+   the alternative: lastTicked()'s scan only sees Firestore's 90-day history
+   window plus this device's own localStorage, so on a fresh device, or a real
+   streak longer than 90 days, it silently produces a wrong answer instead of
+   an honest unknown. A stored date has no window to fall outside of.
+   updateTracker() keeps it in step with the ticks rather than letting it drift:
+   ticking only ever moves it forward (a backdated entry older than what's
+   already stored must not erase real clean days), and unticking only matters
+   when the day being undone is the one currently stored — and even then
+   restores the previous value from a one-step undo buffer rather than
+   re-running the bounded scan and trusting it, which could otherwise delete a
+   real, older date the scan simply can't see (see updateTracker()'s comment).
+
+   Until the row has been ticked or unticked at least once since this shipped,
+   or before sync.maybeSeedTracker() has run, there's nothing stored yet — the
+   scan is kept as a fallback for exactly that gap, not as the steady-state
+   answer. maybeSeedTracker() only writes a fallback once it has confirmed,
+   from the live listener itself, that the server genuinely has nothing —
+   never from local absence alone, which could otherwise race a real value
+   still in flight and overwrite it with a guess.
 
    A day with no record at all counts as a no-weed day. That is deliberate —
    the alternative punishes forgetting to open an app rather than smoking. The
@@ -1396,12 +1420,41 @@ function renderLevel() {
    fact about right now, not about the day the nav happens to be showing. */
 const WEED_ID = "r-smoked-weed";
 
+function loadTracker(id) {
+  try { return localStorage.getItem(LS_TRACKER + id) || null; } catch { return null; }
+}
+function saveTracker(id, date) {
+  try {
+    if (date) localStorage.setItem(LS_TRACKER + id, date);
+    else localStorage.removeItem(LS_TRACKER + id);
+  } catch {}
+}
+
+/* One step of undo, kept alongside the tracker date itself so an untick that
+   corrects a mis-tap can restore the exact prior value instead of rebuilding
+   it from lastTicked()'s bounded scan — see updateTracker(). Local only, not
+   synced: the case this exists for is correcting your own last action, which
+   is a same-device, same-session thing. Distinguishes "never recorded"
+   (undefined — the buffer doesn't apply) from "recorded as nothing"
+   (null — correctly restores to no record at all). */
+function loadTrackerPrev(id) {
+  const raw = localStorage.getItem(LS_TRACKER + id + ".prev");
+  if (raw === null) return undefined;
+  return raw === "" ? null : raw;
+}
+function saveTrackerPrev(id, date) {
+  try { localStorage.setItem(LS_TRACKER + id + ".prev", date || ""); } catch {}
+}
+function clearTrackerPrev(id) {
+  try { localStorage.removeItem(LS_TRACKER + id + ".prev"); } catch {}
+}
+
 function noWeedDays() {
   const today = todayISO();
   if (loadTicks(today)[WEED_ID]) return 0;
-  // Nothing logged yet means nothing to count from, so fall back to the plan's
-  // own start date instead of showing a misleading 0.
-  const last = lastTicked(WEED_ID, today) || program.startDate;
+  // Nothing stored or scannable means nothing to count from, so fall back to
+  // the plan's own start date instead of showing a misleading 0.
+  const last = loadTracker(WEED_ID) || lastTicked(WEED_ID, today) || program.startDate;
   return Math.max(0, daysBetween(last, today));
 }
 
@@ -1456,6 +1509,8 @@ function setTick(id, on) {
     saveCustom();
   }
 
+  if (id === WEED_ID) updateTracker(on);
+
   const row = rowEls.get(id);
   if (row) row.classList.toggle("done", on);
   // xpEarned is kept locally too, so lifetime XP still adds up signed out.
@@ -1464,6 +1519,44 @@ function setTick(id, on) {
   });
   refreshDerived();
   sync.queueTick(plan.date, id, on);
+}
+
+/* Keeps LS_TRACKER's stored date in step with the tick that just changed, so
+   noWeedDays() answers from a fact instead of rescanning history each time.
+   Unticking only matters when the day being undone is the one currently
+   stored; any other day's untick can't change what the most recent smoke
+   was, so it's left alone.
+
+   The rollback on untick does NOT just re-run lastTicked() and trust it: that
+   scan is exactly the bounded, incomplete thing the stored date exists to
+   replace, so trusting an empty result would delete a real value that's
+   simply outside the scan's reach — a correctly-stored date from months back,
+   wiped by an ordinary mis-tap-then-correct. Instead it restores the exact
+   value that was current a moment ago, via the one-step undo buffer. Only
+   when that buffer doesn't apply — the current value came from seedTracker()
+   or a reload happened in between — does it fall back to the scan, and even
+   then an empty result is left alone rather than treated as proof of nothing:
+   "not visible from here" isn't "doesn't exist". */
+function updateTracker(on) {
+  const current = loadTracker(WEED_ID);
+  if (on) {
+    if (!current || plan.date > current) {
+      saveTrackerPrev(WEED_ID, current);
+      saveTracker(WEED_ID, plan.date);
+      sync.queueTracker(WEED_ID, plan.date);
+    }
+    return;
+  }
+  if (plan.date !== current) return;
+  const prev = loadTrackerPrev(WEED_ID);
+  if (prev !== undefined) {
+    clearTrackerPrev(WEED_ID);
+    saveTracker(WEED_ID, prev);
+    sync.queueTracker(WEED_ID, prev);
+    return;
+  }
+  const scanned = lastTicked(WEED_ID, plan.date);
+  if (scanned) { saveTracker(WEED_ID, scanned); sync.queueTracker(WEED_ID, scanned); }
 }
 
 /* ---------- physical training, mirrored from the Exercise page ----------
@@ -1518,6 +1611,12 @@ const sync = {
   queueDate: null,
   xpTimer: null,
   xpPending: null,
+  trackerUnsub: null,
+  trackerTimer: null,
+  trackerPending: null,
+  trackerSeeded: false,
+  trackerSnapshotSeen: false,
+  historyReady: false,
 
   setUI(state, msg, btnLabel, btnAction) {
     const row = $("sync"), btn = $("authBtn");
@@ -1557,6 +1656,7 @@ const sync = {
 
   onAuth(user) {
     if (this.unsub) { this.unsub(); this.unsub = null; }
+    if (this.trackerUnsub) { this.trackerUnsub(); this.trackerUnsub = null; }
     if (!user) {
       this.uid = null; this.mode = "signed-out";
       history.clear(); render();
@@ -1574,6 +1674,7 @@ const sync = {
     this.loadHistory();
     this.loadCustomRemote();
     this.loadXp();
+    this.attachTrackers();
     reconcilePhysical();   // the account's exercise doc may differ from this device's
   },
 
@@ -1630,6 +1731,82 @@ const sync = {
     } catch (e) {
       console.warn("XP totals unavailable:", e);
     }
+  },
+
+  /* ---------- trackers (e.g. last-smoked date) ----------
+     One small doc, merge-written (flushTracker(), below) so a future second
+     tracker can add its own key to the same doc without a write to one
+     clobbering the other's field — the first merge site in this collection,
+     not following an existing one; safe here specifically because every
+     write only ever touches its own named key. Live-subscribed, unlike xp/
+     above: this is specifically the piece that used to go stale on another
+     open tab until you navigated to the exact day that changed. See the
+     comment above WEED_ID for why the date is stored at all rather than
+     left to lastTicked()'s scan. */
+  trackerRef() {
+    const { f, db } = this.fb;
+    return f.doc(db, "users", this.uid, "config", "trackers");
+  },
+
+  queueTracker(id, date) {
+    if (this.mode !== "signed-in") return;
+    this.trackerPending = { ...(this.trackerPending || {}), [id]: date };
+    clearTimeout(this.trackerTimer);
+    this.trackerTimer = setTimeout(() => this.flushTracker(), 500);
+  },
+
+  async flushTracker() {
+    clearTimeout(this.trackerTimer);
+    if (this.mode !== "signed-in" || !this.trackerPending) return;
+    const pending = this.trackerPending;
+    this.trackerPending = null;
+    const { f } = this.fb;
+    const fields = {};
+    for (const [id, date] of Object.entries(pending)) fields[id] = date || f.deleteField();
+    try {
+      await f.setDoc(this.trackerRef(), { ...fields, updatedAt: f.serverTimestamp() }, { merge: true });
+    } catch { /* offline — the local copy stands and the next edit retries */ }
+  },
+
+  /* Seeds the stored date from the old scan, but only once BOTH history has
+     loaded and the tracker doc's real remote state has actually been seen —
+     never from local absence alone. Guessing ahead of the live listener (via
+     loadHistory() finishing first, on a device with no local copy) would let
+     a same-scan-as-always fallback value race a correct remote value that's
+     still in flight, and the echo guard below would then mistake the real
+     value's arrival for its own write, keeping the wrong guess. Waiting for
+     both signals removes the race instead of narrowing it. A no-op once a
+     date is already known, from either source. */
+  maybeSeedTracker() {
+    if (this.trackerSeeded || !this.historyReady || !this.trackerSnapshotSeen) return;
+    this.trackerSeeded = true;
+    if (loadTracker(WEED_ID)) return;   // the snapshot already adopted a real remote value
+    const val = lastTicked(WEED_ID, todayISO()) || program.startDate;
+    saveTracker(WEED_ID, val);
+    this.queueTracker(WEED_ID, val);
+  },
+
+  attachTrackers() {
+    if (this.trackerUnsub) { this.trackerUnsub(); this.trackerUnsub = null; }
+    this.trackerSeeded = false;
+    this.trackerSnapshotSeen = false;
+    const { f } = this.fb;
+    this.trackerUnsub = f.onSnapshot(this.trackerRef(),
+      snap => {
+        // A write of our own echoing back must not clobber a newer local
+        // edit that's still queued to go out — same guard adopt() uses.
+        if (!(this.trackerPending && WEED_ID in this.trackerPending)) {
+          const data = snap.exists() ? snap.data() : {};
+          const remote = typeof data[WEED_ID] === "string" ? data[WEED_ID] : null;
+          if (remote !== loadTracker(WEED_ID)) {
+            saveTracker(WEED_ID, remote);
+            if (plan) renderCounter();
+          }
+        }
+        this.trackerSnapshotSeen = true;
+        this.maybeSeedTracker();
+      },
+      e => console.warn("Tracker sync dropped:", e.code || e.message));
   },
 
   async signIn() {
@@ -1855,8 +2032,14 @@ const sync = {
             : Object.values(v.ticks || {}).filter(Boolean).length
         });
       });
+      this.historyReady = true;
+      this.maybeSeedTracker();
       rebuild();
     } catch (e) {
+      // Left historyReady false on purpose: a failed fetch isn't a full view
+      // of history, so seeding from it would carry the same risk seeding is
+      // meant to avoid. The display still works via noWeedDays()'s own
+      // fallback chain either way; only the durable write is skipped.
       console.warn("History unavailable:", e);
     }
   },
