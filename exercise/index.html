@@ -76,23 +76,38 @@
   /* ---------- rest timer ----------
      Sticky so it stays in view while you scroll down to the next exercise —
      "above" the work, wherever you are in the list. The paper-coloured band
-     keeps scrolled content from showing through above the card. */
+     keeps scrolled content from showing through above the card.
+
+     Three states share this one bar, told apart by colour before you read a
+     word: ink for a rest inside an exercise, teal for the gap between two
+     exercises, lime once the clock is up or the session is finished. */
   .restwrap{position:sticky;top:0;z-index:20;background:var(--paper);padding:8px 0 10px}
   .restwrap[hidden]{display:none}
   .rest{
     background:var(--ink);color:var(--paper);
     border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
-    padding:11px 14px 13px;display:flex;align-items:center;gap:13px;
+    padding:11px 14px 13px;display:block;
   }
-  .rest.done{background:var(--lime);color:var(--ink)}
+  .rest-main{display:flex;align-items:center;gap:13px}
+  .rest.transition{background:var(--teal);color:var(--ink)}
+  .rest.done,.rest.finale{background:var(--lime);color:var(--ink)}
   .rest .l{font-size:8px;letter-spacing:.1em;color:var(--faint);
     font-family:"Arial Black",Impact,sans-serif}
-  .rest.done .l{color:var(--ink)}
+  .rest.transition .l,.rest.done .l,.rest.finale .l{color:var(--ink)}
   .rest .t{
     font-size:34px;line-height:1;margin-top:2px;
     font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
     font-variant-numeric:tabular-nums;
   }
+  /* What you just finished and what comes next. Reads under the clock rather
+     than beside it — the number is for glancing at mid-set, this is for
+     actually reading. */
+  .rest-sub{
+    margin-top:8px;font-size:10.5px;font-weight:700;line-height:1.35;
+    color:var(--faint);overflow-wrap:break-word;
+  }
+  .rest.transition .rest-sub,.rest.done .rest-sub,.rest.finale .rest-sub{color:var(--ink)}
+  .rest-sub[hidden]{display:none}
   .rest .acts{display:flex;gap:7px;margin-left:auto}
   .rest .acts button{
     font:inherit;font-size:10px;font-weight:900;letter-spacing:.05em;cursor:pointer;
@@ -100,7 +115,10 @@
     padding:9px 11px;background:var(--paper);color:var(--ink);
     border:2px solid var(--ink);box-shadow:2px 2px 0 var(--paper);
   }
-  .rest.done .acts button{box-shadow:2px 2px 0 var(--ink)}
+  .rest .acts button[hidden]{display:none}
+  .rest.transition .acts button,.rest.done .acts button,.rest.finale .acts button{
+    box-shadow:2px 2px 0 var(--ink);
+  }
   .rest .acts button:active{transform:translate(2px,2px);box-shadow:none}
 
   /* ---------- exercises ---------- */
@@ -179,6 +197,14 @@
   .signoff:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
   .signoff[aria-pressed="true"]{background:var(--lime)}
   .signoff:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
+  /* FINISH scrolls the page down to this row; the flash is what says "here,
+     this is the thing" once it arrives. */
+  @keyframes sopulse{
+    0%,100%{box-shadow:var(--shadow);background:var(--card)}
+    50%{box-shadow:7px 7px 0 var(--ink);background:var(--yellow)}
+  }
+  .signoff.pulse{animation:sopulse .55s ease-in-out 2}
+  @media (prefers-reduced-motion:reduce){.signoff.pulse{animation:none;background:var(--yellow)}}
   .signoff .box{
     flex:0 0 auto;width:26px;height:26px;border:2.5px solid var(--ink);background:var(--card);
     display:flex;align-items:center;justify-content:center;
@@ -271,14 +297,17 @@
 
   <div class="restwrap" id="restWrap" hidden>
     <div class="rest" id="rest">
-      <div>
-        <div class="l" id="restLabel">REST</div>
-        <div class="t" id="restTime">01:00</div>
+      <div class="rest-main">
+        <div>
+          <div class="l" id="restLabel">REST</div>
+          <div class="t" id="restTime">01:00</div>
+        </div>
+        <div class="acts">
+          <button id="restPlus" type="button">+30s</button>
+          <button id="restStop" type="button">SKIP</button>
+        </div>
       </div>
-      <div class="acts">
-        <button id="restPlus" type="button">+30s</button>
-        <button id="restStop" type="button">SKIP</button>
-      </div>
+      <div class="rest-sub" id="restSub" hidden></div>
     </div>
   </div>
 
@@ -320,7 +349,14 @@ const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
 const LS_SETS = "secondbrain.exercise.v1.";     // + date
 const LS_REST = "secondbrain.exercise.rest";
 const LS_META = "secondbrain.fitness.meta.";    // written by dailyplan — read only here
-const REST_MS = 60 * 1000;
+/* Rest lengths are content, not code: `rest` (between sets of one exercise) and
+   `restNext` (the gap before the next exercise) can be set on an item, on a
+   session, or on a whole programme in plan.json, most specific winning. These
+   are what's used when nobody has said anything — 60s is exactly what every
+   rest used to be, so an untuned exercise behaves as it always did. */
+const REST_DEFAULT_S = { recovery: 60, transition: 90 };
+const HERO_REST_BONUS_S = 20;   // the session's priority movement earns a longer breath
+const REST_MIN_S = 5, REST_MAX_S = 600;
 // Reserved key inside `sets` for the session sign-off. dailyplan/ reads this
 // exact id out of the same document to mirror Physical training.
 const DONE_ID = "x-done";
@@ -355,6 +391,7 @@ const setEls = new Map();             // `${itemId}#${i}` -> <button>
 const countEls = new Map();           // itemId -> count chip
 const cardEls = new Map();            // itemId -> .ex card
 const holdEls = new Map();            // itemId -> { wrap, btn, time, side } for timed exercises
+const itemsById = new Map();          // itemId -> the plan.json item
 
 /* ---------- set storage ----------
    Whole-document writes, no merge — the same contract dailyplan's `custom` doc
@@ -439,11 +476,64 @@ function setsFor(id, n) {
 }
 function doneCount(id, n) { return setsFor(id, n).filter(Boolean).length; }
 
+/* How many sets this exercise asks for. Everything below reads the count
+   through here rather than re-deriving it from the reps string each time. */
+function setsIn(it) { return setCount(nameAndReps(it).reps); }
+
+/* ---------- where you are in the session ----------
+   None of this is stored. Set state is the only thing on disk, and every
+   question below is answerable from it, so there is nothing to keep in sync
+   and nothing that can go stale after a reload or a pull from another device. */
+
+/* Every set of every exercise ticked — not "the last card is full". Sets can be
+   ticked in any order, so position in the list says nothing about being done. */
+function isWorkoutComplete() {
+  const items = session && session.items || [];
+  return items.length > 0 && items.every(it => doneCount(it.id, setsIn(it)) === setsIn(it));
+}
+
+/* The next exercise still owing sets, wrapping past the end of the list — you
+   might have started in the middle. Only ever called when the session as a
+   whole is unfinished, so the wrap always lands on something. */
+function nextIncompleteExercise(currentId) {
+  const items = session && session.items || [];
+  const idx = items.findIndex(x => x.id === currentId);
+  if (idx === -1) return null;
+  for (let k = 1; k <= items.length; k++) {
+    const cand = items[(idx + k) % items.length];
+    if (doneCount(cand.id, setsIn(cand)) < setsIn(cand)) return cand;
+  }
+  return null;
+}
+
+function sessionTally() {
+  let done = 0, total = 0;
+  for (const it of session && session.items || []) {
+    const n = setsIn(it);
+    total += n;
+    done += doneCount(it.id, n);
+  }
+  return { done, total };
+}
+
+/* Most specific wins: the exercise, then the session, then the programme, then
+   the built-in default. A number that isn't one, or one wildly out of range, is
+   ignored rather than allowed to wedge the clock. */
+function restSecondsFor(item, kind) {
+  const key = kind === "transition" ? "restNext" : "rest";
+  const prog = program && program.programs ? program.programs[program.activeProgram] : null;
+  for (const src of [item, session, prog]) {
+    const v = src && src[key];
+    if (Number.isFinite(v) && v >= REST_MIN_S && v <= REST_MAX_S) return v;
+  }
+  return REST_DEFAULT_S[kind] + (item && item.hero ? HERO_REST_BONUS_S : 0);
+}
+
 /* ---------- render ---------- */
 function render() {
   const list = $("list");
   list.textContent = "";
-  setEls.clear(); countEls.clear(); cardEls.clear(); holdEls.clear();
+  setEls.clear(); countEls.clear(); cardEls.clear(); holdEls.clear(); itemsById.clear();
 
   $("dateChip").textContent = prettyShort(DATE).toUpperCase();
   $("sessionLabel").textContent = session.label;
@@ -513,12 +603,17 @@ function render() {
 
     countEls.set(it.id, cnt);
     cardEls.set(it.id, card);
+    itemsById.set(it.id, it);
     list.appendChild(card);
   }
 
   list.appendChild(signoffRow());
   restoreHold();
   refreshTally();
+  // Same reason as restoreHold() above: rebuilding the list throws away nothing
+  // the bar depends on, but the bar's own state has to be re-derived afterwards
+  // — a pull from another device can finish the session while this page is open.
+  restTick(false);
 }
 
 /* Ticking this is what marks Physical training done on the daily page. It
@@ -570,6 +665,7 @@ function toggleDone() {
       ? "Physical training is ticked on the daily plan."
       : "Tick when the session is over — this is what marks Physical training done on the daily plan.";
   }
+  restTick(false);   // signing off is what clears the "session done" banner
 }
 
 /* Ticking a set must never rebuild the list — the button would be replaced
@@ -589,17 +685,36 @@ function toggleSet(id, i, n) {
   if (card) card.classList.toggle("all-done", flags.every(Boolean));
   refreshTally();
 
-  // Finishing a set starts the rest clock; correcting a mis-tap shouldn't.
-  if (on) restStart();
+  // Finishing a set starts the right clock; correcting a mis-tap shouldn't —
+  // but it can un-finish the session, so the bar still has to be re-derived.
+  if (on) afterSetCompleted(id);
+  else restTick(false);
+}
+
+/* The one place that decides what happens after a set is ticked, so a set
+   finished by tapping and a set finished by the hold timer running out behave
+   identically.
+
+   Three outcomes, in order: the session is over (hand off to the sign-off row,
+   don't start a clock nobody is waiting on), this exercise is over (count down
+   the gap to the next one), or there are sets left here (an ordinary rest). */
+function afterSetCompleted(id) {
+  if (isWorkoutComplete() && !isDone()) {
+    restStop();                // no rest to serve — nothing comes after this
+    ensureAudio();
+    restBeep();
+    if (navigator.vibrate) navigator.vibrate([100, 60, 100, 60, 150]);
+    restTick(false);           // paints the finale; the chime above is the only one
+    return;
+  }
+  const it = itemsById.get(id) || null;
+  const finished = it && doneCount(id, setsIn(it)) === setsIn(it);
+  if (finished) restStart("transition", it, nextIncompleteExercise(id));
+  else restStart("recovery", it, null);
 }
 
 function refreshTally() {
-  let done = 0, total = 0;
-  for (const it of session.items || []) {
-    const n = setCount(nameAndReps(it).reps);
-    total += n;
-    done += doneCount(it.id, n);
-  }
+  const { done, total } = sessionTally();
   $("tally").textContent = `${done}/${total} SETS DONE`;
 }
 
@@ -832,8 +947,9 @@ function holdTick() {
   if (navigator.vibrate) navigator.vibrate([90, 70, 90]);
   // Marks the set and starts the rest through the ordinary path, so the count
   // chip, the all-done state and the sync write all happen exactly as they do
-  // for a tapped set. If every set was already ticked, just rest.
-  if (!tickNextSet(id, n)) restStart();
+  // for a tapped set. If every set was already ticked, go straight to deciding
+  // what comes next rather than assuming a rest.
+  if (!tickNextSet(id, n)) afterSetCompleted(id);
 }
 
 function tickNextSet(id, n) {
@@ -844,9 +960,14 @@ function tickNextSet(id, n) {
 }
 
 /* ---------- rest timer ----------
-   Local only — a 60-second rest is not worth a round trip, and it should keep
+   Local only — a minute of rest is not worth a round trip, and it should keep
    counting if the screen locks mid-set. The stored endAt is the single source
-   of truth, so a throttled or backgrounded tab never drifts. */
+   of truth, so a throttled or backgrounded tab never drifts.
+
+   Stored shape is { endAt, kind, itemId, nextItemId }: kind is "recovery" or
+   "transition", the ids are what the bar names. A value written by an older
+   version of this page has endAt only — that reads as a recovery rest with no
+   subtitle, which is exactly what it was. */
 let restInterval = null;
 let audioCtx = null;
 let restAnnounced = false;   // true once this completion has already sounded
@@ -886,18 +1007,82 @@ function ensureAudio() {
   try {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (Ctx && !audioCtx) audioCtx = new Ctx();
-    else if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    // Resume whether it was just made or has been sitting idle: iOS can hand
+    // back a context that starts suspended, and the finale beeps immediately
+    // rather than a minute later, so there is no second chance to unlock it.
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
   } catch {}
+}
+
+/* The line under the clock: what you just finished, and what it is you are
+   waiting for. Named from the plan rather than from the DOM, so it still reads
+   correctly after a rebuild. */
+function restSubtitle(state) {
+  const it = state.itemId ? itemsById.get(state.itemId) : null;
+  if (!it) return "";
+  const { name } = nameAndReps(it);
+  if (state.kind === "transition") {
+    const nx = state.nextItemId ? itemsById.get(state.nextItemId) : null;
+    if (!nx) return `${name} finished.`;
+    const { name: nextName, reps: nextReps } = nameAndReps(nx);
+    return `${name} finished → ${nx.emoji || "•"} ${nextName}${nextReps ? ` · ${nextReps}` : ""}`;
+  }
+  const n = setsIn(it);
+  const done = doneCount(it.id, n);
+  return done < n
+    ? `${name} · set ${done} of ${n} done — set ${done + 1} next`
+    : `${name} · ${done} of ${n} done`;
+}
+
+function paintSub(text) {
+  const el = $("restSub");
+  el.textContent = text || "";
+  el.hidden = !text;
+}
+
+/* Everything is ticked but the session hasn't been signed off. Derived, never
+   stored — so a reload, a refocus or a pull from another device all land on the
+   same answer without anything having to be kept up to date. */
+function finaleActive() { return isWorkoutComplete() && !isDone(); }
+
+/* Deliberately silent. The one chime for finishing a session fires once, in
+   afterSetCompleted, at the moment it actually happens — coming back to the tab
+   an hour later shouldn't celebrate again. */
+function paintFinale() {
+  const { done, total } = sessionTally();
+  const rest = $("rest");
+  rest.classList.remove("done", "transition");
+  rest.classList.add("finale");
+  $("restWrap").hidden = false;
+  $("restLabel").textContent = "SESSION DONE";
+  $("restTime").textContent = `${done}/${total}`;
+  $("restPlus").hidden = true;
+  $("restStop").textContent = "FINISH →";
+  paintSub("Every set ticked. Tick DONE below to log the session on the daily plan.");
 }
 
 /* announce controls whether a completion seen right now makes a sound: true
    for a live tick or a tab regaining focus, false for the check on load, so
    reopening the page later doesn't chime for a rest that ended hours ago. */
 function restTick(announce) {
+  // Checked before the stored rest, not after: once the last set is in, there
+  // is nothing left to rest for, whatever the clock still says.
+  if (finaleActive()) { stopInterval(); saveRest(null); paintFinale(); return; }
+
+  const rest = $("rest");
   const state = loadRest();
-  if (!state) { stopInterval(); $("restWrap").hidden = true; return; }
+  if (!state) {
+    stopInterval();
+    rest.classList.remove("finale", "transition", "done");
+    $("restWrap").hidden = true;
+    return;
+  }
 
   $("restWrap").hidden = false;
+  const transition = state.kind === "transition";
+  rest.classList.remove("finale");
+  $("restPlus").hidden = false;
+  paintSub(restSubtitle(state));
   const remain = state.endAt - Date.now();
 
   if (remain <= 0) {
@@ -910,16 +1095,18 @@ function restTick(announce) {
       restBeep();
       if (navigator.vibrate) navigator.vibrate(120);
     }
-    $("rest").classList.add("done");
-    $("restLabel").textContent = "REST OVER";
+    rest.classList.remove("transition");
+    rest.classList.add("done");
+    $("restLabel").textContent = transition ? "NEXT EXERCISE — GO" : "REST OVER";
     $("restTime").textContent = "GO";
     $("restStop").textContent = "DONE";
     return;
   }
 
   restAnnounced = false;   // still counting — arm for the next completion
-  $("rest").classList.remove("done");
-  $("restLabel").textContent = "REST";
+  rest.classList.remove("done");
+  rest.classList.toggle("transition", transition);
+  $("restLabel").textContent = transition ? "NEXT UP" : "REST";
   $("restStop").textContent = "SKIP";
   const s = Math.ceil(remain / 1000);
   $("restTime").textContent = `${String(Math.floor(s / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`;
@@ -927,25 +1114,45 @@ function restTick(announce) {
 }
 function stopInterval() { clearInterval(restInterval); restInterval = null; }
 
-function restStart() {
+function restStart(kind = "recovery", item = null, nextItem = null) {
   ensureAudio();
   restAnnounced = false;
-  saveRest({ endAt: Date.now() + REST_MS });
+  saveRest({
+    endAt: Date.now() + restSecondsFor(item, kind) * 1000,
+    kind,
+    itemId: item ? item.id : null,
+    nextItemId: nextItem ? nextItem.id : null
+  });
   restTick(true);
 }
 function restAdd(ms) {
   const state = loadRest();
   if (!state) return;
   // Extending a finished rest counts from now, not from the moment it ended.
+  // Spread rather than replace: +30s must not turn a transition back into a
+  // plain rest and drop what the bar was saying.
   const base = Math.max(state.endAt, Date.now());
   restAnnounced = false;
-  saveRest({ endAt: base + ms });
+  saveRest({ ...state, endAt: base + ms });
   restTick(true);
 }
 function restStop() {
   saveRest(null);
   stopInterval();
   $("restWrap").hidden = true;
+}
+
+/* FINISH doesn't tick anything. Signing off is the one thing on this page that
+   crosses over into the daily plan, and it stays a deliberate tap — this just
+   takes you to it. The banner clears itself once you do. */
+function goToSignoff() {
+  const el = $("signoff");
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.remove("pulse");
+  void el.offsetWidth;            // restart the animation on a repeat tap
+  el.classList.add("pulse");
+  setTimeout(() => el.classList.remove("pulse"), 1300);
 }
 
 /* ---------- sync ---------- */
@@ -1088,7 +1295,9 @@ const sync = {
 
 /* ---------- boot ---------- */
 $("restPlus").addEventListener("click", () => { ensureAudio(); restAdd(30 * 1000); });
-$("restStop").addEventListener("click", restStop);
+// One button, two jobs — it says SKIP/DONE while a clock is running and
+// FINISH → once the session is over.
+$("restStop").addEventListener("click", () => { if (finaleActive()) goToSignoff(); else restStop(); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) restTick(true); });
 $("monthPrev").addEventListener("click", () => shiftMonth(-1));
 $("monthNext").addEventListener("click", () => shiftMonth(1));
@@ -1110,8 +1319,8 @@ $("monthNext").addEventListener("click", () => shiftMonth(1));
       `The "${program.activeProgram}" programme in dailyplan/plan.json has no sessions to show.`;
     return;
   }
-  render();
-  restTick(false);   // a rest still running from before the reload, silently
+  render();          // ends in restTick(false) — a rest still running from
+                     // before the reload is picked up there, silently
   const [dy, dm] = DATE.split("-").map(Number);
   monthCursor = { y: dy, m: dm - 1 };
   loadMonth();
