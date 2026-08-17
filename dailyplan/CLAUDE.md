@@ -72,17 +72,41 @@ sees Firestore's `HISTORY_DAYS`-bounded history plus whatever this device's own
 localStorage happens to hold, so on a fresh device, or a real streak longer than that
 window, it quietly gives a wrong answer instead of an honest unknown — found by
 actually hitting the cross-device case, not a hypothetical. A stored date has no window
-to fall outside of. `updateTracker()` (`:1486`-ish) is what keeps it from drifting
-instead: ticking only ever moves the date forward — a backdated entry older than what's
-already stored must not erase real clean days — and unticking only re-scans when the
-day being undone is the one currently stored, since no other day's untick can change
-what the most recent smoke was. `sync.seedTracker()` runs once per sign-in, after
-`loadHistory()`, and is a no-op once a date exists; it exists so a streak that's never
-broken again still gets a stored date instead of staying on the scan forever, since
-nothing would otherwise trigger `updateTracker()` to write one.
+to fall outside of. `updateTracker()` is what keeps it from drifting instead: ticking
+only ever moves the date forward — a backdated entry older than what's already stored
+must not erase real clean days — and unticking only matters when the day being undone
+is the one currently stored, since no other day's untick can change what the most
+recent smoke was.
 
-The scan (`lastTicked()`) is still there as a fallback for the gap before that first
-value exists — not as the steady-state answer.
+That untick path went through two real bugs during review, both worth knowing before
+touching this again:
+
+- **Unticking must not just re-run `lastTicked()` and trust an empty result.** A first
+  version did exactly that, and it deletes real data: `lastTicked()` is the same
+  bounded scan the stored date exists to replace, so on an ordinary mis-tap-then-correct
+  it can easily find nothing within its own window and overwrite a correct, months-old
+  stored date with nothing. The fix is a one-step undo buffer (`LS_TRACKER + id +
+  ".prev"`, `loadTrackerPrev()`/`saveTrackerPrev()`/`clearTrackerPrev()`) written
+  alongside every forward move, so the common case — undo my last tick — restores the
+  exact prior value with no scanning at all. The scan is now used only when that buffer
+  doesn't apply (the current value came from seeding, or a reload happened in between),
+  and even then an empty result is left alone rather than written — "not visible from
+  this scan" is not the same claim as "definitely nothing," and only the first one is
+  true.
+- **`sync.maybeSeedTracker()` must not seed from local absence alone.** It runs once per
+  sign-in, backfilling a stored date from the old scan so a streak that's never broken
+  again still gets a durable value instead of staying on the scan forever. But
+  `loadHistory()` and `attachTrackers()`'s first live snapshot both resolve
+  asynchronously with no ordering between them — on a fresh device, if history finished
+  first, seeding from "nothing stored locally yet" could write a guess that then races
+  the real remote value already in flight, and the echo guard in `attachTrackers()`
+  would mistake that real value's arrival for its own write and keep the wrong guess.
+  Seeding now waits for both `historyReady` and `trackerSnapshotSeen` before writing
+  anything, so it only ever acts once the server's actual state is confirmed, not
+  assumed.
+
+The scan (`lastTicked()`) is still there as a fallback for the gap before a value is
+known at all — not as the steady-state answer, and not trusted to overwrite one.
 
 Two deliberate choices, unchanged:
 
