@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#00C2CB">
+<title>Clean Sweep — Second Brain</title>
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Second Brain">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root{
+    --paper:#F2EDE0;--card:#FFFDF7;--sunk:#E8E4D6;--ink:#111111;
+    --yellow:#FFD53D;--teal:#00C2CB;--pink:#FF3D8B;--lime:#B8E62E;
+    --grey:#706B61;--stroke:2.5px;--shadow:4px 4px 0 var(--ink);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    padding:calc(18px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+      calc(48px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+    font:15px/1.4 "Archivo","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;color:inherit;cursor:pointer}
+  .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900}
+  .wrap{max-width:520px;margin:0 auto}
+  .back{display:inline-block;color:var(--ink);text-decoration:none;font-size:9px;font-weight:900;
+    letter-spacing:.09em;margin-bottom:13px}
+  .hero{background:var(--teal);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
+  .eyebrow{font-size:8px;letter-spacing:.12em;margin-bottom:5px}
+  h1{font-size:clamp(31px,10vw,48px);line-height:.95;letter-spacing:-.04em;margin:0 0 10px}
+  .lede{margin:0;font-size:13px;font-weight:750;max-width:380px}
+  .dashboard{display:grid;grid-template-columns:1fr auto;gap:10px;margin:0 0 17px}
+  .progress-card,.xp-card{background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);padding:12px}
+  .progress-card{min-width:0}.xp-card{background:var(--yellow);min-width:94px;text-align:center}
+  .stat-label{font-size:8px;letter-spacing:.08em;color:var(--grey)}
+  .stat-value{font-size:20px;line-height:1.1;margin:3px 0 8px;font-variant-numeric:tabular-nums}
+  .xp-card .stat-value{font-size:27px;margin-bottom:0}
+  .track{height:12px;background:var(--sunk);border:2px solid var(--ink);padding:1px}
+  .fill{display:block;height:100%;width:0;background:var(--lime);transition:width .25s ease-out}
+  .next{display:flex;gap:10px;align-items:center;background:var(--ink);color:var(--paper);padding:10px 12px;margin-bottom:16px}
+  .next-icon{font-size:20px}.next-copy{min-width:0}.next-k{font-size:7px;letter-spacing:.1em;color:var(--lime)}
+  .next-name{font-weight:800;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .list-head{display:flex;align-items:center;gap:8px;margin:16px 0 8px}
+  .list-head span:first-child{background:var(--ink);color:var(--paper);padding:3px 8px;font-size:9px;letter-spacing:.08em}
+  .list-head .rule{height:2px;background:var(--ink);flex:1}
+  .task{display:flex;align-items:center;gap:10px;background:var(--card);border:var(--stroke) solid var(--ink);
+    box-shadow:var(--shadow);padding:10px 11px;min-height:54px;margin-bottom:9px;cursor:pointer;
+    transition:transform .08s,box-shadow .08s,background .15s}
+  .task:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+  .task.done{background:var(--sunk);box-shadow:2px 2px 0 var(--ink)}
+  .task.current{background:#EAFAB6}
+  .task input{position:absolute;opacity:0;pointer-events:none}
+  .box{flex:0 0 auto;width:23px;height:23px;border:2.5px solid var(--ink);background:var(--card);
+    display:grid;place-items:center;font:900 14px/1 "Arial Black",Impact,sans-serif}
+  .task.done .box{background:var(--ink);color:var(--paper)}
+  .emoji{font-size:17px;line-height:1;flex:0 0 auto}
+  .text{flex:1;min-width:0;font-weight:750;font-size:13px}
+  .task.done .text{text-decoration:line-through;color:var(--grey)}
+  .xp{flex:0 0 auto;background:var(--pink);border:2px solid var(--ink);padding:2px 5px;
+    font:900 9px/1.2 "Arial Black",Impact,sans-serif}
+  .task.done .xp{background:transparent;color:var(--grey);border-color:var(--grey)}
+  .optional .xp{background:var(--yellow)}
+  .tag{display:inline-block;margin-left:5px;background:var(--yellow);border:1.5px solid var(--ink);
+    padding:1px 3px;font:900 6px/1.2 "Arial Black",Impact,sans-serif;letter-spacing:.04em;vertical-align:2px}
+  .celebrate{background:var(--lime);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:14px;margin:16px 0;font-weight:800;text-align:center}
+  .celebrate[hidden]{display:none}
+  .actions{display:flex;justify-content:flex-end;margin-top:18px}
+  .reset{background:var(--card);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
+    padding:7px 10px;font:900 9px/1 "Arial Black",Impact,sans-serif;letter-spacing:.05em}
+  .reset.armed{background:var(--pink)}
+  footer{margin-top:24px;border-top:2px solid var(--ink);padding-top:12px;color:var(--grey);font-size:10px;font-weight:700}
+  @media(max-width:360px){.dashboard{grid-template-columns:1fr}.xp-card{text-align:left}.xp-card .stat-value{font-size:22px}}
+  @media(prefers-reduced-motion:reduce){.fill,.task{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">‹ SECOND BRAIN</a>
+  <section class="hero">
+    <div class="eyebrow blk">FLAT RESET</div>
+    <h1 class="blk">Clean<br>sweep. 🧹</h1>
+    <p class="lede">One small thing at a time. Follow the order and let the floor wait until the end.</p>
+  </section>
+
+  <section class="dashboard" aria-label="Cleaning progress">
+    <div class="progress-card">
+      <div class="stat-label blk">PROGRESS</div>
+      <div class="stat-value blk" id="progressText">0 / 20 DONE</div>
+      <div class="track" aria-hidden="true"><i class="fill" id="progressFill"></i></div>
+    </div>
+    <div class="xp-card">
+      <div class="stat-label blk">EARNED</div>
+      <div class="stat-value blk"><span id="xpEarned">0</span> XP</div>
+    </div>
+  </section>
+
+  <div class="next" id="nextTask">
+    <span class="next-icon" id="nextIcon">🪟</span>
+    <div class="next-copy"><div class="next-k blk">NEXT SMALL WIN</div><div class="next-name" id="nextName">Open the windows</div></div>
+  </div>
+
+  <div class="list-head"><span class="blk">CLEANING RUN</span><span class="rule"></span><b id="listCount">0/20</b></div>
+  <main id="taskList"></main>
+
+  <div class="celebrate" id="celebrate" hidden></div>
+  <div class="actions"><button class="reset" id="resetBtn" type="button">RESET CHECKLIST</button></div>
+  <footer>Progress stays on this device. Core clean: 205 XP · Everything: 255 XP.</footer>
+</div>
+
+<script>
+"use strict";
+const STORAGE_KEY="secondbrain.cleaning.v1";
+const tasks=[
+  {id:"windows",icon:"🪟",text:"Open the windows",xp:5},
+  {id:"tidy",icon:"🧺",text:"Put loose objects and clothes in their places",xp:15},
+  {id:"dishes",icon:"🍽️",text:"Wash or put away the dishes",xp:10},
+  {id:"dust",icon:"🪶",text:"Remove dust from furniture, shelves and visible surfaces, working from top to bottom",xp:20},
+  {id:"plants",icon:"🪴",text:"Water all plants",xp:10},
+  {id:"appliances",icon:"✨",text:"Wipe kitchen appliance fronts and handles",xp:10},
+  {id:"kitchen-surfaces",icon:"🧽",text:"Clean the kitchen countertops, table and stovetop",xp:15},
+  {id:"kitchen-sink",icon:"🚰",text:"Clean the kitchen sink",xp:10},
+  {id:"mirrors",icon:"🪞",text:"Wash the bathroom mirrors",xp:10},
+  {id:"bathroom-sink",icon:"🫧",text:"Clean the bathroom sink and surrounding surfaces",xp:10},
+  {id:"bathtub",icon:"🛁",text:"Clean the bathtub and shower area",xp:20},
+  {id:"toilet",icon:"🚽",text:"Clean the toilet using separate cloths or paper",xp:15},
+  {id:"touch-points",icon:"🚪",text:"Clean frequently touched handles and switches",xp:10,optional:true},
+  {id:"bedsheets",icon:"🛏️",text:"Change the bedsheets",xp:15,optional:true},
+  {id:"towels",icon:"🧻",text:"Replace used towels",xp:5},
+  {id:"vacuum",icon:"🌀",text:"Vacuum everywhere, including corners and under accessible furniture",xp:25},
+  {id:"bathroom-floor",icon:"🧼",text:"Wash the bathroom floor",xp:10},
+  {id:"floors",icon:"🪣",text:"Wash the floors throughout the rest of the flat",xp:25,optional:true},
+  {id:"rubbish",icon:"🗑️",text:"Take the rubbish to the garbage bins and throw it away",xp:10},
+  {id:"bags",icon:"♻️",text:"Put fresh bags into the bins",xp:5}
+];
+const $=id=>document.getElementById(id);
+let done=load(),resetArmed=false;
+function load(){try{const value=JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]");return new Set(Array.isArray(value)?value:[])}catch{return new Set()}}
+function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify([...done]))}catch{}}
+function taskRow(task){
+  const label=document.createElement("label");
+  label.className="task"+(done.has(task.id)?" done":"")+(task.optional?" optional":"");
+  label.dataset.id=task.id;
+  const input=document.createElement("input");input.type="checkbox";input.checked=done.has(task.id);
+  const box=document.createElement("span");box.className="box";box.textContent=input.checked?"✓":"";
+  const emoji=document.createElement("span");emoji.className="emoji";emoji.textContent=task.icon;
+  const text=document.createElement("span");text.className="text";text.textContent=task.text;
+  if(task.optional){const tag=document.createElement("small");tag.className="tag";tag.textContent="OPTIONAL";text.appendChild(tag)}
+  const xp=document.createElement("span");xp.className="xp";xp.textContent=`+${task.xp}`;
+  input.addEventListener("change",()=>{input.checked?done.add(task.id):done.delete(task.id);save();render()});
+  label.append(input,box,emoji,text,xp);return label;
+}
+function render(){
+  $("taskList").textContent="";
+  tasks.forEach(task=>$("taskList").appendChild(taskRow(task)));
+  const completed=tasks.filter(t=>done.has(t.id));
+  const core=tasks.filter(t=>!t.optional);
+  $("progressText").textContent=`${completed.length} / ${tasks.length} DONE`;
+  $("progressFill").style.width=`${completed.length/tasks.length*100}%`;
+  $("xpEarned").textContent=completed.reduce((sum,t)=>sum+t.xp,0);
+  $("listCount").textContent=`${completed.length}/${tasks.length}`;
+  document.querySelectorAll(".task").forEach(row=>row.classList.remove("current"));
+  const next=tasks.find(t=>!t.optional&&!done.has(t.id))||tasks.find(t=>!done.has(t.id));
+  if(next){$("nextTask").hidden=false;$("nextIcon").textContent=next.icon;$("nextName").textContent=next.text;document.querySelector(`[data-id="${next.id}"]`)?.classList.add("current")}
+  else $("nextTask").hidden=true;
+  const coreDone=core.every(t=>done.has(t.id)),allDone=tasks.every(t=>done.has(t.id));
+  $("celebrate").hidden=!coreDone;
+  $("celebrate").textContent=allDone?"✨ PERFECT RESET — 255 XP EARNED ✨":"🏠 CORE CLEAN COMPLETE — THE FLAT IS RESET!";
+}
+$("resetBtn").addEventListener("click",()=>{
+  if(!resetArmed){resetArmed=true;$("resetBtn").classList.add("armed");$("resetBtn").textContent="TAP AGAIN TO RESET";setTimeout(()=>{resetArmed=false;$("resetBtn").classList.remove("armed");$("resetBtn").textContent="RESET CHECKLIST"},3000);return}
+  done.clear();save();resetArmed=false;$("resetBtn").classList.remove("armed");$("resetBtn").textContent="RESET CHECKLIST";render();
+});
+render();
+</script>
+</body>
+</html>
