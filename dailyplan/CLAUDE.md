@@ -93,17 +93,21 @@ touching this again:
   and even then an empty result is left alone rather than written — "not visible from
   this scan" is not the same claim as "definitely nothing," and only the first one is
   true.
-- **`sync.maybeSeedTracker()` must not seed from local absence alone.** It runs once per
-  sign-in, backfilling a stored date from the old scan so a streak that's never broken
-  again still gets a durable value instead of staying on the scan forever. But
-  `loadHistory()` and `attachTrackers()`'s first live snapshot both resolve
-  asynchronously with no ordering between them — on a fresh device, if history finished
-  first, seeding from "nothing stored locally yet" could write a guess that then races
-  the real remote value already in flight, and the echo guard in `attachTrackers()`
-  would mistake that real value's arrival for its own write and keep the wrong guess.
-  Seeding now waits for both `historyReady` and `trackerSnapshotSeen` before writing
-  anything, so it only ever acts once the server's actual state is confirmed, not
-  assumed.
+- **Seeding must not guess from local absence alone — but coordinating against the live
+  listener instead of just checking the server directly turned out to be the wrong fix.**
+  The backfill (making sure a streak that's never broken again still gets a durable value,
+  instead of staying on the scan forever) runs once per sign-in. A local guess racing a
+  real remote value already in flight was a real risk, so the first fix made seeding wait
+  for two flags — `loadHistory()` finishing and `attachTrackers()`'s first live snapshot
+  arriving — before writing anything. That shipped, and in real use the doc simply never
+  got seeded: confirmed directly against Firestore days after sign-in, on an account that
+  was genuinely signed in the whole time. Isolated simulation of the flag ordering itself
+  didn't reproduce a failure either, which pointed at the *coordination* being the fragile
+  part rather than any one flag's logic — something about lining up two independent async
+  signals wasn't holding up in the real client, whatever the exact mechanism. The fix,
+  `sync.seedTrackerIfEmpty()`: one direct `await getDoc()` against the tracker doc,
+  checked once, right after history loads. No second signal to line up against, so
+  there's nothing left to race — the read itself is the confirmation.
 
 The scan (`lastTicked()`) is still there as a fallback for the gap before a value is
 known at all — not as the steady-state answer, and not trusted to overwrite one.

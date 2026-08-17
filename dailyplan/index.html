@@ -1405,12 +1405,12 @@ function renderLevel() {
    real, older date the scan simply can't see (see updateTracker()'s comment).
 
    Until the row has been ticked or unticked at least once since this shipped,
-   or before sync.maybeSeedTracker() has run, there's nothing stored yet — the
-   scan is kept as a fallback for exactly that gap, not as the steady-state
-   answer. maybeSeedTracker() only writes a fallback once it has confirmed,
-   from the live listener itself, that the server genuinely has nothing —
-   never from local absence alone, which could otherwise race a real value
-   still in flight and overwrite it with a guess.
+   or before sync.seedTrackerIfEmpty() has run, there's nothing stored yet —
+   the scan is kept as a fallback for exactly that gap, not as the
+   steady-state answer. seedTrackerIfEmpty() checks the server directly,
+   once, rather than guessing from local absence — see its own comment for
+   why an earlier version that coordinated with the live listener instead
+   left the doc unseeded indefinitely in practice.
 
    A day with no record at all counts as a no-weed day. That is deliberate —
    the alternative punishes forgetting to open an app rather than smoking. The
@@ -1615,8 +1615,6 @@ const sync = {
   trackerTimer: null,
   trackerPending: null,
   trackerSeeded: false,
-  trackerSnapshotSeen: false,
-  historyReady: false,
 
   setUI(state, msg, btnLabel, btnAction) {
     const row = $("sync"), btn = $("authBtn");
@@ -1768,43 +1766,49 @@ const sync = {
     } catch { /* offline — the local copy stands and the next edit retries */ }
   },
 
-  /* Seeds the stored date from the old scan, but only once BOTH history has
-     loaded and the tracker doc's real remote state has actually been seen —
-     never from local absence alone. Guessing ahead of the live listener (via
-     loadHistory() finishing first, on a device with no local copy) would let
-     a same-scan-as-always fallback value race a correct remote value that's
-     still in flight, and the echo guard below would then mistake the real
-     value's arrival for its own write, keeping the wrong guess. Waiting for
-     both signals removes the race instead of narrowing it. A no-op once a
-     date is already known, from either source. */
-  maybeSeedTracker() {
-    if (this.trackerSeeded || !this.historyReady || !this.trackerSnapshotSeen) return;
+  /* Seeds the stored date from the old scan, the one time it's genuinely
+     needed — signing in on an account that predates this feature, where
+     nothing has ever been written yet. A previous version coordinated this
+     with attachTrackers()'s live listener through two flags (history loaded,
+     first snapshot seen), reasoning that guessing before the listener
+     confirmed the real remote state could race a value already in flight.
+     That reasoning was right, but the coordination itself turned out to be
+     the fragile part — in practice the doc stayed unseeded indefinitely,
+     which is worse than the race it was avoiding. This does one direct,
+     awaited read instead: no second async signal to line up against, so
+     there's nothing left to race. Called once from loadHistory(), after
+     history is populated, so the scan fallback has something to work with. */
+  async seedTrackerIfEmpty() {
+    if (this.trackerSeeded || this.mode !== "signed-in") return;
     this.trackerSeeded = true;
-    if (loadTracker(WEED_ID)) return;   // the snapshot already adopted a real remote value
-    const val = lastTicked(WEED_ID, todayISO()) || program.startDate;
-    saveTracker(WEED_ID, val);
-    this.queueTracker(WEED_ID, val);
+    if (loadTracker(WEED_ID)) return;   // attachTrackers() already adopted a real value
+    try {
+      const { f } = this.fb;
+      const snap = await f.getDoc(this.trackerRef());
+      const data = snap.exists() ? snap.data() : {};
+      if (typeof data[WEED_ID] === "string") return;   // real remote value; the listener will adopt it
+      const val = lastTicked(WEED_ID, todayISO()) || program.startDate;
+      saveTracker(WEED_ID, val);
+      this.queueTracker(WEED_ID, val);
+    } catch (e) {
+      this.trackerSeeded = false;   // let the next sign-in try again
+      console.warn("Tracker seed check failed:", e.code || e.message);
+    }
   },
 
   attachTrackers() {
     if (this.trackerUnsub) { this.trackerUnsub(); this.trackerUnsub = null; }
-    this.trackerSeeded = false;
-    this.trackerSnapshotSeen = false;
     const { f } = this.fb;
     this.trackerUnsub = f.onSnapshot(this.trackerRef(),
       snap => {
         // A write of our own echoing back must not clobber a newer local
         // edit that's still queued to go out — same guard adopt() uses.
-        if (!(this.trackerPending && WEED_ID in this.trackerPending)) {
-          const data = snap.exists() ? snap.data() : {};
-          const remote = typeof data[WEED_ID] === "string" ? data[WEED_ID] : null;
-          if (remote !== loadTracker(WEED_ID)) {
-            saveTracker(WEED_ID, remote);
-            if (plan) renderCounter();
-          }
-        }
-        this.trackerSnapshotSeen = true;
-        this.maybeSeedTracker();
+        if (this.trackerPending && WEED_ID in this.trackerPending) return;
+        const data = snap.exists() ? snap.data() : {};
+        const remote = typeof data[WEED_ID] === "string" ? data[WEED_ID] : null;
+        if (remote === loadTracker(WEED_ID)) return;
+        saveTracker(WEED_ID, remote);
+        if (plan) renderCounter();
       },
       e => console.warn("Tracker sync dropped:", e.code || e.message));
   },
@@ -2032,14 +2036,14 @@ const sync = {
             : Object.values(v.ticks || {}).filter(Boolean).length
         });
       });
-      this.historyReady = true;
-      this.maybeSeedTracker();
+      this.seedTrackerIfEmpty();
       rebuild();
     } catch (e) {
-      // Left historyReady false on purpose: a failed fetch isn't a full view
-      // of history, so seeding from it would carry the same risk seeding is
-      // meant to avoid. The display still works via noWeedDays()'s own
-      // fallback chain either way; only the durable write is skipped.
+      // seedTrackerIfEmpty() isn't called here on purpose: a failed fetch
+      // isn't a full view of history, so seeding from it would carry the
+      // same risk seeding is meant to avoid. The display still works via
+      // noWeedDays()'s own fallback chain either way; only the durable
+      // write is skipped, and the next sign-in gets another attempt.
       console.warn("History unavailable:", e);
     }
   },
