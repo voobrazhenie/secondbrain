@@ -163,6 +163,12 @@
       ]
     },
     {
+      "title": "Tasks",
+      "emoji": "📋",
+      "keepEmpty": true,
+      "items": []
+    },
+    {
       "title": "Eat",
       "emoji": "🍳",
       "note": "Protein is the non-negotiable — 1.8–2.2 g per kg per day. Four anchors of 35–45 g beats trying to rescue the number at dinner. The failure mode isn't one light day, it's three in a row.",
