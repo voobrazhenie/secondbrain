@@ -477,6 +477,7 @@ const LS_COLLAPSED = "secondbrain.fitness.collapsed";
 const LS_DIRECTION = "secondbrain.daily.direction.";
 const LS_XPMONTH = "secondbrain.fitness.xpmonth.";   // + YYYY-MM
 const LS_XPPEAK  = "secondbrain.fitness.xppeak";
+const LS_TRACKER = "secondbrain.fitness.tracker.";   // + item id
 const DIRECTION_PROMPTS = [
   { id:"meaningfully-better", text:"What would make today meaningfully better?" },
   { id:"beyond-urgent", text:"What matters today beyond what feels urgent?" },
@@ -1386,9 +1387,23 @@ function renderLevel() {
 }
 
 /* ---------- day counter ----------
-   Days since the last recorded smoke, counting today. There is no new stored
-   field: lastTicked() already scans Firestore history and localStorage
-   together, so this works signed out and across devices for free.
+   Days since the last recorded smoke, counting today.
+
+   The date itself is stored (LS_TRACKER + id, mirrored to
+   users/{uid}/config/trackers, live-subscribed in sync.attachTrackers()) —
+   deliberately a second copy of what the ticks already say, traded off against
+   the alternative: lastTicked()'s scan only sees Firestore's 90-day history
+   window plus this device's own localStorage, so on a fresh device, or a real
+   streak longer than 90 days, it silently produces a wrong answer instead of
+   an honest unknown. A stored date has no window to fall outside of.
+   updateTracker() keeps it in step with the ticks rather than letting it drift:
+   ticking only ever moves it forward (a backdated entry older than what's
+   already stored must not erase real clean days), and unticking only matters
+   — and only re-scans — when the day being undone is the one currently stored.
+
+   Until the row has been ticked or unticked at least once since this shipped,
+   or before sync.seedTracker() has run, there's nothing stored yet — the scan
+   is kept as a fallback for exactly that gap, not as the steady-state answer.
 
    A day with no record at all counts as a no-weed day. That is deliberate —
    the alternative punishes forgetting to open an app rather than smoking. The
@@ -1398,12 +1413,22 @@ function renderLevel() {
    fact about right now, not about the day the nav happens to be showing. */
 const WEED_ID = "r-smoked-weed";
 
+function loadTracker(id) {
+  try { return localStorage.getItem(LS_TRACKER + id) || null; } catch { return null; }
+}
+function saveTracker(id, date) {
+  try {
+    if (date) localStorage.setItem(LS_TRACKER + id, date);
+    else localStorage.removeItem(LS_TRACKER + id);
+  } catch {}
+}
+
 function noWeedDays() {
   const today = todayISO();
   if (loadTicks(today)[WEED_ID]) return 0;
-  // Nothing logged yet means nothing to count from, so fall back to the plan's
-  // own start date instead of showing a misleading 0.
-  const last = lastTicked(WEED_ID, today) || program.startDate;
+  // Nothing stored or scannable means nothing to count from, so fall back to
+  // the plan's own start date instead of showing a misleading 0.
+  const last = loadTracker(WEED_ID) || lastTicked(WEED_ID, today) || program.startDate;
   return Math.max(0, daysBetween(last, today));
 }
 
@@ -1458,6 +1483,8 @@ function setTick(id, on) {
     saveCustom();
   }
 
+  if (id === WEED_ID) updateTracker(on);
+
   const row = rowEls.get(id);
   if (row) row.classList.toggle("done", on);
   // xpEarned is kept locally too, so lifetime XP still adds up signed out.
@@ -1466,6 +1493,27 @@ function setTick(id, on) {
   });
   refreshDerived();
   sync.queueTick(plan.date, id, on);
+}
+
+/* Keeps LS_TRACKER's stored date in step with the tick that just changed, so
+   noWeedDays() answers from a fact instead of rescanning history each time.
+   Ticking only ever moves the date forward — a backdated entry older than
+   what's already stored must not un-count days that are still genuinely
+   clean. Unticking only matters when the day being undone is the one
+   currently stored; any other day's untick can't change what the most
+   recent smoke was, so it's left alone. */
+function updateTracker(on) {
+  const current = loadTracker(WEED_ID);
+  let next;
+  if (on) {
+    next = (!current || plan.date > current) ? plan.date : current;
+  } else {
+    if (plan.date !== current) return;
+    next = lastTicked(WEED_ID, plan.date);
+  }
+  if (next === current) return;
+  saveTracker(WEED_ID, next);
+  sync.queueTracker(WEED_ID, next);
 }
 
 /* ---------- physical training, mirrored from the Exercise page ----------
@@ -1520,6 +1568,9 @@ const sync = {
   queueDate: null,
   xpTimer: null,
   xpPending: null,
+  trackerUnsub: null,
+  trackerTimer: null,
+  trackerPending: null,
 
   setUI(state, msg, btnLabel, btnAction) {
     const row = $("sync"), btn = $("authBtn");
@@ -1559,6 +1610,7 @@ const sync = {
 
   onAuth(user) {
     if (this.unsub) { this.unsub(); this.unsub = null; }
+    if (this.trackerUnsub) { this.trackerUnsub(); this.trackerUnsub = null; }
     if (!user) {
       this.uid = null; this.mode = "signed-out";
       history.clear(); render();
@@ -1576,6 +1628,7 @@ const sync = {
     this.loadHistory();
     this.loadCustomRemote();
     this.loadXp();
+    this.attachTrackers();
     reconcilePhysical();   // the account's exercise doc may differ from this device's
   },
 
@@ -1632,6 +1685,67 @@ const sync = {
     } catch (e) {
       console.warn("XP totals unavailable:", e);
     }
+  },
+
+  /* ---------- trackers (e.g. last-smoked date) ----------
+     One small doc, merge-written so future trackers can add their own key
+     without disturbing this one — same reasoning as loadCustomRemote()'s
+     merge. Live-subscribed, unlike xp/ above: this is specifically the piece
+     that used to go stale on another open tab until you navigated to the
+     exact day that changed. See the comment above WEED_ID for why the date
+     is stored at all rather than left to lastTicked()'s scan. */
+  trackerRef() {
+    const { f, db } = this.fb;
+    return f.doc(db, "users", this.uid, "config", "trackers");
+  },
+
+  queueTracker(id, date) {
+    if (this.mode !== "signed-in") return;
+    this.trackerPending = { ...(this.trackerPending || {}), [id]: date };
+    clearTimeout(this.trackerTimer);
+    this.trackerTimer = setTimeout(() => this.flushTracker(), 500);
+  },
+
+  async flushTracker() {
+    clearTimeout(this.trackerTimer);
+    if (this.mode !== "signed-in" || !this.trackerPending) return;
+    const pending = this.trackerPending;
+    this.trackerPending = null;
+    const { f } = this.fb;
+    const fields = {};
+    for (const [id, date] of Object.entries(pending)) fields[id] = date || f.deleteField();
+    try {
+      await f.setDoc(this.trackerRef(), { ...fields, updatedAt: f.serverTimestamp() }, { merge: true });
+    } catch { /* offline — the local copy stands and the next edit retries */ }
+  },
+
+  /* Runs once per sign-in, after loadHistory() so the scan fallback it seeds
+     from can see the full 90-day window. A no-op once a date is already
+     stored. Without this, a genuinely long clean streak that's never broken
+     — the success case this whole feature is for — would never write
+     anything and would stay on the old scan forever. */
+  seedTracker() {
+    if (loadTracker(WEED_ID)) return;
+    const val = lastTicked(WEED_ID, todayISO()) || program.startDate;
+    saveTracker(WEED_ID, val);
+    this.queueTracker(WEED_ID, val);
+  },
+
+  attachTrackers() {
+    if (this.trackerUnsub) { this.trackerUnsub(); this.trackerUnsub = null; }
+    const { f } = this.fb;
+    this.trackerUnsub = f.onSnapshot(this.trackerRef(),
+      snap => {
+        // A write of our own echoing back must not clobber a newer local
+        // edit that's still queued to go out — same guard adopt() uses.
+        if (this.trackerPending && WEED_ID in this.trackerPending) return;
+        const data = snap.exists() ? snap.data() : {};
+        const remote = typeof data[WEED_ID] === "string" ? data[WEED_ID] : null;
+        if (remote === loadTracker(WEED_ID)) return;
+        saveTracker(WEED_ID, remote);
+        if (plan) renderCounter();
+      },
+      e => console.warn("Tracker sync dropped:", e.code || e.message));
   },
 
   async signIn() {
@@ -1857,6 +1971,7 @@ const sync = {
             : Object.values(v.ticks || {}).filter(Boolean).length
         });
       });
+      this.seedTracker();
       rebuild();
     } catch (e) {
       console.warn("History unavailable:", e);
