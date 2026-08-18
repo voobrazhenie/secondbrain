@@ -124,7 +124,6 @@
     transition:transform .07s, box-shadow .07s, background .15s;
   }
   .row:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
-  .row.hero-item{background:var(--yellow)}
   .row.done{background:var(--sunk);box-shadow:2px 2px 0 var(--ink)}
   .row input{position:absolute;opacity:0;pointer-events:none}
   .box{
@@ -149,7 +148,6 @@
     background:var(--pink);color:var(--ink);border:2px solid var(--ink);padding:2px 6px;
   }
   .row.done .pill{background:transparent;border-color:var(--faint);color:var(--faint)}
-  .row.hero-item .pill{background:var(--ink);color:var(--yellow)}
   .pill.cost{background:var(--ink);color:var(--paper)}
   .row.done .pill.cost{background:transparent;border-color:var(--faint);color:var(--faint)}
 
@@ -466,13 +464,13 @@
 <script>
 "use strict";
 
-const FALLBACK = {"startDate":"2026-07-29","activeProgram":"home","principles":{"title":"Notes for Radical Living","author":"Tilda Swinton","source":"from her book Ongoing, 2025","list":["Make friends with chaos","Hold a calm mind","Let things shake","Forgive human frailty","Champion second chances","Defy kindness","Reverence fellowship","Listen to the quiet","Respect the young","Seek growth","Trust in change","Treasure learning","Inspire faith in evolution","Reach beyond the binary","Be wary of the doubtless","Honor the bright headed","Grow plants","Attend to the weather","Be electric","Cherish language","Celebrate silence","Dance daily","Bless the handmade","Sing into pain","Challenge assumptions","Follow the wind","Look upwards","Swoon under clouds","Feel your courage","Face forward","Read history","Open your ears","Drop your shoulders","Bend your knees","Raise the roof","Keep breathing","Be trustworthy","Take care of yourself","Believe in goodness","Head for the light"]},"schedule":{"mon":"train","tue":"train","wed":"rest","thu":"train","fri":"train","sat":"rest","sun":"rest"},"restDay":{"label":"Rest day","headline":"Not a day off — a day the muscle actually grows.","note":"Growth happens between sessions, not during them. Walking is fine and good. Everything else on this list still counts, so a rest day never breaks the streak."},"programs":{"home":{"label":"Bodyweight","note":"No equipment. Progression is by variation and tempo instead of weight: when you hit the top of the rep range on every set, move up a rung and drop back to the bottom of the range. Currently weighted towards upper body, with glutes twice a week — general leg work is parked until the upper body catches up.","rest":60,"restNext":90,"sessions":[{"id":"h1","label":"Upper — Push","headline":"Chest and triceps. Pike push-ups are the closest thing to shoulder work you have.","items":[{"id":"h1-pushup","emoji":"🤸","ladder":["Incline push-up (hands on desk)","Knee push-up","Push-up","Decline push-up (feet on chair)","Deficit push-up (hands on books)","Archer push-up"],"rung":2,"reps":"4 × 6–12","detail":"Elbows about 45° from your body, not flared. Full range — chest to the floor.","xp":25},{"id":"h1-pike","emoji":"🔺","ladder":["Pike push-up","Elevated pike push-up (feet on chair)","Wall-supported handstand push-up"],"rung":0,"reps":"3 × 6–10","detail":"Hips high, head travels toward the floor between your hands. The best delt work available without weights — treat it as the priority movement of this session.","xp":25,"hero":true},{"id":"h1-dip","emoji":"💺","ladder":["Bent-leg chair dip","Straight-leg chair dip","Feet-elevated chair dip"],"rung":0,"reps":"3 × 8–12","detail":"Two stable chairs or the edge of a sofa. Shoulders down, don't sink into the shrug.","xp":20},{"id":"h1-diamond","emoji":"💎","ladder":["Incline diamond push-up","Knee diamond push-up","Diamond push-up"],"rung":0,"reps":"3 × 6–10","detail":"Hands together under the chest. Triceps.","xp":20}]},{"id":"h2","label":"Back, Glutes & Core","headline":"The general leg work is gone — upper body and glutes are the priority now. Glutes come early, while you're fresh.","items":[{"id":"h2-row","emoji":"🪽","ladder":["Reverse snow angel","Reverse snow angel, paused at the top","Reverse snow angel, slow"],"rung":0,"reps":"3 × 12–15","detail":"Face down, arms out on the floor, palms up. Sweep them from beside your hips up over your head and back, keeping hands lifted the whole time. Burns the mid-back and rear delts.","xp":25,"hero":true},{"id":"h2-bridge","emoji":"🍑","ladder":["Glute bridge","Glute bridge, paused at the top","Feet-elevated glute bridge","Single-leg glute bridge","Shoulder-elevated hip thrust","Single-leg hip thrust"],"rung":0,"reps":"4 × 12–20","detail":"Heels close to your backside, drive through them and squeeze hard at the top for a full second. This is the main glute builder — a six-rung ladder, so it keeps getting harder without any weight.","xp":25},{"id":"h2-ytw","emoji":"🪽","ladder":["Prone Y-T-W","Prone Y-T-W, paused","Prone Y-T-W, slow eccentric"],"rung":0,"reps":"3 × 8 each shape","detail":"Second back exposure of the week. Frequency is what you have instead of load.","xp":20},{"id":"h2-abduct","emoji":"🦿","ladder":["Side-lying leg raise","Side-lying leg raise, paused at the top","Side-lying leg raise, slow"],"rung":0,"reps":"3 × 15–20 each side","detail":"Hits the side of the glute — that's the part that adds shape rather than just size. Toes pointed slightly down, not up.","xp":15},{"id":"h2-hollow","emoji":"🌙","ladder":["Bent-knee hollow hold","Hollow hold","Hollow rock"],"rung":0,"reps":"3 × 20–40 s","detail":"Lower back pressed flat into the floor the whole time.","xp":20,"rest":45},{"id":"h2-plank","emoji":"🧱","ladder":["Plank","Long-lever plank","Plank with shoulder taps"],"rung":0,"reps":"3 × 30–60 s","xp":20,"rest":45},{"id":"h2-side","emoji":"📐","ladder":["Knee side plank","Side plank","Side plank with reach"],"rung":0,"reps":"3 × 20–40 s each side","detail":"Builds the waist taper from the side.","xp":15,"rest":45}]},{"id":"h3","label":"Upper — Pull","headline":"The hardest session to do without a bar. Inverted rows are the whole game here.","items":[{"id":"h3-row","emoji":"🚣","ladder":["Prone row, elbows to ribs","Prone row, paused at the squeeze","Prone row, slow","Prone row, arms reaching past your head"],"rung":0,"reps":"3 × 12–15","detail":"Lie face down, arms out to the sides in a T, palms down. Lift your chest just enough that your arms swing clear of the floor — a few centimetres, not a big arch — and keep your eyes on the floor so your neck stays long. Pull your elbows back to your ribs and squeeze your shoulder blades together. Hold that squeeze for a second, then reach your arms back out to the T. Your hands never touch down. There's no weight here, so how hard you squeeze is the load.","xp":25,"hero":true},{"id":"h3-swimmer","emoji":"🏊","ladder":["Prone swimmer","Prone swimmer, slow","Prone swimmer, paused"],"rung":0,"reps":"3 × 30–40 s","detail":"Face down, arms and legs lifted, flutter opposite arm and leg. Lower back and the whole rear chain.","xp":20},{"id":"h3-ytw","emoji":"🪽","ladder":["Prone Y-T-W","Prone Y-T-W, paused","Prone Y-T-W, slow eccentric"],"rung":0,"reps":"3 × 8 each shape","detail":"Face down, arms making a Y then T then W. Rear delts and mid-back — this is genuinely useful equipment-free work and it protects your shoulders for the gym later.","xp":20},{"id":"h3-hinge","emoji":"🍑","ladder":["Hip hinge, hands on hips","Single-leg Romanian deadlift","Single-leg Romanian deadlift, slow","Single-leg Romanian deadlift, paused at the bottom"],"rung":0,"reps":"3 × 10 each leg","detail":"Second glute session of the week, and a different angle from the bridge — this one stretches the glute under load instead of squeezing it short. Push your hips back, keep a soft knee, feel it in the back of the leg.","xp":20},{"id":"h3-superman","emoji":"🦸","ladder":["Superman hold","Superman hold, arms extended"],"rung":0,"reps":"3 × 20–30 s","detail":"Lower back and spinal erectors.","xp":15,"rest":45}]},{"id":"h4","label":"Arms & shoulders","headline":"Second shoulder exposure of the week. Do these when you're fresh, not tacked on tired.","items":[{"id":"h4-pike","emoji":"🔺","ladder":["Pike push-up","Elevated pike push-up (feet on chair)","Wall-supported handstand push-up"],"rung":0,"reps":"3 × 6–10","detail":"Second exposure this week. Frequency is what you have instead of load.","xp":25,"hero":true},{"id":"h4-dip","emoji":"💺","ladder":["Bent-leg chair dip","Straight-leg chair dip","Feet-elevated chair dip"],"rung":0,"reps":"3 × 10–15","detail":"Triceps.","xp":20},{"id":"h4-close","emoji":"💎","ladder":["Incline diamond push-up","Knee diamond push-up","Diamond push-up"],"rung":0,"reps":"3 × 8–12","xp":20},{"id":"h4-yraise","emoji":"🪽","ladder":["Prone Y raise","Prone Y raise, paused"],"rung":0,"reps":"3 × 15","detail":"Rear and medial delts. Slow — there's no weight, so time under tension is all you've got.","xp":15},{"id":"h4-wall","emoji":"🧱","reps":"3 × 20–30 s each side","text":"Wall lateral isometric","detail":"Stand side-on, press the back of your hand into the wall as if raising the arm, and hold. Being straight with you: this is a poor substitute for a loaded lateral raise and won't build much width. It's here to keep the movement pattern alive until you have dumbbells.","xp":15}]}]},"gym":{"label":"Gym","note":"Parked until you have a subscription. Switch by setting activeProgram to \"gym\" — nothing else needs rewriting.","rest":90,"restNext":120,"sessions":[{"id":"g1","label":"Upper — Push","headline":"Lateral raises are the priority movement of the whole plan.","items":[{"id":"g1-incline","emoji":"🏋️","text":"Incline press · 4×6–8","detail":"Barbell or dumbbell. Your priority press.","xp":25},{"id":"g1-ohp","emoji":"🙌","text":"Seated dumbbell shoulder press · 3×8–10","xp":25},{"id":"g1-lateral","emoji":"💪","text":"Cable or dumbbell lateral raise · 4×12–15","detail":"The single biggest visual driver. Slow, no swinging.","xp":40,"hero":true,"rest":75},{"id":"g1-row","emoji":"🚣","text":"Chest-supported row · 3×8–10","xp":25},{"id":"g1-tri","emoji":"🔻","text":"Overhead cable triceps extension · 3×10–12","xp":20}]},{"id":"g2","label":"Lower","headline":"Keep it honest but don't let it eat your upper-body recovery.","items":[{"id":"g2-squat","emoji":"🦵","text":"Squat · 3×5–8","detail":"Barbell or hack.","xp":25,"rest":180},{"id":"g2-rdl","emoji":"🪢","text":"Romanian deadlift · 3×8–10","xp":25,"rest":150},{"id":"g2-press","emoji":"🦿","text":"Leg press or split squat · 3×10–12","xp":20},{"id":"g2-calf","emoji":"🦶","text":"Standing calf raise · 3×12–15","xp":15},{"id":"g2-legraise","emoji":"🧗","text":"Hanging leg raise · 3×10–15","xp":15}]},{"id":"g3","label":"Upper — Pull","headline":"Back width is the other half of the V-taper.","items":[{"id":"g3-pullup","emoji":"🧗","text":"Pull-up or lat pulldown · 4×6–10","detail":"Back width = V-taper.","xp":25},{"id":"g3-row","emoji":"🚣","text":"Barbell or dumbbell row · 3×8–10","xp":25},{"id":"g3-lateral","emoji":"💪","text":"Lateral raise, machine or leaning cable · 4×12–15","detail":"Yes, again. Different angle.","xp":40,"hero":true,"rest":75},{"id":"g3-reardelt","emoji":"🪽","text":"Rear-delt flye or face pull · 3×15","detail":"Shoulder health and width.","xp":20},{"id":"g3-curl","emoji":"💪","text":"Incline dumbbell curl · 3×10–12","xp":15}]},{"id":"g4","label":"Arms & delts","headline":"The weak-point day. Third lateral raise exposure of the week.","items":[{"id":"g4-press","emoji":"🏋️","text":"Flat or incline dumbbell press · 3×8–10","xp":25},{"id":"g4-lateral","emoji":"💪","text":"Lateral raise, third variation · 4×12–20","xp":40,"hero":true,"rest":75},{"id":"g4-curl","emoji":"💪","text":"Cable curl · 3×10–12","xp":15},{"id":"g4-pushdown","emoji":"🔻","text":"Cable triceps pushdown · 3×12–15","xp":15},{"id":"g4-shrug","emoji":"🤷","text":"Shrug or upright row · 3×12","xp":15}]}]}},"daily":[{"title":"Meds","emoji":"💊","items":[{"id":"m-stimulants","emoji":"💊","text":"Stimulants","detail":"As prescribed.","xp":10},{"id":"m-antidepressants","emoji":"💊","text":"Antidepressants","detail":"As prescribed. Consistent time of day.","xp":10}]},{"title":"Tasks","emoji":"📋","keepEmpty":true,"items":[]},{"title":"Eat","emoji":"🍳","note":"Protein is the non-negotiable — 1.8–2.2 g per kg per day. Four anchors of 35–45 g beats trying to rescue the number at dinner. The failure mode isn't one light day, it's three in a row.","items":[{"id":"e-anchor-1","emoji":"🥣","text":"Breakfast protein anchor","detail":"Greek yoghurt or skyr + eggs, or a shake with milk.","xp":15},{"id":"e-anchor-2","emoji":"🥗","text":"Lunch protein anchor","detail":"Palm-and-a-half of chicken / fish / beef / tofu.","xp":15},{"id":"e-anchor-4","emoji":"🍽️","text":"Dinner protein anchor","detail":"The one that usually rescues the day's total.","xp":15},{"id":"e-water","emoji":"💧","text":"Water through the day","detail":"Pale straw, not clear. Creatine raises water needs slightly.","xp":10},{"id":"e-track","emoji":"🔢","text":"Logged protein today","detail":"Only needed for the first 2–3 weeks, to calibrate. After that you'll know your portions by eye.","xp":15},{"id":"e-creatine","emoji":"⚡","text":"Creatine · 5 g","detail":"Any time of day. No loading phase needed.","xp":10}]},{"title":"Care","emoji":"🧴","note":"Minoxidil every evening, except on microneedling days — the skin needs about a day and a half to close up before anything goes on it again.","items":[{"id":"c-microneedling","emoji":"🪡","text":"Microneedling","detail":"Morning. Every 14 days. No minoxidil this evening — resume tomorrow evening.","xp":25,"every":14,"anchor":"2026-08-05"},{"id":"c-minoxidil","emoji":"💧","text":"Minoxidil","detail":"Evening, on dry scalp. Hides itself automatically on microneedling days.","xp":15,"skipWhen":["c-microneedling"]}]},{"title":"Recover","emoji":"🌙","items":[{"id":"r-sleep","emoji":"😴","text":"7–9 hours, consistent wake time","detail":"Short sleep measurably suppresses muscle gain and raises appetite. Consistent wake time matters more than consistent bedtime.","xp":20},{"id":"r-smoked-weed","emoji":"🌿","text":"Smoked weed","detail":"Tick it on the days you did. Costs XP on purpose — it changes sleep architecture, and sleep is the recovery lever the plan leans on hardest. A new id, so the old inverted ticks aren't read backwards.","xp":-20},{"id":"r-cold-shower","emoji":"🧊","text":"Cold shower","detail":"Not in the hour after training — cold blunts the growth signal.","xp":15},{"id":"r-meditation","emoji":"🧘","text":"Meditation","xp":15}]},{"title":"Home","emoji":"🏠","items":[{"id":"home-water-flowers","emoji":"🪴","text":"Water flowers","detail":"Every three days.","xp":10,"every":3,"anchor":"2026-08-07"}]}],"oneOffs":{"title":"Setup","emoji":"🎯","note":"These disappear for good once ticked.","items":[{"id":"s-measure","emoji":"📏","text":"Weigh + measure waist","detail":"Morning, unflexed, before eating. This is the one thing here that gets worse by waiting — a starting number taken next week isn't a starting number.","xp":35,"hero":true},{"id":"s-supplements","emoji":"🛒","text":"Buy creatine and whey","xp":20},{"id":"s-calendar","emoji":"📅","text":"Four sessions in the calendar","detail":"As real appointments, not intentions. Mon / Tue / Thu / Fri.","xp":20},{"id":"s-space","emoji":"🏠","text":"Clear a training space","detail":"Enough floor to lie flat with your arms out, and two chairs that take your weight for dips. That's the whole kit list.","xp":20}]}};
+const FALLBACK = {"schemaVersion":1,"startDate":"2026-07-29","principles":{"title":"Notes for Radical Living","author":"Tilda Swinton","source":"from her book Ongoing, 2025","list":["Make friends with chaos","Hold a calm mind","Let things shake","Forgive human frailty","Champion second chances","Defy kindness","Reverence fellowship","Listen to the quiet","Respect the young","Seek growth","Trust in change","Treasure learning","Inspire faith in evolution","Reach beyond the binary","Be wary of the doubtless","Honor the bright headed","Grow plants","Attend to the weather","Be electric","Cherish language","Celebrate silence","Dance daily","Bless the handmade","Sing into pain","Challenge assumptions","Follow the wind","Look upwards","Swoon under clouds","Feel your courage","Face forward","Read history","Open your ears","Drop your shoulders","Bend your knees","Raise the roof","Keep breathing","Be trustworthy","Take care of yourself","Believe in goodness","Head for the light"]},"daily":[{"title":"Meds","emoji":"💊","items":[{"id":"m-stimulants","emoji":"💊","text":"Stimulants","detail":"As prescribed.","xp":10},{"id":"m-antidepressants","emoji":"💊","text":"Antidepressants","detail":"As prescribed. Consistent time of day.","xp":10}]},{"title":"Tasks","emoji":"📋","keepEmpty":true,"items":[]},{"title":"Eat","emoji":"🍳","note":"Protein is the non-negotiable — 1.8–2.2 g per kg per day. Four anchors of 35–45 g beats trying to rescue the number at dinner. The failure mode isn't one light day, it's three in a row.","items":[{"id":"e-anchor-1","emoji":"🥣","text":"Breakfast protein anchor","detail":"Greek yoghurt or skyr + eggs, or a shake with milk.","xp":15},{"id":"e-anchor-2","emoji":"🥗","text":"Lunch protein anchor","detail":"Palm-and-a-half of chicken / fish / beef / tofu.","xp":15},{"id":"e-anchor-4","emoji":"🍽️","text":"Dinner protein anchor","detail":"The one that usually rescues the day's total.","xp":15},{"id":"e-water","emoji":"💧","text":"Water through the day","detail":"Pale straw, not clear. Creatine raises water needs slightly.","xp":10},{"id":"e-track","emoji":"🔢","text":"Logged protein today","detail":"Only needed for the first 2–3 weeks, to calibrate. After that you'll know your portions by eye.","xp":15},{"id":"e-creatine","emoji":"⚡","text":"Creatine · 5 g","detail":"Any time of day. No loading phase needed.","xp":10}]},{"title":"Care","emoji":"🧴","note":"Minoxidil every evening, except on microneedling days — the skin needs about a day and a half to close up before anything goes on it again.","items":[{"id":"c-microneedling","emoji":"🪡","text":"Microneedling","detail":"Morning. Every 14 days. No minoxidil this evening — resume tomorrow evening.","xp":25,"every":14,"anchor":"2026-08-05"},{"id":"c-minoxidil","emoji":"💧","text":"Minoxidil","detail":"Evening, on dry scalp. Hides itself automatically on microneedling days.","xp":15,"skipWhen":["c-microneedling"]}]},{"title":"Recover","emoji":"🌙","items":[{"id":"r-sleep","emoji":"😴","text":"7–9 hours, consistent wake time","detail":"Short sleep measurably suppresses muscle gain and raises appetite. Consistent wake time matters more than consistent bedtime.","xp":20},{"id":"r-smoked-weed","emoji":"🌿","text":"Smoked weed","detail":"Tick it on the days you did. Costs XP on purpose — it changes sleep architecture, and sleep is the recovery lever the plan leans on hardest.","xp":-20},{"id":"r-cold-shower","emoji":"🧊","text":"Cold shower","detail":"Not in the hour after training — cold blunts the growth signal.","xp":15},{"id":"r-meditation","emoji":"🧘","text":"Meditation","xp":15}]},{"title":"Home","emoji":"🏠","items":[{"id":"home-water-flowers","emoji":"🪴","text":"Water flowers","detail":"Every three days.","xp":10,"every":3,"anchor":"2026-08-07"}]}],"oneOffs":{"title":"Setup","emoji":"🎯","note":"These disappear for good once ticked.","items":[{"id":"s-measure","emoji":"📏","text":"Weigh + measure waist","detail":"Morning, unflexed, before eating. This is the one thing here that gets worse by waiting — a starting number taken next week isn't a starting number.","xp":35},{"id":"s-supplements","emoji":"🛒","text":"Buy creatine and whey","xp":20}]}};
 
 const SDK        = "https://www.gstatic.com/firebasejs/12.16.0/";
-const LS_PREFIX  = "secondbrain.fitness.v1.";
-const LS_META    = "secondbrain.fitness.meta.";
+const LS_PREFIX  = "secondbrain.dailyplan.v2.";
+const LS_META    = "secondbrain.dailyplan.meta.v2.";
 const LS_NOTES   = "secondbrain.fitness.notes";
-const LS_CUSTOM  = "secondbrain.fitness.custom";
+const LS_CUSTOM  = "secondbrain.dailyplan.custom.v2";
 const LS_COLLAPSED = "secondbrain.fitness.collapsed";
 const LS_DIRECTION = "secondbrain.daily.direction.";
 const LS_XPMONTH = "secondbrain.fitness.xpmonth.";   // + YYYY-MM
@@ -487,33 +485,64 @@ const DIRECTION_PROMPTS = [
   { id:"enough", text:"What would “enough” look like today?" }
 ];
 
-/* One-time: the app was renamed from Life Interface to Second Brain. Carry
-   existing local data over to the new key prefix so it isn't orphaned. */
+const CONFIGURED_DAILY_IDS = new Set([
+  ...FALLBACK.daily.flatMap(group => group.items || []),
+  ...(FALLBACK.oneOffs?.items || [])
+].map(item => item.id).concat("x-commit"));
+const onlyDailyPlanKeys = value => Object.fromEntries(
+  Object.entries(value || {}).filter(([id]) => CONFIGURED_DAILY_IDS.has(id) || id.startsWith("u-"))
+);
+const cleanCustomData = value => ({
+  added: value?.added || [],
+  hidden: onlyDailyPlanKeys(value?.hidden),
+  doneOnce: onlyDailyPlanKeys(value?.doneOnce),
+  edits: onlyDailyPlanKeys(value?.edits)
+});
+
+/* Preserve only DailyPlan state while separating it from the former shared
+   fitness keys. Exercise history is intentionally not migrated. */
 (function migrateStorage() {
-  const OLD = "lifeinterface.fitness.", NEW = "secondbrain.fitness.";
   try {
-    if (localStorage.getItem(NEW + "migrated")) return;
-    const keys = [];
-    for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
-    for (const k of keys) {
-      if (k && k.startsWith(OLD) && localStorage.getItem(NEW + k.slice(OLD.length)) === null) {
-        localStorage.setItem(NEW + k.slice(OLD.length), localStorage.getItem(k));
+    if (localStorage.getItem(LS_PREFIX + "migrated")) return;
+    for (const prefix of ["secondbrain.fitness.v1.", "lifeinterface.fitness.v1."]) {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+      for (const key of keys) {
+        if (!key?.startsWith(prefix)) continue;
+        const date = key.slice(prefix.length);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || localStorage.getItem(LS_PREFIX + date) !== null) continue;
+        localStorage.setItem(LS_PREFIX + date, JSON.stringify(onlyDailyPlanKeys(JSON.parse(localStorage.getItem(key) || "{}"))));
       }
     }
-    localStorage.setItem(NEW + "migrated", "1");
+
+    for (const prefix of ["secondbrain.fitness.meta.", "lifeinterface.fitness.meta."]) {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+      for (const key of keys) {
+        if (!key?.startsWith(prefix)) continue;
+        const date = key.slice(prefix.length);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || localStorage.getItem(LS_META + date) !== null) continue;
+        const old = JSON.parse(localStorage.getItem(key) || "{}");
+        localStorage.setItem(LS_META + date, JSON.stringify({ xpEarned: Number(old.xpEarned) || 0 }));
+      }
+    }
+
+    const oldCustom = localStorage.getItem("secondbrain.fitness.custom") || localStorage.getItem("lifeinterface.fitness.custom");
+    if (oldCustom && localStorage.getItem(LS_CUSTOM) === null) {
+      localStorage.setItem(LS_CUSTOM, JSON.stringify(cleanCustomData(JSON.parse(oldCustom))));
+    }
+    localStorage.setItem(LS_PREFIX + "migrated", "1");
   } catch {}
 })();
 const HISTORY_DAYS = 90;
 const RING_C     = 2 * Math.PI * 33;   // matches r=33 in the svg
-const WEEKDAYS   = ["sun","mon","tue","wed","thu","fri","sat"];
 const $ = id => document.getElementById(id);
 
-/* Dev-only: ?date=2026-08-05 pretends it is that day, so the rotation and rest
-   days can be stepped through without waiting a fortnight. */
+/* ?date=YYYY-MM-DD opens a specific DailyPlan date for review. */
 const DEV_DATE = new URLSearchParams(location.search).get("date");
 
 let viewDate = null;  // the day being looked at; null means today
-let program = null;   // the whole plan.json — the program, both variants
+let dailyConfig = null; // daily.json; workout configuration is separate
 let plan    = null;   // today, derived from it
 /* date -> { xpEarned, ticked } for days other than today. Today is always
    computed live from the current tick state instead. */
@@ -545,10 +574,6 @@ function shiftDate(iso, delta) {
   return localISO(new Date(y, m-1, d + delta));
 }
 function todayISO() { return DEV_DATE || localISO(); }
-function weekdayOf(iso) {
-  const [y,m,d] = iso.split("-").map(Number);
-  return WEEKDAYS[new Date(y, m-1, d).getDay()];
-}
 
 /* ---------- daily direction ----------
    One date-scoped, user-written orientation. It is intentionally separate from
@@ -689,30 +714,29 @@ function storedDates() {
   const out = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (k && k.startsWith(LS_PREFIX)) out.push(k.slice(LS_PREFIX.length));
+    if (k && k.startsWith(LS_PREFIX)) {
+      const date = k.slice(LS_PREFIX.length);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) out.push(date);
+    }
   }
   return out.sort();
 }
 
-/* Which session a past day was, and whether it counted. Mirrored locally as well
-   as in Firestore so the rotation still advances correctly when signed out. */
 function loadDayMeta(date) {
-  try { return JSON.parse(localStorage.getItem(LS_META + date) || "null"); }
+  try {
+    const value = JSON.parse(localStorage.getItem(LS_META + date) || "null");
+    return value ? { xpEarned: Number(value.xpEarned) || 0 } : null;
+  }
   catch { return null; }
 }
 function saveDayMeta(date, m) {
-  try { localStorage.setItem(LS_META + date, JSON.stringify(m)); } catch {}
+  try { localStorage.setItem(LS_META + date, JSON.stringify({ xpEarned: Number(m?.xpEarned) || 0 })); } catch {}
 }
 
-/* ---------- derivation ----------
-   The page works out what today is rather than being told. A missed session is
-   therefore carried forward automatically: the rotation is driven by how many
-   sessions were actually completed, not by the calendar. */
+/* ---------- derivation ---------- */
 
 function itemText(it) {
-  const base = it.text
-    || (it.ladder ? it.ladder[Math.min(it.rung || 0, it.ladder.length - 1)] : "");
-  return it.reps ? `${base} · ${it.reps}` : base;
+  return it.reps ? `${it.text || ""} · ${it.reps}` : (it.text || "");
 }
 
 /* ---------- recurrence ----------
@@ -742,7 +766,7 @@ function lastTicked(id, exceptDate) {
 }
 function onCycle(it, date) {
   if (!it.every) return true;
-  const anchor = it.anchor || program.startDate;
+  const anchor = it.anchor || dailyConfig.startDate;
   const baseline = lastTicked(it.id, date) || shiftDate(anchor, -it.every);
   return date >= shiftDate(baseline, it.every);
 }
@@ -767,30 +791,8 @@ function everTicked(id, exceptDate) {
   return false;
 }
 
-function completedSessions(exceptDate) {
-  const seen = new Set();
-  for (const [date, h] of history) {
-    if (date !== exceptDate && h.sessionDone) seen.add(date);
-  }
-  for (const date of storedDates()) {
-    if (date === exceptDate) continue;
-    const m = loadDayMeta(date);
-    if (m && m.sessionDone) seen.add(date);
-  }
-  return seen.size;
-}
-
-/* At least half the session ticked counts as done — enough to have trained,
-   without demanding a perfect session to advance the rotation. */
-function isSessionDone(date) {
-  const items = (plan && plan.sessionItems) || [];
-  if (!items.length) return false;
-  const t = loadTicks(date);
-  return items.filter(i => t[i.id]).length >= Math.ceil(items.length / 2);
-}
-
-/* ---------- your changes on top of the program ----------
-   plan.json is the shared programme and the page can't write to it, so anything
+/* ---------- your changes on top of the daily configuration ----------
+   daily.json is shared configuration and the page can't write to it, so anything
    you add, edit or delete lives here instead and is layered over the derived day.
    Kept in localStorage and mirrored to Firestore so it follows you between
    devices like the ticks do. */
@@ -799,7 +801,7 @@ let custom = { added: [], hidden: {}, doneOnce: {}, edits: {} };
 function loadCustom() {
   try {
     const raw = JSON.parse(localStorage.getItem(LS_CUSTOM) || "null");
-    if (raw) custom = { added: [], hidden: {}, doneOnce: {}, edits: {}, ...raw };
+    if (raw) custom = cleanCustomData(raw);
   } catch { /* keep the empty default */ }
 }
 function saveCustom({ push = true } = {}) {
@@ -831,7 +833,7 @@ function applyCustom(groups, date) {
     if (items.length || g.keepEmpty) out.push({ ...g, items });
   }
 
-  // Tasks filed under a group the programme doesn't have — e.g. things pulled in
+  // Tasks filed under a group the configuration doesn't have — e.g. things pulled in
   // from the calendar — get their own section at the end.
   const known = new Set(out.map(g => g.title));
   const extra = new Map();
@@ -847,33 +849,10 @@ function applyCustom(groups, date) {
   return out;
 }
 
-/* The day's list carries one row for training rather than the whole session.
-   Sets are ticked on the Exercise page, so this row is locked here on purpose:
-   it mirrors that page instead of being a second, easier place to claim the
-   work. reconcilePhysical() below is what keeps it in step. */
-const PHYSICAL_ID = "t-physical";
-function physicalItem(session) {
-  return {
-    id: PHYSICAL_ID, emoji: "🏋️", text: "Physical training", xp: 100, locked: true,
-    detail: `${session.label} — tick this off on the Exercise page; this row follows it.`
-  };
-}
-
 function deriveDay(date) {
-  const prog = program.programs[program.activeProgram];
-  const training = program.schedule[weekdayOf(date)] === "train";
   const groups = [];
-  let session = null;
 
-  if (training) {
-    session = prog.sessions[completedSessions(date) % prog.sessions.length];
-    groups.push({
-      title: "Train", emoji: "🏋️", note: prog.note, fixed: true,
-      items: [physicalItem(session)]
-    });
-  }
-
-  for (const g of program.daily) {
+  for (const g of dailyConfig.daily) {
     const items = scheduleFilter(g.items, date).map(i => ({ ...i, text: itemText(i) }));
     if (items.length || g.keepEmpty) groups.push({ ...g, items });
   }
@@ -882,10 +861,10 @@ function deriveDay(date) {
      document, so a completed one-off stays gone even on a browser whose
      localStorage never saw the tick. everTicked() stays as the fallback, which
      is what keeps one-offs finished before this existed still hidden. */
-  const pending = (program.oneOffs?.items || []).filter(i =>
+  const pending = (dailyConfig.oneOffs?.items || []).filter(i =>
     !(custom.doneOnce && custom.doneOnce[i.id]) && !everTicked(i.id, date));
   if (pending.length) {
-    groups.push({ ...program.oneOffs, items: pending.map(i => ({ ...i, text: itemText(i) })) });
+    groups.push({ ...dailyConfig.oneOffs, items: pending.map(i => ({ ...i, text: itemText(i) })) });
   }
 
   const shown = applyCustom(groups, date);
@@ -899,18 +878,10 @@ function deriveDay(date) {
     }]
   });
 
-  const dayOfPlan = daysBetween(program.startDate, date) + 1;
+  const dayOfPlan = daysBetween(dailyConfig.startDate, date) + 1;
   return {
-    date, dayOfPlan,
-    groups: shown,
-    week: Math.floor((dayOfPlan - 1) / 7) + 1,
-    sessionId:    session ? session.id : null,
-    // The one training row is the whole session as far as this page is
-    // concerned, so isSessionDone() turns on it alone.
-    sessionItems: session ? [physicalItem(session)] : [],
-    sessionLabel: session ? session.label    : program.restDay.label,
-    headline:     session ? session.headline : program.restDay.headline,
-    note:         session ? null             : program.restDay.note
+    date, dayOfPlan, groups: shown,
+    week: Math.floor((dayOfPlan - 1) / 7) + 1
   };
 }
 
@@ -926,9 +897,8 @@ function todayTicked() {
   return allItems().filter(i => t[i.id]).length;
 }
 
-/* A day counts toward the streak if anything at all was ticked. Rest days still
-   count, because meds, food and sleep are on the list every day — so the streak
-   measures showing up, not training, and correctly resting never breaks it. */
+/* A day counts toward the streak if anything at all was ticked, so the streak
+   measures showing up for the daily commitments. */
 function activeDates() {
   const s = new Set();
   for (const [date, h] of history) if (h.ticked > 0) s.add(date);
@@ -983,7 +953,7 @@ function levelFromXp(xp) {
   return { level, into: remaining, need: costForLevel(level) };
 }
 
-/* Same dual-scan shape as lastTicked()/completedSessions(). Precedence matters:
+/* Same dual-scan shape as lastTicked(). Precedence matters:
    this browser's day meta is only what this device saw, so Firestore history
    overrides it for past days — it carries the other devices' writes too. Local
    still covers everything outside the 90-day window, and everything when signed
@@ -1120,16 +1090,12 @@ function render() {
     for (const it of g.items || []) {
       const on = !!ticks[it.id];
       const row = document.createElement("label");
-      row.className = "row" + (on ? " done" : "") + (it.hero ? " hero-item" : "")
-        + (it.locked ? " locked" : "");
+      row.className = "row" + (on ? " done" : "");
 
-      // A locked row gets no checkbox at all, so there is nothing to click —
-      // its state is owned by another page and only reconcile writes it.
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = on;
-      if (it.locked) { cb.disabled = true; cb.tabIndex = -1; }
-      else cb.addEventListener("change", () => setTick(it.id, cb.checked));
+      cb.addEventListener("change", () => setTick(it.id, cb.checked));
 
       const box = document.createElement("span");
       box.className = "box";
@@ -1158,9 +1124,8 @@ function render() {
       row.append(cb, box, em, txt, pill);
       rowEls.set(it.id, row);
 
-      // The commit row is the day's seal, and a locked row is owned elsewhere —
-      // neither can be edited or swiped away.
-      if (it.commit || it.locked) {
+      // The commit row is the day's seal and cannot be edited or swiped away.
+      if (it.commit) {
         list.appendChild(row);
         continue;
       }
@@ -1456,7 +1421,7 @@ function noWeedDays() {
   if (loadTicks(today)[WEED_ID]) return 0;
   // Nothing stored or scannable means nothing to count from, so fall back to
   // the plan's own start date instead of showing a misleading 0.
-  const last = loadTracker(WEED_ID) || lastTicked(WEED_ID, today) || program.startDate;
+  const last = loadTracker(WEED_ID) || lastTicked(WEED_ID, today) || dailyConfig.startDate;
   return Math.max(0, daysBetween(last, today));
 }
 
@@ -1496,7 +1461,7 @@ async function goToDay(date) {
   await rebuild();
 }
 
-const isOneOff = id => (program.oneOffs?.items || []).some(i => i.id === id);
+const isOneOff = id => (dailyConfig.oneOffs?.items || []).some(i => i.id === id);
 
 function setTick(id, on) {
   const t = loadTicks(plan.date);
@@ -1516,9 +1481,7 @@ function setTick(id, on) {
   const row = rowEls.get(id);
   if (row) row.classList.toggle("done", on);
   // xpEarned is kept locally too, so lifetime XP still adds up signed out.
-  saveDayMeta(plan.date, {
-    sessionId: plan.sessionId, sessionDone: isSessionDone(plan.date), xpEarned: todayXp()
-  });
+  saveDayMeta(plan.date, { xpEarned: todayXp() });
   refreshDerived();
   sync.queueTick(plan.date, id, on);
 }
@@ -1559,45 +1522,6 @@ function updateTracker(on) {
   }
   const scanned = lastTicked(WEED_ID, plan.date);
   if (scanned) { saveTracker(WEED_ID, scanned); sync.queueTracker(WEED_ID, scanned); }
-}
-
-/* ---------- physical training, mirrored from the Exercise page ----------
-   The Exercise page owns users/{uid}/exercise/{date} and this page never
-   writes it; the traffic is one-way. All that crosses over is that page's
-   single "Done" flag, and it arrives through the ordinary setTick() path, so
-   XP, the streak, the day's meta and the session rotation all update exactly
-   as they would for a hand-ticked row. */
-const LS_EXERCISE = "secondbrain.exercise.v1.";
-const EXERCISE_DONE_ID = "x-done";
-
-function doneFromSets(sets) {
-  const v = sets && sets[EXERCISE_DONE_ID];
-  return Array.isArray(v) ? !!v[0] : !!v;
-}
-function exerciseDoneLocal(date) {
-  try { return doneFromSets(JSON.parse(localStorage.getItem(LS_EXERCISE + date) || "{}")); }
-  catch { return false; }
-}
-async function exerciseDone(date) {
-  if (sync.mode === "signed-in" && sync.fb && sync.uid) {
-    try {
-      const { f, db } = sync.fb;
-      const snap = await f.getDoc(f.doc(db, "users", sync.uid, "exercise", date));
-      return snap.exists() ? doneFromSets(snap.data().sets) : false;
-    } catch { /* offline — this device's copy stands */ }
-  }
-  return exerciseDoneLocal(date);
-}
-
-/* Only meaningful on a training day — off-schedule days have no training row
-   to mirror onto. */
-async function reconcilePhysical() {
-  if (!plan || !(plan.sessionItems || []).length) return;
-  const date = plan.date;
-  const want = await exerciseDone(date);
-  if (!plan || plan.date !== date) return;    // the day was changed while we waited
-  if (want === !!loadTicks(date)[PHYSICAL_ID]) return;
-  setTick(PHYSICAL_ID, want);
 }
 
 /* ================= sync layer =================
@@ -1676,7 +1600,6 @@ const sync = {
     this.loadCustomRemote();
     this.loadXp();
     this.attachTrackers();
-    reconcilePhysical();   // the account's exercise doc may differ from this device's
   },
 
   /* ---------- lifetime XP ----------
@@ -1790,7 +1713,7 @@ const sync = {
       const snap = await f.getDoc(this.trackerRef());
       const data = snap.exists() ? snap.data() : {};
       if (typeof data[WEED_ID] === "string") return;   // real remote value; the listener will adopt it
-      const val = lastTicked(WEED_ID, todayISO()) || program.startDate;
+      const val = lastTicked(WEED_ID, todayISO()) || dailyConfig.startDate;
       saveTracker(WEED_ID, val);
       this.queueTracker(WEED_ID, val);
     } catch (e) {
@@ -1857,22 +1780,17 @@ const sync = {
       date: plan.date,
       dayOfPlan: plan.dayOfPlan ?? null,
       week: plan.week ?? null,
-      sessionLabel: plan.sessionLabel ?? null,
       items: allItems().map(i => i.id),
       xpEarned: todayXp(),
-      ticked: todayTicked(),
-      program: program.activeProgram,
-      sessionId: plan.sessionId,
-      sessionDone: isSessionDone(plan.date)
+      ticked: todayTicked()
     };
   },
 
   async ensureMeta(data, date) {
     const m = this.meta();
     const unchanged =
-      data.date === m.date && data.dayOfPlan === m.dayOfPlan &&
-      data.sessionLabel === m.sessionLabel && data.xpEarned === m.xpEarned &&
-      data.sessionId === m.sessionId && data.sessionDone === m.sessionDone &&
+      data.date === m.date && data.dayOfPlan === m.dayOfPlan && data.week === m.week &&
+      data.xpEarned === m.xpEarned && data.ticked === m.ticked &&
       JSON.stringify(data.items || []) === JSON.stringify(m.items);
     if (unchanged) return;
     try { await this.fb.f.updateDoc(this.ref(date), m); } catch {}
@@ -2054,11 +1972,8 @@ const sync = {
         const v = d.data();
         history.set(d.id, {
           xpEarned: v.xpEarned || 0,
-          // The ticks map drives one-off suppression and the session rotation,
-          // so it has to be kept, not just counted.
+          // Tick keys are retained for one-off suppression and history.
           ticks: v.ticks || {},
-          sessionId: v.sessionId || null,
-          sessionDone: !!v.sessionDone,
           ticked: typeof v.ticked === "number"
             ? v.ticked
             : Object.values(v.ticks || {}).filter(Boolean).length
@@ -2154,7 +2069,7 @@ const sync = {
 
   /* resync() above covers the day in view, which also has a live listener.
      Everything else here is read once at sign-in and never again: the 90-day
-     history the streak and the session rotation are counted from, the XP
+     history the streak is counted from, the XP
      month totals, and the custom edits. A page left open — or a home-screen
      app, which is never really closed — would keep showing all of that as it
      was hours or days ago. Returning to the page is exactly when a stale copy
@@ -2168,8 +2083,8 @@ const sync = {
      Throttled, and awaited in sequence. Each reload ends in a render(), and
      render() runs bumpPeak(), which queues an XP write — so an unthrottled
      handler turned every tab focus into a few Firestore writes with nothing
-     changed. Sequencing them also stops two rebuild()s racing, which fired
-     duplicate override fetches and reconcilePhysical() three times over. */
+     changed. Sequencing them also stops two rebuild()s racing and firing
+     duplicate override fetches. */
   async refreshAll() {
     if (this.mode !== "signed-in") return;
     await this.resync();
@@ -2202,14 +2117,14 @@ const sync = {
    The page derives the day itself, so it can no longer go stale waiting for
    someone to publish a new list. An override file is the rare escape hatch for
    a day that needs something the rules can't express. */
-async function loadProgram() {
+async function loadDailyConfig() {
   let fetched = null;
   try {
-    const res = await fetch(`plan.json?t=${Date.now()}`, { cache:"no-store" });
+    const res = await fetch(`daily.json?t=${Date.now()}`, { cache:"no-store" });
     if (res.ok) fetched = await res.json();
   } catch { /* file:// or offline — the embedded copy below covers it */ }
 
-  program = fetched || FALLBACK;
+  dailyConfig = fetched || FALLBACK;
   await rebuild();
 }
 
@@ -2219,9 +2134,6 @@ async function rebuild() {
   await applyOverride();
   render();
   if (prevDate && prevDate !== plan.date) sync.reattach();
-  // After the paint, never before it — the training row's state comes from
-  // another page and shouldn't hold up the day's list.
-  await reconcilePhysical();
 }
 
 async function applyOverride() {
@@ -2262,13 +2174,6 @@ document.addEventListener("keydown", e => {
   else if (directionEditDate) cancelDirectionEdit();
 });
 
-// Coming back from the Exercise page is the usual way the training row
-// changes, so re-check it whenever this tab is looked at again.
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) return;
-  reconcilePhysical();
-});
-
 loadCustom();
 loadCollapsed();
 
@@ -2277,7 +2182,7 @@ if (localStorage.getItem(LS_NOTES) === "1") {
   $("notesBtn").classList.add("on");
 }
 
-loadProgram().then(() => sync.init()).then(() => sync.watchLifecycle());
+loadDailyConfig().then(() => sync.init()).then(() => sync.watchLifecycle());
 </script>
 </body>
 </html>

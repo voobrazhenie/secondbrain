@@ -1,26 +1,67 @@
 rules_version = '2';
 
-// Everything lives under /users/{uid}/. A signed-in person can touch their own
-// subtree and nothing else; anything not matched below is denied by default,
-// including every unauthenticated read.
-//
-// Deployed with:  firebase deploy --only firestore:rules
-// (firebase.json points the firestore target at this file.) Editing the rules in
-// the console instead would put the live rules out of step with this file, and
-// the next deploy would silently overwrite the console edit.
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function isOwner(uid) {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // Daily tick documents live at users/{uid}/days/{YYYY-MM-DD}.
-    // The recursive wildcard also covers /users/{uid} itself, and leaves room
-    // for sibling collections later (metrics, session logs) under the same rule.
-    match /users/{uid}/{document=**} {
-      allow read, write: if isOwner(uid);
+    function validSets(sets) {
+      return sets is list
+        && sets.size() == 3
+        && sets[0] is int && sets[0] > 0 && sets[0] <= 999
+        && sets[1] is int && sets[1] > 0 && sets[1] <= 999
+        && sets[2] is int && sets[2] > 0 && sets[2] <= 999;
+    }
+
+    function validExercise(exercises, id) {
+      return !(id in exercises) || (
+        exercises[id] is map
+        && exercises[id].keys().hasAll(['sets', 'completed'])
+        && exercises[id].keys().hasOnly(['sets', 'completed'])
+        && validSets(exercises[id].sets)
+        && exercises[id].completed is bool
+      );
+    }
+
+    function validExerciseDay(date) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['date', 'planVersion', 'exercises', 'workoutCompleted', 'updatedAt'])
+        && data.keys().hasOnly(['date', 'planVersion', 'exercises', 'workoutCompleted', 'updatedAt'])
+        && date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.date == date
+        && data.planVersion == 2
+        && data.exercises is map
+        && data.exercises.keys().hasOnly([
+          'push-ups',
+          'pike-push-ups',
+          'chair-dips',
+          'diamond-push-ups',
+          'prone-rows',
+          'glute-bridges',
+          'single-leg-romanian-deadlifts'
+        ])
+        && validExercise(data.exercises, 'push-ups')
+        && validExercise(data.exercises, 'pike-push-ups')
+        && validExercise(data.exercises, 'chair-dips')
+        && validExercise(data.exercises, 'diamond-push-ups')
+        && validExercise(data.exercises, 'prone-rows')
+        && validExercise(data.exercises, 'glute-bridges')
+        && validExercise(data.exercises, 'single-leg-romanian-deadlifts')
+        && data.workoutCompleted is bool
+        && data.updatedAt == request.time;
+    }
+
+    match /users/{uid}/exerciseDays/{date} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validExerciseDay(date);
+      allow delete: if isOwner(uid);
+    }
+
+    // Preserve the existing owner-only policy for all unrelated user data while
+    // keeping exerciseDays on the stricter schema above.
+    match /users/{uid}/{collection}/{document=**} {
+      allow read, write: if collection != 'exerciseDays' && isOwner(uid);
     }
   }
 }

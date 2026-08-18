@@ -16,7 +16,7 @@ Nikita is not a technical reader. Keep replies **short and plain**.
 ## Reading and writing his data
 
 His data lives in Firestore under `users/{uid}/`, in these collections:
-`config`, `days`, `exercise`, `jobs`, `jobsMeta`, `xp`. Project
+`config`, `days`, `exerciseDays`, `jobs`, `jobsMeta`, `xp`. Project
 `claudecode-3bb06`, uid `Ecg4WsCTG0QDwvcCkzx3144Avps2`.
 
 Use `tools/firebase-admin.mjs`:

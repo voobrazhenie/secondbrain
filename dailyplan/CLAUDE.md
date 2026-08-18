@@ -17,25 +17,14 @@ Due-ness is measured from when the item was **actually last ticked** (`lastTicke
 not from the calendar — miss a day and it stays due, carrying forward, until it's done. The
 next cycle then counts `every` days from that real completion, not from the original anchor.
 This is the general mechanism for anything that doesn't happen every day (microneedling every
-14 days, watering flowers every 3) — extend it with a new `every`/`anchor` pair in `plan.json`,
+14 days, watering flowers every 3) — extend it with a new `every`/`anchor` pair in `daily.json`,
 don't hardcode a one-off case in `deriveDay()`.
 
-## Session rotation
+## Exercise separation
 
-`completedSessions(exceptDate) % prog.sessions.length` (`:964`) — never a stored "current
-session" pointer. A missed session carries forward and the rotation catches up on its own;
-a stored pointer would drift the moment a day is skipped. `exercise/` mirrors this exact
-formula independently (it can't import from here) — if the formula changes, it has to change
-in both places.
-
-## Physical training — one-way mirror from `exercise/`
-
-`exercise/` owns `users/{uid}/exercise/{date}`; this page never writes it. The single
-`PHYSICAL_ID = "t-physical"` row (`:1046`) is locked (no manual tick) and mirrors that page's
-`sets["x-done"]` flag through the ordinary `setTick()` path via `reconcilePhysical()` (`:1653`)
-— called after render, on tab focus, and on sign-in — so XP, streak, and rotation all update
-exactly as if it had been hand-ticked. If a future feature needs to write back into `exercise/`,
-that would be a new, second sync direction — worth a deliberate decision, not a silent addition.
+This page owns only DailyPlan tasks in `users/{uid}/days/{date}`. It does not display workout
+rows, select workout sessions, or read/write `exerciseDays`. Workout completion is intentionally
+separate from DailyPlan ticks and XP.
 
 ## XP and levels
 
@@ -129,8 +118,8 @@ The top-bar pill is a *different* count (days anything was ticked) and is labell
 SHOWING UP for that reason — two unlabelled day counts side by side read as the same
 number.
 
-`program.principles` is still in `plan.json` but nothing renders it any more; the Tilda
-Swinton box was removed. Left in place so `plan.json`/`FALLBACK` didn't need re-embedding.
+`dailyConfig.principles` is still in `daily.json` but nothing renders it. It remains part of the
+embedded fallback so removing it is a separate content decision.
 
 ## Local writes must never be dropped or overwritten
 
@@ -157,8 +146,8 @@ is what keeps one-offs finished before this existed hidden, but it is only a fal
 scans day records, which depend on this browser's localStorage or the 90-day Firestore window,
 so it cannot be the durable answer on its own.
 
-## `plan.json` / `FALLBACK`
+## `daily.json` / `FALLBACK`
 
-`plan.json` is mirrored inline into `index.html` as the `FALLBACK` constant for `file://` use.
-Every edit to `plan.json` needs the re-embed one-liner from `README.md` run afterward — this is
-the one thing in this directory that has no equivalent anywhere else in the app.
+`daily.json` is mirrored inline into `index.html` as the `FALLBACK` constant for `file://` use.
+After every edit run `node tools/embed-daily-config.mjs`. Exercise `plan.json` is separate and is
+never embedded into DailyPlan.

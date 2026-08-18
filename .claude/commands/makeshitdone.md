@@ -21,9 +21,9 @@ resolving, search Trello boards for "Second Brain" as a fallback).
       for, and self-review the diff against this repo's known failure modes
       — see `.claude/agents/code-reviewer.md` and
       `.claude/agents/fullstack-developer.md` for the checklist (Firestore
-      writes must not merge, FieldPath vs. dotted paths for hyphenated ids,
-      `plan.json` → `index.html` FALLBACK mirroring, no full `render()`
-      mid-interaction, snapshot-vs-local-write races, stable item ids).
+      exercise writes use nested FieldPath updates, exercise reads are
+      server-only, `daily.json` → `index.html` FALLBACK mirroring is current,
+      no full DailyPlan `render()` mid-interaction, and item ids stay stable).
       For anything UI-facing in `dailyplan/index.html`, test it for real —
       serve it locally and drive it with headless Chromium — don't just
       eyeball the diff.

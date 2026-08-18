@@ -2,15 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#F2EDE0">
 <title>Second Brain</title>
 
-<!-- Add to Home Screen. iOS ignores the manifest's name/display, so the
-     apple-* metas below are what actually make it launch standalone.
-     One manifest for the whole Second Brain, so moving between sections
-     never falls back to Safari. -->
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -43,9 +39,13 @@
     font-size:10px;letter-spacing:.1em;padding:4px 9px;margin-bottom:16px;
   }
   h1{
-    font-size:clamp(30px,8.5vw,42px);margin:0 0 22px;line-height:1.02;
+    font-size:clamp(30px,8.5vw,42px);margin:0 0 14px;line-height:1.02;
     letter-spacing:-.02em;
   }
+  h1 em{font-style:normal;background:var(--yellow);
+    border:var(--stroke) solid var(--ink);padding:0 8px;box-shadow:4px 4px 0 var(--ink);
+    display:inline-block;}
+  .lede{color:var(--grey);font-weight:600;margin:0 0 32px;max-width:44ch;font-size:15px}
 
   a.card{
     display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;
@@ -65,31 +65,104 @@
     margin-top:4px;line-height:1.4}
   a.card .go{flex:0 0 auto;font-size:18px}
 
+  .soon{
+    border:2.5px dashed var(--ink);padding:15px 18px;margin-bottom:14px;
+    color:var(--grey);font-weight:700;font-size:13px;
+  }
   footer{
     margin-top:40px;padding-top:14px;border-top:2px solid var(--ink);
     font-size:11px;font-weight:700;color:var(--grey);line-height:1.6;
   }
+
+  /* ---------- fit progress ---------- */
+  .fit{
+    background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:15px 16px 14px;margin-bottom:14px;
+  }
+  .fit .head{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
+  .fit .head .l{font-size:10px;letter-spacing:.09em;
+    font-family:"Arial Black",Impact,sans-serif}
+  .fit .head .grow{flex:1}
+  .fit .head .pc{font-size:22px;font-family:"Arial Black",Impact,sans-serif}
+  .fit .sub{font-size:11px;font-weight:700;color:var(--grey);margin-bottom:11px}
+
+  /* the bar carries two things: how much work is banked (fill) and where the
+     calendar has got to (marker), so being behind is visible rather than implied */
+  .track{position:relative;height:26px;border:var(--stroke) solid var(--ink);background:var(--paper)}
+  .track .fill{height:100%;background:var(--teal);transition:width .5s cubic-bezier(.4,0,.2,1)}
+  .track .fill.ahead{background:var(--lime)}
+  .track .mark{
+    position:absolute;top:-5px;bottom:-5px;width:3px;background:var(--ink);
+    transition:left .5s cubic-bezier(.4,0,.2,1);
+  }
+  .track .mark::after{
+    content:"NOW";position:absolute;top:-13px;left:50%;transform:translateX(-50%);
+    font-size:7px;letter-spacing:.06em;font-family:"Arial Black",Impact,sans-serif;
+    background:var(--ink);color:var(--paper);padding:1px 3px;white-space:nowrap;
+  }
+  .ends{display:flex;justify-content:space-between;margin-top:7px;
+    font-size:8.5px;letter-spacing:.07em;color:var(--grey);
+    font-family:"Arial Black",Impact,sans-serif}
+
+  .fit .stats{display:flex;gap:8px;margin-top:13px}
+  .fit .stat{flex:1;border:2px solid var(--ink);padding:6px 8px;background:var(--paper)}
+  .fit .stat .v{font-size:16px;font-family:"Arial Black",Impact,sans-serif;line-height:1.1}
+  .fit .stat .k{font-size:7.5px;letter-spacing:.06em;color:var(--grey);margin-top:2px;
+    font-family:"Arial Black",Impact,sans-serif}
+  .verdict{
+    margin-top:12px;padding:8px 10px;border:2px solid var(--ink);
+    font-size:11px;font-weight:700;line-height:1.4;
+  }
+  .verdict.behind{background:var(--yellow)}
+  .verdict.ahead{background:var(--lime)}
+  .verdict.idle{background:var(--paper);color:var(--grey)}
+  .fit .note{margin-top:10px;font-size:10px;font-weight:700;color:var(--grey);line-height:1.45}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="eyebrow blk">SECOND BRAIN</div>
-  <h1 class="blk">Second Brain</h1>
+  <h1 class="blk">A place for the things<br>I'm <em>tracking</em>.</h1>
+  <p class="lede">Small pages, each one pointed at a single thing worth keeping honest.</p>
 
-  <a class="card" href="dailyplan/">
-    <span class="mark">💪</span>
+  <div class="fit" id="fit" hidden>
+    <div class="head">
+      <span class="l">PROGRESS</span>
+      <span class="grow"></span>
+      <span class="pc" id="fitPc">0%</span>
+    </div>
+    <div class="sub" id="fitSub">Completed workout sessions this Monday–Sunday</div>
+
+    <div class="track">
+      <div class="fill" id="fitFill" style="width:0%"></div>
+      <div class="mark" id="fitMark" style="left:0%"></div>
+    </div>
+    <div class="ends"><span>MON</span><span>SUN</span></div>
+
+    <div class="stats">
+      <div class="stat"><div class="v" id="fitSessions">0</div><div class="k">THIS WEEK</div></div>
+      <div class="stat"><div class="v" id="fitDays">0</div><div class="k">REMAINING</div></div>
+      <div class="stat"><div class="v" id="fitStreak">0</div><div class="k">DAYS LEFT</div></div>
+    </div>
+
+    <div class="verdict idle" id="fitVerdict">Loading…</div>
+    <div class="note">Only completed workout sessions count. Partial results remain incomplete.</div>
+  </div>
+
+  <a class="card" href="exercise/">
+    <span class="mark">🏋️</span>
     <span class="body">
-      <span class="name blk">DAILYPLAN</span>
-      <span class="desc">Today's plan — training, food, recovery and whatever else the day needs. Worked out for you, not written by hand.</span>
+      <span class="name blk">EXERCISE</span>
+      <span class="desc">The same seven-exercise routine three times per week, with catch-up days, required rest and date-by-date history.</span>
     </span>
     <span class="go blk">→</span>
   </a>
 
-  <a class="card" href="exercise/">
-    <span class="mark" style="background:var(--yellow)">🏋️</span>
+  <a class="card" href="dailyplan/">
+    <span class="mark">✅</span>
     <span class="body">
-      <span class="name blk">EXERCISE</span>
-      <span class="desc">Today's session, one checkbox per set, with a rest timer between them.</span>
+      <span class="name blk">DAILYPLAN</span>
+      <span class="desc">Daily care, food, recovery and personal tasks. Workout results stay separate.</span>
     </span>
     <span class="go blk">→</span>
   </a>
@@ -132,5 +205,89 @@
 
   <footer>Static pages on GitHub Pages. Data syncs to your own account and is readable only by you — the job module ships no content in the repo at all.</footer>
 </div>
+
+<script>
+"use strict";
+const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
+const $ = id => document.getElementById(id);
+
+function showConnectionError() {
+  $("fit").hidden = false;
+  $("fitVerdict").className = "verdict behind";
+  $("fitVerdict").textContent = "Workout progress could not be read from Firebase.";
+}
+
+function paint(schedule) {
+  const completed = schedule.completedCount;
+  const dayIndex = schedule.days.findIndex(day => day.date === schedule.today);
+  const workPct = completed / 3 * 100;
+  const timePct = (dayIndex + 1) / 7 * 100;
+  const today = schedule.selected;
+  $("fit").hidden = false;
+  $("fitPc").textContent = `${completed}/3`;
+  $("fitFill").style.width = `${workPct}%`;
+  $("fitFill").classList.toggle("ahead", completed >= Math.min(3, Math.ceil((dayIndex + 1) / 2)));
+  $("fitMark").style.left = `${timePct}%`;
+  $("fitSessions").textContent = completed;
+  $("fitDays").textContent = Math.max(0, 3 - completed);
+  $("fitStreak").textContent = Math.max(0, 6 - dayIndex);
+
+  const verdict = $("fitVerdict");
+  verdict.className = "verdict " + (today.status === "completed" ? "ahead" : today.status.includes("rest") ? "idle" : "behind");
+  verdict.textContent = today.status === "completed" ? "Today's workout session is complete."
+    : today.status === "workout" ? "A workout session is due today."
+    : today.status.includes("rest") ? "This is a rest day."
+    : "Open Exercise to review the week.";
+}
+
+async function boot() {
+  let firebaseConfig;
+  try { ({ firebaseConfig } = await import("./dailyplan/firebase-config.js")); }
+  catch { return; }
+  try {
+    const [{ initializeApp }, authModule, firestoreModule, scheduleModule] = await Promise.all([
+      import(SDK + "firebase-app.js"),
+      import(SDK + "firebase-auth.js"),
+      import(SDK + "firebase-firestore.js"),
+      import("./exercise/schedule.mjs")
+    ]);
+    const app = initializeApp(firebaseConfig);
+    const auth = authModule.getAuth(app);
+    const db = firestoreModule.getFirestore(app);
+    authModule.onAuthStateChanged(auth, async user => {
+      $("fit").hidden = true;
+      if (!user) return;
+      const today = scheduleModule.berlinDate();
+      const range = scheduleModule.weekRange(today);
+      try {
+        const request = firestoreModule.query(
+          firestoreModule.collection(db, "users", user.uid, "exerciseDays"),
+          firestoreModule.where(firestoreModule.documentId(), ">=", range.start),
+          firestoreModule.where(firestoreModule.documentId(), "<=", range.end),
+          firestoreModule.orderBy(firestoreModule.documentId(), "asc")
+        );
+        const previousSunday = scheduleModule.shiftDate(range.start, -1);
+        const [snapshot, previousSnapshot] = await Promise.all([
+          firestoreModule.getDocsFromServer(request),
+          firestoreModule.getDocFromServer(firestoreModule.doc(db, "users", user.uid, "exerciseDays", previousSunday))
+        ]);
+        const records = new Map();
+        snapshot.forEach(doc => records.set(doc.id, doc.data()));
+        if (previousSnapshot.exists()) records.set(previousSnapshot.id, previousSnapshot.data());
+        const schedule = scheduleModule.buildWeekSchedule({ selectedDate: today, todayDate: today, records });
+        schedule.today = today;
+        paint(schedule);
+      } catch (error) {
+        console.error("Home workout progress read failed", error);
+        showConnectionError();
+      }
+    });
+  } catch (error) {
+    console.error("Home workout progress unavailable", error);
+  }
+}
+
+boot();
+</script>
 </body>
 </html>
