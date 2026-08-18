@@ -431,6 +431,13 @@ function deriveSession() {
   return true;
 }
 
+/* Look a session back up by id — used to stay on the one being trained when a
+   refresh recomputes the rotation into a different answer mid-workout. */
+function prevSessionById(id) {
+  const prog = program.programs[program.activeProgram];
+  return (prog && (prog.sessions || []).find(s => s.id === id)) || null;
+}
+
 /* A ladder item's name is whichever rung it is currently on. The gym programme
    writes reps into the text instead of a `reps` field ("Incline press · 4×6–8"),
    so split those apart rather than showing the reps twice. */
@@ -1158,6 +1165,8 @@ function goToSignoff() {
 /* ---------- sync ---------- */
 const sync = {
   fb: null, uid: null, mode: "checking",
+  pushing: null,      // the in-flight setDoc, so pull() can wait for it
+  lastRefresh: 0,     // throttles refresh-on-return, see refresh()
 
   setUI(state, msg, btnLabel, btnAction) {
     $("sync").className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
@@ -1246,20 +1255,31 @@ const sync = {
   async push() {
     if (this.mode !== "signed-in") return;
     const { f } = this.fb;
-    try {
-      await f.setDoc(this.ref(), {
-        date: DATE, sessionId: session ? session.id : null,
-        sets, updatedAt: f.serverTimestamp()
-      });
-    } catch (e) {
-      this.setUI("err", `Couldn't save to sync (${e.code || e.message}). Saved on this device.`,
-        "Retry", () => this.push());
-    }
+    /* Held so pull() can wait for it. Writes here are whole-document and
+       unmerged, so a read that overtakes an in-flight write returns the
+       pre-tick document, overwrites `sets` with it, and the *next* tap then
+       writes that regressed map back — losing the set on the server as well
+       as locally. dailyplan avoids this by flushing before it reads; this
+       page had nothing equivalent until now. */
+    this.pushing = (async () => {
+      try {
+        await f.setDoc(this.ref(), {
+          date: DATE, sessionId: session ? session.id : null,
+          sets, updatedAt: f.serverTimestamp()
+        });
+      } catch (e) {
+        this.setUI("err", `Couldn't save to sync (${e.code || e.message}). Saved on this device.`,
+          "Retry", () => this.push());
+      }
+    })();
+    await this.pushing;
   },
 
   async pull() {
     const { f } = this.fb;
     try {
+      // Never read past our own unfinished write — see push().
+      if (this.pushing) { try { await this.pushing; } catch {} }
       let snap;
       try { snap = await f.getDocFromServer(this.ref()); }
       catch { snap = await f.getDoc(this.ref()); }
@@ -1288,16 +1308,32 @@ const sync = {
       snap.forEach(d => { if (d.data().sessionDone) remoteSessionDates.add(d.id); });
       const before = session && session.id;
       deriveSession();
-      if (session.id !== before) render();
+      /* Not mid-workout. `sets` is keyed by item id, so swapping the session
+         out from under ticked sets makes them look like they vanished, and
+         the next push() would write a map mixing two sessions' ids. A
+         rotation change that arrives while you're training can wait for the
+         next load; what's on screen is the session you're actually doing. */
+      if (session.id !== before) {
+        if (Object.keys(sets).length) { session = prevSessionById(before) || session; }
+        else render();
+      }
     } catch { /* offline — the local rotation stands */ }
   },
 
   /* Everything remote, pulled again. This page has no live listener, so
      without this it would show whatever it learned at sign-in for as long as
      it stays open — and a home-screen app is never really closed, so "as long
-     as it stays open" can mean days. Called on every return to the page. */
+     as it stays open" can mean days. Called on every return to the page.
+
+     Throttled: visibilitychange fires on every screen-off/on, which during a
+     45-minute session means one per rest. The question this answers is "did
+     something change while I was away", not "in the last twenty seconds", so
+     a short floor costs nothing and saves an order of magnitude of reads. */
   refresh() {
     if (this.mode !== "signed-in") return;
+    const now = Date.now();
+    if (now - this.lastRefresh < 45000) return;
+    this.lastRefresh = now;
     this.pullRotation();
     this.pull();
     monthRemoteCache.clear();

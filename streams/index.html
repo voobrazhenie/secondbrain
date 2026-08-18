@@ -397,6 +397,7 @@ function addRow(group, cap, count) {
 /* ---------- sync ---------- */
 const sync = {
   fb: null, uid: null, mode: "checking",
+  lastRefresh: 0,     // throttles refresh(), see there
 
   setUI(state, msg, btnLabel, btnAction) {
     $("sync").className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
@@ -511,10 +512,16 @@ const sync = {
      invisible here until a reload — and a home-screen app rarely gets one.
 
      Never mid-rename: pull() calls render(), which would replace the open
-     input and lose what was typed into it. */
+     input and lose what was typed into it. The same applies to the per-group
+     "New stream…" boxes — they're rebuilt by the same render() and have no
+     stable id to check, so they're found by content instead. */
   refresh() {
     if (this.mode !== "signed-in") return;
     if (editingId !== null) return;
+    if ([...document.querySelectorAll(".add-row input")].some(i => i.value.trim())) return;
+    const now = Date.now();
+    if (now - this.lastRefresh < 45000) return;
+    this.lastRefresh = now;
     this.pull();
   }
 };

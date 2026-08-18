@@ -403,6 +403,7 @@ $("addForm").addEventListener("submit", event => {
 
 const sync = {
   fb:null, uid:null, mode:"checking",
+  lastRefresh: 0,     // throttles refresh(), see there
 
   setUI(state, msg, btnLabel, btnAction) {
     $("sync").className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
@@ -518,6 +519,9 @@ const sync = {
     if (this.mode !== "signed-in") return;
     if (editingId !== null) return;
     if ($("newTitle").value.trim() || $("newDescription").value.trim()) return;
+    const now = Date.now();
+    if (now - this.lastRefresh < 45000) return;
+    this.lastRefresh = now;
     this.pull();
   }
 };

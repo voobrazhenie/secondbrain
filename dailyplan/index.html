@@ -1617,6 +1617,7 @@ const sync = {
   trackerTimer: null,
   trackerPending: null,
   trackerSeeded: false,
+  lastRefresh: 0,     // throttles refreshAll(), see there
 
   setUI(state, msg, btnLabel, btnAction) {
     const row = $("sync"), btn = $("authBtn");
@@ -1988,8 +1989,20 @@ const sync = {
      this device while signed out was destroyed the moment the remote copy arrived.
      Removals and completed one-offs are unions — something dismissed on any device
      stays dismissed — and the merged result is pushed back so both sides converge. */
-  async loadCustomRemote() {
+  /* Two different jobs behind one read.
+     At sign-in (`reconcile`) this device may hold items the server has never
+     seen, so local wins and the merged result is pushed straight back.
+     On a later refresh that same rule is destructive: every local edit is
+     already pushed the moment it's made, so anything present only on the
+     server is a *newer* change from another device — re-asserting the local
+     copy over it would delete a task renamed on the phone the instant the
+     laptop tab regained focus, and then the phone would undo it right back.
+     So a refresh takes the server's version and pushes nothing. */
+  async loadCustomRemote({ reconcile = true } = {}) {
     if (this.mode !== "signed-in") return;
+    // Local edits that never made it up must not be overwritten by an older
+    // server copy; pushCustom() will carry them and this can run again after.
+    if (!reconcile && this.customPending) return;
     const { f } = this.fb;
     try {
       let snap;
@@ -1997,6 +2010,19 @@ const sync = {
       catch { snap = await f.getDoc(this.customRef()); }
 
       const v = snap.exists() ? snap.data() : {};
+
+      if (!reconcile) {
+        custom = {
+          added:    Array.isArray(v.added) ? v.added : [],
+          hidden:   v.hidden   || {},
+          doneOnce: v.doneOnce || {},
+          edits:    v.edits    || {}
+        };
+        saveCustom({ push: false });
+        rebuild();
+        return;
+      }
+
       const byId = new Map();
       for (const a of (v.added || [])) byId.set(a.id, a);
       for (const a of custom.added) byId.set(a.id, a);   // this device's version wins
@@ -2136,15 +2162,24 @@ const sync = {
 
      The heavier reloads are held back while a dialog or a Daily Direction
      edit is open, since each one ends in a render() that would take the open
-     field with it. The day resync still runs — it is guarded separately by
-     the pending-queue check and can't undo a tick still on its way up. */
+     field with it. The day resync still runs: it flushes queued ticks before
+     it reads, so it can't read past a tick still on its way up.
+
+     Throttled, and awaited in sequence. Each reload ends in a render(), and
+     render() runs bumpPeak(), which queues an XP write — so an unthrottled
+     handler turned every tab focus into a few Firestore writes with nothing
+     changed. Sequencing them also stops two rebuild()s racing, which fired
+     duplicate override fetches and reconcilePhysical() three times over. */
   async refreshAll() {
     if (this.mode !== "signed-in") return;
     await this.resync();
     if (!$("scrim").hidden || directionEditDate) return;
-    this.loadHistory();
-    this.loadCustomRemote();
-    this.loadXp();
+    const now = Date.now();
+    if (now - this.lastRefresh < 45000) return;
+    this.lastRefresh = now;
+    await this.loadHistory();
+    await this.loadCustomRemote({ reconcile: false });
+    await this.loadXp();
   },
 
   watchLifecycle() {

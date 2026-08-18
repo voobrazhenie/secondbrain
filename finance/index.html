@@ -933,6 +933,7 @@ $("mSave").onclick = () => {
    echo against. ---------- */
 const sync = {
   fb: null, uid: null, mode: "checking",
+  lastRefresh: 0,     // throttles refresh(), see there
 
   setUI(state, msg, btnLabel, btnAction) {
     $("sync").className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
@@ -1042,6 +1043,19 @@ const sync = {
   refresh() {
     if (this.mode !== "signed-in") return;
     if (!$("scrim").hidden) return;
+    /* The modal is not the main way a balance gets entered — tapping a row or
+       the rate chip converts it into an inline input, and pull() rebuilds
+       both lists wholesale. Losing the typed digits would be bad enough, but
+       the outside-click listener those editors install survives the rebuild,
+       so the next tap anywhere commits whatever was typed so far against a
+       detached node: a half-entered "12" of "1250" written to the server, or
+       a partial rate silently re-denominating every balance. This is exactly
+       the tap-row / check-banking-app / come-back-and-type flow, so the
+       refresh has to yield to it. */
+    if (document.querySelector(".row.editing, .ratechip.editing")) return;
+    const now = Date.now();
+    if (now - this.lastRefresh < 45000) return;
+    this.lastRefresh = now;
     this.pull();
   },
 

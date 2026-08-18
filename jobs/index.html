@@ -188,6 +188,7 @@ const DONE = new Set(["passed", "closed"]);
 
 const App = {
   fb: null, uid: null, jobs: [], overview: null, filter: "open", unsub: null,
+  lastRefresh: 0,     // throttles refresh(), see there
   open: new Set(), digestOpen: false,
 
   setUI(state, msg, btnLabel, btnAction) {
@@ -301,6 +302,9 @@ const App = {
     if (!this.uid) return;
     const el = document.activeElement;
     if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT")) return;
+    const now = Date.now();
+    if (now - this.lastRefresh < 45000) return;
+    this.lastRefresh = now;
     this.loadOverview();
   },
 
