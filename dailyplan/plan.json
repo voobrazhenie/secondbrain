@@ -71,7 +71,7 @@
         {
           "id": "h3",
           "label": "Upper — Pull",
-          "headline": "The hardest session to do with nothing at all. There's no way to properly load a pull without something to hang off, so this is frequency and slow reps standing in for weight.",
+          "headline": "The hardest session to do without a bar. Inverted rows are the whole game here.",
           "items": [
             { "id": "h3-row", "emoji": "⬇️", "ladder": ["Prone row, elbows to ribs", "Prone pull-down, arms overhead", "Prone pull-down, paused at the bottom", "Prone pull-down, slow"], "rung": 0, "reps": "3 × 10–12", "detail": "Face down, chest and arms lifted off the floor and kept there for the whole set. Row: arms out in a T, pull your elbows back to your ribs, squeeze your shoulder blades together, reach back out. Pull-down: same movement, but start with your arms straight overhead — longer arm, so it's harder. Squeeze deliberately; the only resistance you have is your own arms against gravity, so how hard you pull is the load.", "xp": 25, "hero": true },
             { "id": "h3-swimmer", "emoji": "🏊", "ladder": ["Prone swimmer", "Prone swimmer, slow", "Prone swimmer, paused"], "rung": 0, "reps": "3 × 30–40 s", "detail": "Face down, arms and legs lifted, flutter opposite arm and leg. Lower back and the whole rear chain.", "xp": 20 },
