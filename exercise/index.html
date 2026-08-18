@@ -1290,6 +1290,18 @@ const sync = {
       deriveSession();
       if (session.id !== before) render();
     } catch { /* offline — the local rotation stands */ }
+  },
+
+  /* Everything remote, pulled again. This page has no live listener, so
+     without this it would show whatever it learned at sign-in for as long as
+     it stays open — and a home-screen app is never really closed, so "as long
+     as it stays open" can mean days. Called on every return to the page. */
+  refresh() {
+    if (this.mode !== "signed-in") return;
+    this.pullRotation();
+    this.pull();
+    monthRemoteCache.clear();
+    loadMonth();
   }
 };
 
@@ -1298,7 +1310,11 @@ $("restPlus").addEventListener("click", () => { ensureAudio(); restAdd(30 * 1000
 // One button, two jobs — it says SKIP/DONE while a clock is running and
 // FINISH → once the session is over.
 $("restStop").addEventListener("click", () => { if (finaleActive()) goToSignoff(); else restStop(); });
-document.addEventListener("visibilitychange", () => { if (!document.hidden) restTick(true); });
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  restTick(true);
+  sync.refresh();
+});
 $("monthPrev").addEventListener("click", () => shiftMonth(-1));
 $("monthNext").addEventListener("click", () => shiftMonth(1));
 

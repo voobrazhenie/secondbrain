@@ -289,6 +289,21 @@ const App = {
     this.render();
   },
 
+  /* The job list has a live listener, but the Digest above it is a one-shot
+     read at sign-in — so a refreshed digest written from elsewhere would
+     otherwise never appear on a page that stays open. Pull it again on every
+     return to the page.
+
+     Not while a field has focus: render() rebuilds every notes box, and the
+     status/notes on these cards are hand-kept. Losing a half-typed note to a
+     background refresh would be worse than a slightly stale digest. */
+  refresh() {
+    if (!this.uid) return;
+    const el = document.activeElement;
+    if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT")) return;
+    this.loadOverview();
+  },
+
   ref(id) {
     const { f, db } = this.fb;
     return f.doc(db, "users", this.uid, "jobs", id);
@@ -512,6 +527,9 @@ const App = {
 };
 
 App.init();
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) App.refresh();
+});
 </script>
 </body>
 </html>

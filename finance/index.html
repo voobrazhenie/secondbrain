@@ -1033,6 +1033,18 @@ const sync = {
     } catch { /* offline — the local copy stands */ }
   },
 
+  /* Pull again on every return to the page. This page is a one-shot pull at
+     sign-in with no live listener, so a balance edited on another device
+     would otherwise stay invisible here until a reload.
+
+     Never while the add/edit dialog is open: pull() calls render(), and the
+     figure being typed matters more than a refresh that can simply wait. */
+  refresh() {
+    if (this.mode !== "signed-in") return;
+    if (!$("scrim").hidden) return;
+    this.pull();
+  },
+
   // patch: {amount, updatedAt} for a balance edit, or a full new-account object.
   async pushAccountField(id, patch) {
     if (this.mode !== "signed-in") return;
@@ -1083,6 +1095,9 @@ const sync = {
 loadLocal();
 render();
 sync.init();
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) sync.refresh();
+});
 </script>
 </body>
 </html>

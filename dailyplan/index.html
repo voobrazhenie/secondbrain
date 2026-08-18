@@ -2126,10 +2126,31 @@ const sync = {
     } catch { /* offline; the listener catches up on reconnect */ }
   },
 
+  /* resync() above covers the day in view, which also has a live listener.
+     Everything else here is read once at sign-in and never again: the 90-day
+     history the streak and the session rotation are counted from, the XP
+     month totals, and the custom edits. A page left open — or a home-screen
+     app, which is never really closed — would keep showing all of that as it
+     was hours or days ago. Returning to the page is exactly when a stale copy
+     becomes visible, so that is when to re-read it.
+
+     The heavier reloads are held back while a dialog or a Daily Direction
+     edit is open, since each one ends in a render() that would take the open
+     field with it. The day resync still runs — it is guarded separately by
+     the pending-queue check and can't undo a tick still on its way up. */
+  async refreshAll() {
+    if (this.mode !== "signed-in") return;
+    await this.resync();
+    if (!$("scrim").hidden || directionEditDate) return;
+    this.loadHistory();
+    this.loadCustomRemote();
+    this.loadXp();
+  },
+
   watchLifecycle() {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") this.flush();
-      else this.resync();
+      else this.refreshAll();
     });
     window.addEventListener("pagehide", () => this.flush());
     window.addEventListener("online", () => this.resync());

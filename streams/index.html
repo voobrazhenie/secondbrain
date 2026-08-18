@@ -504,12 +504,27 @@ const sync = {
         await this.push();   // first sign-in with streams already added locally
       }
     } catch { /* offline — the local copy stands */ }
+  },
+
+  /* Pull again on every return to the page. The pull above otherwise runs
+     once at sign-in and never again, so an edit made on another device stays
+     invisible here until a reload — and a home-screen app rarely gets one.
+
+     Never mid-rename: pull() calls render(), which would replace the open
+     input and lose what was typed into it. */
+  refresh() {
+    if (this.mode !== "signed-in") return;
+    if (editingId !== null) return;
+    this.pull();
   }
 };
 
 loadLocal();
 render();
 sync.init();
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) sync.refresh();
+});
 </script>
 </body>
 </html>

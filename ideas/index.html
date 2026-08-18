@@ -504,12 +504,30 @@ const sync = {
         render();
       } else if (ideas.length) await this.push();
     } catch {}
+  },
+
+  /* Pull again on every return to the page. The pull above otherwise runs
+     once at sign-in and never again, so an edit made on another device stays
+     invisible here until a reload — and a home-screen app rarely gets one.
+
+     Never while something is being written: pull() calls render(), which
+     rebuilds the list and would throw away a half-typed idea or an open
+     rename. Coming back to the tab is a weak signal that the remote changed;
+     text on screen is a strong signal it shouldn't be touched. */
+  refresh() {
+    if (this.mode !== "signed-in") return;
+    if (editingId !== null) return;
+    if ($("newTitle").value.trim() || $("newDescription").value.trim()) return;
+    this.pull();
   }
 };
 
 loadLocal();
 render();
 sync.init();
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) sync.refresh();
+});
 </script>
 </body>
 </html>
