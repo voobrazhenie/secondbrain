@@ -54,52 +54,60 @@ widget. Two problems shaped the implementation, both still true for any future c
 
 `noWeedDays()` counts days since the last `r-smoked-weed` tick, inclusive of today.
 
-The date it counts from **is** stored — `LS_TRACKER + WEED_ID` locally, mirrored to
-`users/{uid}/config/trackers` and live-subscribed in `sync.attachTrackers()`. This
-reverses an earlier version of this note, which said not to: a scan-only answer only
-sees Firestore's `HISTORY_DAYS`-bounded history plus whatever this device's own
-localStorage happens to hold, so on a fresh device, or a real streak longer than that
-window, it quietly gives a wrong answer instead of an honest unknown — found by
-actually hitting the cross-device case, not a hypothetical. A stored date has no window
-to fall outside of. `updateTracker()` is what keeps it from drifting instead: ticking
-only ever moves the date forward — a backdated entry older than what's already stored
-must not erase real clean days — and unticking only matters when the day being undone
-is the one currently stored, since no other day's untick can change what the most
-recent smoke was.
+**Firestore is the only source.** One field — `users/{uid}/config/trackers`,
+`r-smoked-weed`, an ISO date — read once per sign-in by `sync.loadWeed()` and kept
+current by `sync.attachTrackers()`. `weedDate` holds it in memory and nothing else
+does: no localStorage copy, no fallback scan, no plan start date.
 
-That untick path went through two real bugs during review, both worth knowing before
-touching this again:
+This replaces a version that read localStorage first and fell back to `lastTicked()`'s
+`HISTORY_DAYS`-bounded scan. Every browser then computed its own answer from whatever
+it happened to hold, which is exactly how the same account showed different numbers on
+a phone and a laptop. There is no local answer left to disagree with the server.
 
-- **Unticking must not just re-run `lastTicked()` and trust an empty result.** A first
-  version did exactly that, and it deletes real data: `lastTicked()` is the same
-  bounded scan the stored date exists to replace, so on an ordinary mis-tap-then-correct
-  it can easily find nothing within its own window and overwrite a correct, months-old
-  stored date with nothing. The fix is a one-step undo buffer (`LS_TRACKER + id +
-  ".prev"`, `loadTrackerPrev()`/`saveTrackerPrev()`/`clearTrackerPrev()`) written
-  alongside every forward move, so the common case — undo my last tick — restores the
-  exact prior value with no scanning at all. The scan is now used only when that buffer
-  doesn't apply (the current value came from seeding, or a reload happened in between),
-  and even then an empty result is left alone rather than written — "not visible from
-  this scan" is not the same claim as "definitely nothing," and only the first one is
-  true.
-- **Seeding must not guess from local absence alone — but coordinating against the live
-  listener instead of just checking the server directly turned out to be the wrong fix.**
-  The backfill (making sure a streak that's never broken again still gets a durable value,
-  instead of staying on the scan forever) runs once per sign-in. A local guess racing a
-  real remote value already in flight was a real risk, so the first fix made seeding wait
-  for two flags — `loadHistory()` finishing and `attachTrackers()`'s first live snapshot
-  arriving — before writing anything. That shipped, and in real use the doc simply never
-  got seeded: confirmed directly against Firestore days after sign-in, on an account that
-  was genuinely signed in the whole time. Isolated simulation of the flag ordering itself
-  didn't reproduce a failure either, which pointed at the *coordination* being the fragile
-  part rather than any one flag's logic — something about lining up two independent async
-  signals wasn't holding up in the real client, whatever the exact mechanism. The fix,
-  `sync.seedTrackerIfEmpty()`: one direct `await getDoc()` against the tracker doc,
-  checked once, right after history loads. No second signal to line up against, so
-  there's nothing left to race — the read itself is the confirmation.
+`weedDate` has three states and they are not interchangeable: `undefined` (not answered
+yet), `null` (answered — nothing on record), and a date. The first two both draw as a
+dash; only the second is settled, which is what lets `refreshAll()` retry a lookup that
+never finished without re-querying an account that genuinely has no history.
 
-The scan (`lastTicked()`) is still there as a fallback for the gap before a value is
-known at all — not as the steady-state answer, and not trusted to overwrite one.
+### Recovery, not seeding
+
+A missing or malformed field is not proof that nothing was ever ticked — the field was
+added long after the ticks were, and it was absent in production with a real tick
+sitting in `days`. `sync.recoverWeed()` answers it properly: the single most recent day
+whose `ticks["r-smoked-weed"]` is set, `limit(1)`, read from the server, and the answer
+is written back so the repair happens once rather than on every load. An empty result
+settles as `null` and nothing is invented.
+
+The query orders by the tick field *and* the document id, both descending. Ordering by
+a field the filter has already pinned to `true` looks redundant; it is what keeps the
+query on Firestore's automatic single-field index, so **no composite index has to
+exist**. Verified against the live database, not assumed. Passing `before` narrows it to
+days strictly earlier than that date — what an untick of the recorded day needs.
+
+This is what retired `seedTrackerIfEmpty()` and the `.prev` undo buffer. Both existed to
+protect against `lastTicked()`'s bounded scan returning a wrong empty answer and wiping
+a real, older date. A `limit(1)` server query over the whole collection has no window to
+fall outside, so an empty result from it *is* proof of nothing, and the machinery that
+worked around the scan's dishonesty has nothing left to guard.
+
+### Ticking and unticking
+
+`updateTracker()` decides and writes nothing; `flush()` sends the day tick and the
+tracker field in **one `writeBatch`**. They must land together — the tick saved without
+the date reads as a clean run straight through a day you smoked, and the reverse is
+worse. Ticking only ever moves the date forward, so a backdated entry can't erase real
+clean days. Unticking only matters when the day being undone is the recorded one, and
+then the replacement comes from `recoverWeed(before)` resolved *before* the batch opens,
+because a batch can only be assembled from answers already in hand.
+
+That lookup is a round trip with the queue already emptied, which would otherwise switch
+off the day listener's "don't adopt a snapshot that predates my own edit" guard for its
+whole duration. `sync.flushDate` covers exactly that window; `writesPending(date)` is the
+one predicate both listeners ask.
+
+`attachTrackers()` skips snapshots with `hasPendingWrites` rather than consulting a flag
+of its own. The flag it replaces could be left standing after its write had already
+landed, locking out a perfectly good remote value.
 
 Two deliberate choices, unchanged:
 
@@ -110,9 +118,11 @@ Two deliberate choices, unchanged:
 
 The markup is `.counter` — square, unit, name — and nothing in it is weed-specific.
 More trackers (screen time, habits to build) are meant to stack as sibling rows; only
-this one exists so far. The square is filled while the count runs and empty at zero,
-which is the same shape as an unticked box — no red, no message. A bad day gets the
-colour drained out, not a telling-off, and that is the point rather than a detail.
+this one exists so far. `config/trackers` is a bag of one field per tracker and is the
+one place a merged write is right, since each write only ever names its own key. The
+square is filled while the count runs and empty at zero, which is the same shape as an
+unticked box — no red, no message. A bad day gets the colour drained out, not a
+telling-off, and that is the point rather than a detail.
 
 The top-bar pill is a *different* count (days anything was ticked) and is labelled
 SHOWING UP for that reason — two unlabelled day counts side by side read as the same
@@ -121,21 +131,54 @@ number.
 `dailyConfig.principles` is still in `daily.json` but nothing renders it. It remains part of the
 embedded fallback so removing it is a separate content decision.
 
+## The auth gate
+
+`#wrap[data-auth]` decides what is on the page: `checking` ships in the markup, `out`
+and `err` show only the top bar, the sync row and the footer, and `in` is the only state
+that reveals anything personal. CSS does the hiding; `teardown()` also empties the list
+and the in-memory state, because the brief is that cached data must not be *rendered*,
+not merely covered.
+
+The attribute is in the HTML rather than set by script for two reasons: there is no
+first frame for a cached page to leak through, and a script error fails closed.
+
+`loadDailyConfig()` no longer calls `rebuild()` — that moved into `onAuth()`'s signed-in
+branch, and it is what actually stops the pre-auth paint. Everything after it reads
+`plan.date`, so `onAuth` is `async` and awaits the rebuild before attaching anything.
+
+The cost is real and was accepted deliberately: **this page no longer works signed out,
+offline on a cold cache, or from `file://`.** If the three `gstatic.com` module imports
+fail there is nothing to show, so both `init()` failure paths offer a Reload rather than
+leaving a dead page. `FALLBACK` still matters for a slow `daily.json`, not for offline
+use. A service worker precaching the SDK is the fix if that ever bites.
+
+`localStorage` is deliberately **not** cleared on sign-out. Collapsed sections, notes and
+direction drafts are this browser's settings; ticks, XP months and the custom document
+are what make the streak and level survive a reload, and `lifetimeXp()` reads only the
+local months, so wiping them would zero the level. The legacy
+`secondbrain.fitness.tracker.*` keys stop influencing the counter because nothing reads
+them any more, not because they were deleted. One consequence to know: localStorage is
+not keyed by uid, so a *second* Google account in the same browser would see the first
+one's cached ticks until the server reads land. Theoretical for a one-person app.
+
 ## Local writes must never be dropped or overwritten
 
-Every write path stays usable signed out. `queueTick()` and `pushCustom()` record the intent
-regardless of auth state — `pushCustom()` sets `customPending` — and `onAuth()` flushes both
-**before** `attach()` and `loadCustomRemote()` read the server back. Getting this wrong is not
-a sync nicety: ticks and removals made before `onAuthStateChanged` fires (or in the standalone
-PWA, which is a separate storage and auth context) were silently discarded, then erased by the
-older server copy on the next sign-in. That is what made ticked one-offs and removed tasks
-reappear.
+`queueTick()` and `pushCustom()` record the intent regardless of auth state —
+`pushCustom()` sets `customPending` — and `onAuth()` flushes both **before**
+`attach()` and `loadCustomRemote()` read the server back. Getting this wrong is not a
+sync nicety: ticks and removals made before `onAuthStateChanged` fired were silently
+discarded, then erased by the older server copy on the next sign-in. That is what made
+ticked one-offs and removed tasks reappear.
+
+The auth gate narrows the window this protects — there is no list to tick until an
+account is known — but it does not close it: a token refresh re-enters `onAuth()` with
+writes still outstanding. Recording the intent costs nothing, so it stays.
 
 `loadCustomRemote()` **merges, never replaces**: `hidden` and `doneOnce` are unions, so
 anything dismissed on any device stays dismissed; `added` is unioned by id with this device
 winning; the merged result is pushed straight back so both sides converge. `attach()`'s first
-read carries the same `queue.size && queueDate === date` guard the live listener has, so a
-tick still on its way up can't be undone by the copy just read back.
+read carries the same `writesPending(date)` guard the live listener has, so a tick still
+on its way up can't be undone by the copy just read back.
 
 ## One-offs — `custom.doneOnce`
 

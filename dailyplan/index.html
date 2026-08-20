@@ -161,6 +161,20 @@
   .row.locked .box{border-style:dashed;border-width:2px}
   .row.locked.done .box{border-style:solid}
 
+  /* ---------- the auth gate ----------
+     Everything personal is hidden unless Firebase has confirmed an account.
+     The attribute ships as "checking" in the markup rather than being set by
+     script, so a cached page cannot flash yesterday's list in the moment
+     before the SDK loads. What stays visible in every state is the top bar,
+     the sync row — which carries the sign-in button — and the footer. */
+  #wrap:not([data-auth="in"]) .counter,
+  #wrap:not([data-auth="in"]) .daynav,
+  #wrap:not([data-auth="in"]) #direction,
+  #wrap:not([data-auth="in"]) #level,
+  #wrap:not([data-auth="in"]) #list,
+  #wrap:not([data-auth="in"]) .actions,
+  #wrap:not([data-auth="in"]) #streak{ display:none }
+
   /* ---------- sync + actions ---------- */
   .sync{
     display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:16px 0;
@@ -336,7 +350,7 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="wrap" data-auth="checking">
 
   <div class="topbar">
     <a class="home" href="../">‹ SECOND BRAIN</a>
@@ -420,8 +434,8 @@
   </div>
 
   <footer>
-    Signed out, ticks stay in this browser. Signed in, they sync to your own
-    account — readable only by you.<br>
+    Your day lives in your own account and is readable only by you. Sign in to
+    see it.<br>
     Not medical advice.
   </footer>
 
@@ -475,7 +489,6 @@ const LS_COLLAPSED = "secondbrain.fitness.collapsed";
 const LS_DIRECTION = "secondbrain.daily.direction.";
 const LS_XPMONTH = "secondbrain.fitness.xpmonth.";   // + YYYY-MM
 const LS_XPPEAK  = "secondbrain.fitness.xppeak";
-const LS_TRACKER = "secondbrain.fitness.tracker.";   // + item id
 const DIRECTION_PROMPTS = [
   { id:"meaningfully-better", text:"What would make today meaningfully better?" },
   { id:"beyond-urgent", text:"What matters today beyond what feels urgent?" },
@@ -1356,28 +1369,19 @@ function renderLevel() {
 /* ---------- day counter ----------
    Days since the last recorded smoke, counting today.
 
-   The date itself is stored (LS_TRACKER + id, mirrored to
-   users/{uid}/config/trackers, live-subscribed in sync.attachTrackers()) —
-   deliberately a second copy of what the ticks already say, traded off against
-   the alternative: lastTicked()'s scan only sees Firestore's 90-day history
-   window plus this device's own localStorage, so on a fresh device, or a real
-   streak longer than 90 days, it silently produces a wrong answer instead of
-   an honest unknown. A stored date has no window to fall outside of.
-   updateTracker() keeps it in step with the ticks rather than letting it drift:
-   ticking only ever moves it forward (a backdated entry older than what's
-   already stored must not erase real clean days), and unticking only matters
-   when the day being undone is the one currently stored — and even then
-   restores the previous value from a one-step undo buffer rather than
-   re-running the bounded scan and trusting it, which could otherwise delete a
-   real, older date the scan simply can't see (see updateTracker()'s comment).
+   Firestore is the only source. The date lives in one field —
+   users/{uid}/config/trackers.r-smoked-weed — read once on sign-in and then
+   kept live by sync.attachTrackers(). Nothing is read from localStorage and
+   nothing is rescanned: an earlier version answered from this device's own
+   storage first, falling back to a 90-day scan, so two browsers signed into
+   the same account showed two different numbers. That is the bug this
+   replaces, and it is why no local fallback is left to drift.
 
-   Until the row has been ticked or unticked at least once since this shipped,
-   or before sync.seedTrackerIfEmpty() has run, there's nothing stored yet —
-   the scan is kept as a fallback for exactly that gap, not as the
-   steady-state answer. seedTrackerIfEmpty() checks the server directly,
-   once, rather than guessing from local absence — see its own comment for
-   why an earlier version that coordinated with the live listener instead
-   left the doc unseeded indefinitely in practice.
+   When the field is missing or malformed, sync.recoverWeed() asks the server
+   for the single most recent day whose tick is set — one document, ordered by
+   date descending — and writes the answer back, so the repair happens once
+   rather than on every load. If there is genuinely no such day the counter
+   shows a dash. It never guesses a start date.
 
    A day with no record at all counts as a no-weed day. That is deliberate —
    the alternative punishes forgetting to open an app rather than smoking. The
@@ -1387,50 +1391,25 @@ function renderLevel() {
    fact about right now, not about the day the nav happens to be showing. */
 const WEED_ID = "r-smoked-weed";
 
-function loadTracker(id) {
-  try { return localStorage.getItem(LS_TRACKER + id) || null; } catch { return null; }
-}
-function saveTracker(id, date) {
-  try {
-    if (date) localStorage.setItem(LS_TRACKER + id, date);
-    else localStorage.removeItem(LS_TRACKER + id);
-  } catch {}
-}
+/* undefined = not loaded yet, null = nothing on record, otherwise the date.
+   The first two both render as a dash, but only the second is a settled
+   answer — keeping them apart is what stops a slow read looking like "never". */
+let weedDate;
 
-/* One step of undo, kept alongside the tracker date itself so an untick that
-   corrects a mis-tap can restore the exact prior value instead of rebuilding
-   it from lastTicked()'s bounded scan — see updateTracker(). Local only, not
-   synced: the case this exists for is correcting your own last action, which
-   is a same-device, same-session thing. Distinguishes "never recorded"
-   (undefined — the buffer doesn't apply) from "recorded as nothing"
-   (null — correctly restores to no record at all). */
-function loadTrackerPrev(id) {
-  const raw = localStorage.getItem(LS_TRACKER + id + ".prev");
-  if (raw === null) return undefined;
-  return raw === "" ? null : raw;
-}
-function saveTrackerPrev(id, date) {
-  try { localStorage.setItem(LS_TRACKER + id + ".prev", date || ""); } catch {}
-}
-function clearTrackerPrev(id) {
-  try { localStorage.removeItem(LS_TRACKER + id + ".prev"); } catch {}
-}
+const isISODate = v => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
 function noWeedDays() {
-  const today = todayISO();
-  if (loadTicks(today)[WEED_ID]) return 0;
-  // Nothing stored or scannable means nothing to count from, so fall back to
-  // the plan's own start date instead of showing a misleading 0.
-  const last = loadTracker(WEED_ID) || lastTicked(WEED_ID, today) || dailyConfig.startDate;
-  return Math.max(0, daysBetween(last, today));
+  if (!isISODate(weedDate)) return null;
+  return Math.max(0, daysBetween(weedDate, todayISO()));
 }
 
 function renderCounter() {
+  if (!plan) return;              // nothing on screen to update
   const n = noWeedDays();
   const sq = $("counterN");
   $("counter").hidden = false;
-  sq.textContent = n;
-  sq.className = "sq" + (n > 0 ? " on" : "") + (String(n).length > 2 ? " d3" : "");
+  sq.textContent = n === null ? "\u2014" : n;
+  sq.className = "sq" + (n > 0 ? " on" : "") + (n !== null && String(n).length > 2 ? " d3" : "");
 }
 
 /* ---------- moving between days ---------- */
@@ -1486,47 +1465,37 @@ function setTick(id, on) {
   sync.queueTick(plan.date, id, on);
 }
 
-/* Keeps LS_TRACKER's stored date in step with the tick that just changed, so
-   noWeedDays() answers from a fact instead of rescanning history each time.
-   Unticking only matters when the day being undone is the one currently
-   stored; any other day's untick can't change what the most recent smoke
-   was, so it's left alone.
+/* Works out what the tracker date should become after this tick, without
+   writing anything itself: flush() sends it in the same batch as the tick, so
+   the day record and the tracker can never end up disagreeing.
 
-   The rollback on untick does NOT just re-run lastTicked() and trust it: that
-   scan is exactly the bounded, incomplete thing the stored date exists to
-   replace, so trusting an empty result would delete a real value that's
-   simply outside the scan's reach — a correctly-stored date from months back,
-   wiped by an ordinary mis-tap-then-correct. Instead it restores the exact
-   value that was current a moment ago, via the one-step undo buffer. Only
-   when that buffer doesn't apply — the current value came from seedTracker()
-   or a reload happened in between — does it fall back to the scan, and even
-   then an empty result is left alone rather than treated as proof of nothing:
-   "not visible from here" isn't "doesn't exist". */
+   Ticking only ever moves the date forward — a backdated entry older than what
+   is already recorded must not erase real clean days. Unticking only matters
+   when the day being undone is the one currently recorded; any other day's
+   untick cannot change what the most recent smoke was.
+
+   Undoing the recorded day needs the next-most-recent one, and that is a
+   question only the server can answer, so it is marked here and resolved in
+   flush(). The one-step undo buffer this used to keep is gone with the scan it
+   existed to protect against: there is no bounded local scan left to return a
+   wrong empty answer, so there is nothing to guard. */
 function updateTracker(on) {
-  const current = loadTracker(WEED_ID);
   if (on) {
-    if (!current || plan.date > current) {
-      saveTrackerPrev(WEED_ID, current);
-      saveTracker(WEED_ID, plan.date);
-      sync.queueTracker(WEED_ID, plan.date);
-    }
-    return;
+    if (isISODate(weedDate) && plan.date <= weedDate) return;
+    weedDate = plan.date;
+    sync.trackerPending = { set: plan.date };
+  } else {
+    if (plan.date !== weedDate) return;
+    weedDate = undefined;                          // unknown until the server answers
+    sync.trackerPending = { recoverBefore: plan.date };
   }
-  if (plan.date !== current) return;
-  const prev = loadTrackerPrev(WEED_ID);
-  if (prev !== undefined) {
-    clearTrackerPrev(WEED_ID);
-    saveTracker(WEED_ID, prev);
-    sync.queueTracker(WEED_ID, prev);
-    return;
-  }
-  const scanned = lastTicked(WEED_ID, plan.date);
-  if (scanned) { saveTracker(WEED_ID, scanned); sync.queueTracker(WEED_ID, scanned); }
+  renderCounter();
 }
 
 /* ================= sync layer =================
-   Degrades all the way down: no config, blocked SDK, or offline all leave the
-   page working against localStorage alone. Nothing here may throw upward. */
+   Firebase decides what this page shows. Without a signed-in account there is
+   no day, no counter and no list — see setAuthState(). Nothing here may throw
+   upward. */
 const sync = {
   mode: "local",
   uid: null,
@@ -1535,13 +1504,12 @@ const sync = {
   timer: null,
   queue: new Map(),
   queueDate: null,
+  flushDate: null,        // a flush past its queue but not yet handed to Firestore
   xpTimer: null,
   xpPending: null,
   trackerUnsub: null,
-  trackerTimer: null,
-  trackerPending: null,
-  trackerSeeded: false,
-  lastRefresh: 0,     // throttles refreshAll(), see there
+  trackerPending: null,   // { set } or { recoverBefore }, resolved in flush()
+  lastRefresh: 0,         // throttles refreshAll(), see there
 
   setUI(state, msg, btnLabel, btnAction) {
     const row = $("sync"), btn = $("authBtn");
@@ -1551,12 +1519,47 @@ const sync = {
     else { btn.hidden = true; btn.onclick = null; }
   },
 
+  /* The gate. "in" is the only state that shows anything personal; the markup
+     ships as "checking" so a cached page can't flash yesterday's list before
+     Firebase has said who is looking. */
+  setAuthState(state) { $("wrap").dataset.auth = state; },
+
+  /* Signing out has to leave nothing of the account behind — not on screen,
+     not in memory, and not queued to be written. localStorage is deliberately
+     untouched: collapsed sections, notes and the direction drafts are this
+     browser's own settings rather than account data, and nothing reads them
+     while the page is gated. */
+  teardown() {
+    clearTimeout(this.timer);
+    clearTimeout(this.xpTimer);
+    this.queue.clear();
+    this.queueDate = null;
+    this.flushDate = null;
+    this.xpPending = null;
+    this.trackerPending = null;
+    this.customPending = false;
+    this.lastRefresh = 0;
+    history.clear();
+    rowEls.clear();
+    secEls.clear();
+    custom = { added: [], hidden: {}, doneOnce: {}, edits: {} };
+    plan = null;
+    viewDate = null;
+    weedDate = undefined;
+    lastRendered = null;
+    directionEditDate = null;
+    $("list").textContent = "";
+    for (const id of ["counter", "level", "direction", "scrim"]) $(id).hidden = true;
+  },
+
   async init() {
     let config = null;
     try { ({ firebaseConfig: config } = await import("./firebase-config.js")); }
     catch { /* file:// origin, or the file is missing — stay local */ }
     if (!config || !config.projectId) {
-      this.setUI("off", "Not syncing — ticks stay in this browser.");
+      this.setAuthState("err");
+      this.setUI("err", "Sync isn't configured, so there's nothing to show here.",
+        "Reload", () => location.reload());
       return;
     }
     try {
@@ -1574,32 +1577,43 @@ const sync = {
       authMod.getRedirectResult(this.fb.auth).catch(() => {});
       authMod.onAuthStateChanged(this.fb.auth, u => this.onAuth(u));
     } catch (e) {
-      console.warn("Firebase unavailable, staying local:", e);
-      this.setUI("err", "Sync unavailable — ticks stay in this browser.");
+      console.warn("Firebase unavailable:", e);
+      this.setAuthState("err");
+      this.setUI("err", "Couldn't reach Firebase, so there's nothing to show here.",
+        "Reload", () => location.reload());
     }
   },
 
-  onAuth(user) {
+  async onAuth(user) {
     if (this.unsub) { this.unsub(); this.unsub = null; }
     if (this.trackerUnsub) { this.trackerUnsub(); this.trackerUnsub = null; }
     if (!user) {
       this.uid = null; this.mode = "signed-out";
-      history.clear(); render();
-      this.setUI("off", "Not syncing — ticks stay in this browser.",
+      this.teardown();
+      this.setAuthState("out");
+      this.setUI("off", "Sign in to see your day.",
         "Sign in with Google", () => this.signIn());
       return;
     }
     this.uid = user.uid; this.mode = "signed-in";
     this.setUI("on", `Syncing as ${user.email || "your account"}`, "Sign out", () => this.signOut());
-    // Anything ticked or removed before auth resolved goes up FIRST, so the
+    // Anything still queued from a token refresh goes up FIRST, so the
     // read-back below can't overwrite it with an older server copy.
     this.flush();
     if (this.customPending) this.pushCustom();
+    // The day is built here rather than at boot: everything below reads
+    // plan.date, and until an account is known there is no day to build.
+    // teardown() blanked custom without touching its localStorage copy, so a
+    // sign-out and back in re-reads it instead of rendering the bare list.
+    loadCustom();
+    await rebuild();
+    this.setAuthState("in");
     this.attach();
     this.loadHistory();
     this.loadCustomRemote();
     this.loadXp();
     this.attachTrackers();
+    this.loadWeed();
   },
 
   /* ---------- lifetime XP ----------
@@ -1658,68 +1672,72 @@ const sync = {
   },
 
   /* ---------- trackers (e.g. last-smoked date) ----------
-     One small doc, merge-written (flushTracker(), below) so a future second
-     tracker can add its own key to the same doc without a write to one
-     clobbering the other's field — the first merge site in this collection,
-     not following an existing one; safe here specifically because every
-     write only ever touches its own named key. Live-subscribed, unlike xp/
-     above: this is specifically the piece that used to go stale on another
-     open tab until you navigated to the exact day that changed. See the
-     comment above WEED_ID for why the date is stored at all rather than
-     left to lastTicked()'s scan. */
+     One small doc holding one field per tracker, merge-written so a future
+     second tracker can add its own key without a write to one clobbering the
+     other's field. That is the whole reason this collection breaks the
+     no-merge rule: every write here only ever names its own key.
+
+     Live-subscribed, unlike xp/ above — this is the piece that used to go
+     stale on another open tab until you navigated to the exact day that
+     changed. */
   trackerRef() {
     const { f, db } = this.fb;
     return f.doc(db, "users", this.uid, "config", "trackers");
   },
 
-  queueTracker(id, date) {
-    if (this.mode !== "signed-in") return;
-    this.trackerPending = { ...(this.trackerPending || {}), [id]: date };
-    clearTimeout(this.trackerTimer);
-    this.trackerTimer = setTimeout(() => this.flushTracker(), 500);
-  },
-
-  async flushTracker() {
-    clearTimeout(this.trackerTimer);
-    if (this.mode !== "signed-in" || !this.trackerPending) return;
-    const pending = this.trackerPending;
-    this.trackerPending = null;
+  /* One document read per sign-in, and that is the normal cost of the counter.
+     The query below runs only when the field is missing or malformed, which is
+     also how an account that predates the field repairs itself — once, because
+     the answer is written back. */
+  async loadWeed() {
     const { f } = this.fb;
-    const fields = {};
-    for (const [id, date] of Object.entries(pending)) fields[id] = date || f.deleteField();
     try {
-      await f.setDoc(this.trackerRef(), { ...fields, updatedAt: f.serverTimestamp() }, { merge: true });
-    } catch { /* offline — the local copy stands and the next edit retries */ }
+      // Server first, cache second — the same shape attach() uses. A cached
+      // copy would render a number that the listener then corrects a moment
+      // later, and the flicker reads as the bug this is fixing.
+      let snap;
+      try { snap = await f.getDocFromServer(this.trackerRef()); }
+      catch { snap = await f.getDoc(this.trackerRef()); }
+      const raw = snap.exists() ? snap.data()[WEED_ID] : null;
+      if (isISODate(raw)) { weedDate = raw; renderCounter(); return; }
+      const found = await this.recoverWeed();
+      weedDate = found;
+      if (found) await this.writeTracker(found);
+      renderCounter();
+    } catch (e) {
+      console.warn("Tracker read failed:", e.code || e.message);
+    }
   },
 
-  /* Seeds the stored date from the old scan, the one time it's genuinely
-     needed — signing in on an account that predates this feature, where
-     nothing has ever been written yet. A previous version coordinated this
-     with attachTrackers()'s live listener through two flags (history loaded,
-     first snapshot seen), reasoning that guessing before the listener
-     confirmed the real remote state could race a value already in flight.
-     That reasoning was right, but the coordination itself turned out to be
-     the fragile part — in practice the doc stayed unseeded indefinitely,
-     which is worse than the race it was avoiding. This does one direct,
-     awaited read instead: no second async signal to line up against, so
-     there's nothing left to race. Called once from loadHistory(), after
-     history is populated, so the scan fallback has something to work with. */
-  async seedTrackerIfEmpty() {
-    if (this.trackerSeeded || this.mode !== "signed-in") return;
-    this.trackerSeeded = true;
-    if (loadTracker(WEED_ID)) return;   // attachTrackers() already adopted a real value
-    try {
-      const { f } = this.fb;
-      const snap = await f.getDoc(this.trackerRef());
-      const data = snap.exists() ? snap.data() : {};
-      if (typeof data[WEED_ID] === "string") return;   // real remote value; the listener will adopt it
-      const val = lastTicked(WEED_ID, todayISO()) || dailyConfig.startDate;
-      saveTracker(WEED_ID, val);
-      this.queueTracker(WEED_ID, val);
-    } catch (e) {
-      this.trackerSeeded = false;   // let the next sign-in try again
-      console.warn("Tracker seed check failed:", e.code || e.message);
-    }
+  /* The most recent day whose weed tick is set, or null if there is none — one
+     document, never a walk through the history window.
+
+     `before` narrows it to days strictly earlier than that date, which is what
+     unticking the recorded day needs in order to fall back to the one before
+     it. Read from the server on purpose: the local cache can be arbitrarily
+     stale, and this answer decides whether a real date gets erased.
+
+     Ordering by the tick field before the document id reads as redundant, the
+     filter having already pinned it to true. It is what keeps the query on
+     Firestore's automatic index, so no composite index has to exist for it. */
+  async recoverWeed(before) {
+    const { f, db } = this.fb;
+    const days = f.collection(db, "users", this.uid, "days");
+    const tick = new f.FieldPath("ticks", WEED_ID);
+    const only = [f.where(tick, "==", true)];
+    if (before) only.push(f.where(f.documentId(), "<", f.doc(days, before)));
+    const snap = await f.getDocsFromServer(f.query(days, ...only,
+      f.orderBy(tick, "desc"), f.orderBy(f.documentId(), "desc"), f.limit(1)));
+    return snap.empty ? null : snap.docs[0].id;
+  },
+
+  /* Only for the repair above. A tick's own tracker write rides in flush()'s
+     batch instead, so the day record and this field move together. */
+  async writeTracker(date) {
+    const { f } = this.fb;
+    await f.setDoc(this.trackerRef(),
+      { [WEED_ID]: date || f.deleteField(), updatedAt: f.serverTimestamp() },
+      { merge: true });
   },
 
   attachTrackers() {
@@ -1727,13 +1745,16 @@ const sync = {
     const { f } = this.fb;
     this.trackerUnsub = f.onSnapshot(this.trackerRef(),
       snap => {
-        // A write of our own echoing back must not clobber a newer local
-        // edit that's still queued to go out — same guard adopt() uses.
-        if (this.trackerPending && WEED_ID in this.trackerPending) return;
-        const data = snap.exists() ? snap.data() : {};
-        const remote = typeof data[WEED_ID] === "string" ? data[WEED_ID] : null;
-        if (remote === loadTracker(WEED_ID)) return;
-        saveTracker(WEED_ID, remote);
+        /* Server-confirmed state only. This replaces a flag that held off any
+           snapshot while a write was queued: the flag could be left standing
+           after the write had already landed, locking out a perfectly good
+           remote value. hasPendingWrites clears itself, so the server always
+           gets the last word and a cached copy never does. */
+        if (snap.metadata.hasPendingWrites) return;
+        const raw = snap.exists() ? snap.data()[WEED_ID] : null;
+        const remote = isISODate(raw) ? raw : null;
+        if (remote === weedDate) return;
+        weedDate = remote;
         if (plan) renderCounter();
       },
       e => console.warn("Tracker sync dropped:", e.code || e.message));
@@ -1796,9 +1817,20 @@ const sync = {
     try { await this.fb.f.updateDoc(this.ref(date), m); } catch {}
   },
 
+  /* One question asked in two places: is this device holding a change to
+     `date` that Firestore has not been told about yet? While that is true a
+     snapshot can't be trusted to contain it, and adopting one would undo it.
+     Covers queueTick()'s 500ms debounce and the lookup flush() does before its
+     batch — that lookup is a round trip with the queue already emptied, so
+     without flushDate an untick would be re-adopted from the server mid-flight. */
+  writesPending(date) {
+    return (this.queue.size > 0 && this.queueDate === date) || this.flushDate === date;
+  },
+
   adopt(ticks, date) {
     saveTicks(date, ticks);
-    if (plan.date !== date) return;
+    // A snapshot already in flight can land after sign-out tore the day down.
+    if (!plan || plan.date !== date) return;
     // Our own writes echo back through onSnapshot; rebuilding the list for a
     // state it already shows would flash the rows for nothing.
     if (JSON.stringify(ticks) === lastRendered) return;
@@ -1809,7 +1841,7 @@ const sync = {
     const record = normaliseDirection(value, date);
     if (!record) return false;
     saveDirectionLocal(date, record);
-    if (plan.date === date && directionEditDate !== date) renderDirection();
+    if (plan && plan.date === date && directionEditDate !== date) renderDirection();
     return true;
   },
 
@@ -1851,7 +1883,7 @@ const sync = {
         const data = snap.data();
         // Same guard the live listener uses: a tick still on its way up must not
         // be undone by the copy we just read back.
-        if (!(this.queue.size && this.queueDate === date)) this.adopt(data.ticks || {}, date);
+        if (!this.writesPending(date)) this.adopt(data.ticks || {}, date);
         await this.ensureMeta(data, date);
         await this.reconcileDirection(data, date);
       } else {
@@ -1868,7 +1900,7 @@ const sync = {
     }
     this.unsub = f.onSnapshot(ref,
       s => {
-        if (this.queue.size && this.queueDate === date) return;
+        if (this.writesPending(date)) return;
         const data = s.exists() ? s.data() : {};
         this.adopt(data.ticks || {}, date);
         if (data.direction) this.adoptDirection(data.direction, date);
@@ -1979,22 +2011,18 @@ const sync = {
             : Object.values(v.ticks || {}).filter(Boolean).length
         });
       });
-      this.seedTrackerIfEmpty();
       rebuild();
     } catch (e) {
-      // seedTrackerIfEmpty() isn't called here on purpose: a failed fetch
-      // isn't a full view of history, so seeding from it would carry the
-      // same risk seeding is meant to avoid. The display still works via
-      // noWeedDays()'s own fallback chain either way; only the durable
-      // write is skipped, and the next sign-in gets another attempt.
       console.warn("History unavailable:", e);
     }
   },
 
-  /* Queued whatever the auth state is. A tick made before onAuthStateChanged has
-     fired used to be dropped here and then overwritten by the server's copy on
-     sign-in, which is how ticked one-offs came back. Recording the intent costs
-     nothing; onAuth() flushes it once there's somewhere to send it. */
+  /* Queued whatever the auth state is. A tick made before onAuthStateChanged
+     has fired used to be dropped here and then overwritten by the server's copy
+     on sign-in, which is how ticked one-offs came back. The gate makes that
+     window much narrower — there is no list to tick until an account is known —
+     but a token refresh can still re-enter onAuth() with writes outstanding,
+     and recording the intent costs nothing. */
   queueTick(date, id, on) {
     if (this.queueDate !== date) { this.queue.clear(); this.queueDate = date; }
     this.queue.set(id, on);
@@ -2006,31 +2034,94 @@ const sync = {
      before anything reads the server back. */
   async flush() {
     clearTimeout(this.timer);
-    if (this.mode !== "signed-in" || !this.queue.size) return;
-    const { f } = this.fb;
+    if (this.mode !== "signed-in") return;
+    const tracker = this.trackerPending;
+    if (!this.queue.size && !tracker) return;
+    const { f, db } = this.fb;
     const date = this.queueDate;
     const edits = new Map(this.queue);
+
+    /* Held from here until the batch has been handed to Firestore. In that
+       window this device knows about the edit and Firestore does not, which is
+       exactly what the day listener's guard covers for an ordinary tick —
+       and emptying the queue on the next line would otherwise open it for the
+       whole round trip the lookup below takes. */
+    this.flushDate = date;
     this.queue.clear();
+    this.trackerPending = null;
+
+    /* Put the queued work back where it came from, so Retry sends the tick and
+       the tracker together rather than one without the other. */
+    const requeue = () => {
+      this.flushDate = null;
+      for (const [id, on] of edits) if (!this.queue.has(id)) this.queue.set(id, on);
+      if (edits.size) this.queueDate = date;
+      if (tracker && !this.trackerPending) this.trackerPending = tracker;
+    };
+
+    /* Resolved before the batch is opened rather than inside it: replacing an
+       unticked date with the one before it is a server query, and a batch can
+       only be assembled from answers already in hand. */
+    let trackerDate;
+    if (tracker) {
+      try {
+        trackerDate = "set" in tracker
+          ? tracker.set
+          : await this.recoverWeed(tracker.recoverBefore);
+      } catch (e) {
+        requeue();
+        await this.loadWeed();      // show what the server actually holds
+        this.setUI("err", `Couldn't check the weed history (${e.code || e.message}). Not saved.`,
+          "Retry", () => this.flush());
+        return;
+      }
+    }
 
     const args = [];
     for (const [id, on] of edits) args.push(new f.FieldPath("ticks", id), on ? true : f.deleteField());
     args.push("xpEarned", todayXp(), "ticked", todayTicked(), "updatedAt", f.serverTimestamp());
 
+    /* One batch, so the day record and the tracker can never disagree — a tick
+       that saved without its date, or a date without its tick, is precisely the
+       split that made two devices show two different counts. */
+    const addTracker = batch => {
+      if (!tracker) return;
+      batch.set(this.trackerRef(),
+        { [WEED_ID]: trackerDate || f.deleteField(), updatedAt: f.serverTimestamp() },
+        { merge: true });
+    };
+
+    /* Released once commit() has been called rather than when the server
+       acknowledges it: from that moment the mutation is in Firestore's pending
+       set and every snapshot carries it. Waiting for the ack would hold the
+       guard open forever offline, where commit() never settles. */
     try {
-      await f.updateDoc(this.ref(date), ...args);
+      const batch = f.writeBatch(db);
+      if (edits.size) batch.update(this.ref(date), ...args);
+      addTracker(batch);
+      const committed = batch.commit();
+      this.flushDate = null;
+      await committed;
     } catch (e) {
       if (e.code === "not-found") {
+        // The day has no document yet, so there is nothing to update into.
         try {
-          await f.setDoc(this.ref(date), {
+          this.flushDate = date;
+          const batch = f.writeBatch(db);
+          batch.set(this.ref(date), {
             ticks: loadTicks(date), ...this.meta(),
             ...this.directionFields(date),
             createdAt: f.serverTimestamp(), updatedAt: f.serverTimestamp()
           });
+          addTracker(batch);
+          const committed = batch.commit();
+          this.flushDate = null;
+          await committed;
           return;
         } catch (e2) { e = e2; }
       }
-      for (const [id, on] of edits) if (!this.queue.has(id)) this.queue.set(id, on);
-      this.queueDate = date;
+      requeue();
+      if (tracker) await this.loadWeed();   // never leave a rejected value on screen
       this.setUI("err", `Couldn't save to sync (${e.code || e.message}). Saved locally.`,
         "Retry", () => this.flush());
     }
@@ -2095,6 +2186,10 @@ const sync = {
     await this.loadHistory();
     await this.loadCustomRemote({ reconcile: false });
     await this.loadXp();
+    // Only when the counter never got an answer. null is settled — an account
+    // with genuinely nothing recorded — and re-querying it on every focus
+    // would buy nothing.
+    if (weedDate === undefined) await this.loadWeed();
   },
 
   watchLifecycle() {
@@ -2125,7 +2220,6 @@ async function loadDailyConfig() {
   } catch { /* file:// or offline — the embedded copy below covers it */ }
 
   dailyConfig = fetched || FALLBACK;
-  await rebuild();
 }
 
 async function rebuild() {
