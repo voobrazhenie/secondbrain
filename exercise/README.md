@@ -4,17 +4,22 @@
 
 `dailyplan/plan.json` is exercise-only schema version 2. It declares Europe/Berlin, a Monday-start week, three target workout sessions, target days Monday/Wednesday/Friday, one required rest day after completion, and no carryover.
 
-Every workout session uses the same seven exercises and stable IDs:
+Every workout session uses the same eight exercises and stable IDs:
 
-1. `push-ups` — 3 × 12 initially; add repetitions manually.
-2. `pike-push-ups` — 3 × 6–10.
-3. `chair-dips` — 3 × 8–12 using a stable household chair.
-4. `diamond-push-ups` — 3 × 6–10.
-5. `prone-rows` — 3 × 12–15.
-6. `glute-bridges` — 3 × 12–20.
-7. `single-leg-romanian-deadlifts` — 3 × 10 per leg.
+1. `decline-push-ups` — 3 × 8–12, feet on a chair.
+2. `pike-push-ups` — 3 × 8–12.
+3. `chair-dips` — 3 × 10–15 using a stable household chair.
+4. `diamond-push-ups` — 3 × 8–12.
+5. `prone-rows` — 3 × 15–18.
+6. `single-leg-glute-bridges` — 3 × 10–15 per leg.
+7. `single-leg-romanian-deadlifts` — 3 × 12 per leg.
+8. `leg-raises` — 3 × 10–15.
 
-There is no automatic weekly progression. Change targets or the routine deliberately in `plan.json`, keep IDs stable for unchanged exercises, increment the schema/plan version for an incompatible schema, update rule validation, and rerun the scheduling and source tests.
+Retired: `push-ups` (replaced by the decline version once 15+ reps were routine) and `glute-bridges` (replaced by the single-leg version for load). **Both keep their entries in `firestore.rules`.** Signing off a workout merges into the existing document and rules validate the merged result, so a day recorded under an older routine has to stay valid. IDs are only ever added to that allowlist, never removed.
+
+There is no automatic weekly progression. Change targets or the routine deliberately in `plan.json`, keep IDs stable for unchanged exercises, increment the schema/plan version for an incompatible schema, update rule validation, and rerun the tests. `plan.test.mjs` checks that `plan.json`, `ROUTINE_SIZE` in `app.js` and the `firestore.rules` allowlist still agree — before this existed, a new exercise passed every test and then failed twice in the browser.
+
+Rep targets move up when every set reaches the top of the range. Past roughly 15 reps, prefer a harder variation over a bigger number: bodyweight sets that long stop being an efficient muscle stimulus.
 
 ## Catch-up scheduling
 

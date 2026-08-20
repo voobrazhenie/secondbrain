@@ -40,10 +40,24 @@ countdown or hold timers.
 
 ## Plan and rules
 
-`dailyplan/plan.json` contains only schema version 2, the weekly policy, and seven stable
+`dailyplan/plan.json` contains only schema version 2, the weekly policy, and eight stable
 exercise definitions. Do not add programs, unique workout-session IDs, automatic progression,
 weekly updater state, or duplicated schedules.
+
+The routine size is duplicated in `ROUTINE_SIZE` in `app.js` and the id allowlist in
+`firestore.rules`. `plan.test.mjs` fails if the three drift apart — without it a new exercise
+passes every test and then breaks the page and the write.
+
+**Exercise IDs are only ever added to `firestore.rules`, never removed.** Signing off a workout
+merges into the existing document and rules validate the merged result, so a day recorded under an
+older routine must stay valid. `push-ups` and `glute-bridges` are retired from the routine but
+remain allowed for exactly that reason.
 
 `firestore.rules` validates the owner, document date, plan version, top-level keys, exercise map
 shape, repetition lists, booleans, and request-time timestamp. Keep partial nested updates valid
 while rejecting unknown fields. See `exercise/README.md` for the full schema and deployment steps.
+
+Rules do not deploy themselves. Editing this file is not enough — the `exerciseDays` validation sat
+undeployed from 18 to 20 August while the live rules still allowed any document shape. After
+changing rules, deploy and then verify against the live project as a signed-in client; Admin
+credentials bypass rules and prove nothing.

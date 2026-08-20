@@ -3,6 +3,10 @@ import { firebaseConfig } from "../dailyplan/firebase-config.js";
 
 const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
 const PLAN_VERSION = 2;
+/* The routine is a fixed list, so a plan of the wrong size means plan.json and
+   firestore.rules have drifted apart. Kept as a named constant because three
+   files have to move together — see exercise/plan.test.mjs. */
+const ROUTINE_SIZE = 8;
 const $ = id => document.getElementById(id);
 const content = $("content");
 
@@ -121,7 +125,7 @@ function renderExercise(exercise, day) {
   card.className = "exercise";
   const head = document.createElement("div");
   head.className = "exercise-head";
-  head.innerHTML = `<div class="exercise-title"><h3></h3><p></p></div><span class="badge">3 sets</span>`;
+  head.innerHTML = `<div class="exercise-title"><h3></h3><p></p></div><span class="badge">${exercise.sets} sets</span>`;
   head.querySelector("h3").textContent = exercise.name;
   head.querySelector("p").textContent = [targetLabel(exercise), exercise.note].filter(Boolean).join(" · ");
   card.append(head);
@@ -210,7 +214,7 @@ function renderAuthenticated() {
   if (day.status === "workout" && selectedDate === today) {
     const done = document.createElement("div");
     done.className = "done-wrap";
-    done.innerHTML = "<button type=\"button\">DONE · Complete workout session</button><p>Save all seven exercises as complete first. Completion creates tomorrow's required rest day.</p>";
+    done.innerHTML = `<button type="button">DONE · Complete workout session</button><p>Save all ${plan.routine.length} exercises as complete first. Completion creates tomorrow's required rest day.</p>`;
     done.querySelector("button").disabled = writePending;
     done.querySelector("button").addEventListener("click", completeWorkout);
     content.append(done);
@@ -324,7 +328,7 @@ async function completeWorkout() {
     return value?.completed === true && Array.isArray(value.sets) && value.sets.length === exercise.sets;
   });
   if (!allComplete) {
-    alert("Save all seven exercises as complete before completing this workout session.");
+    alert(`Save all ${plan.routine.length} exercises as complete before completing this workout session.`);
     return;
   }
   const schedule = buildWeekSchedule({ selectedDate, todayDate: berlinDate(), records: weekRecords });
@@ -378,7 +382,7 @@ async function boot() {
     const planRequest = fetch(`../dailyplan/plan.json?v=${PLAN_VERSION}`, { cache: "no-store" }).then(async response => {
       if (!response.ok) throw new Error(`Plan request failed: ${response.status}`);
       const value = await response.json();
-      if (value.schemaVersion !== PLAN_VERSION || value.timezone !== "Europe/Berlin" || value.routine?.length !== 7) throw new Error("Unsupported exercise plan");
+      if (value.schemaVersion !== PLAN_VERSION || value.timezone !== "Europe/Berlin" || value.routine?.length !== ROUTINE_SIZE) throw new Error("Unsupported exercise plan");
       return value;
     });
     const [{ initializeApp }, authModule, firestoreModule] = await Promise.all([

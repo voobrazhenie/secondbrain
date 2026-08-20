@@ -9,12 +9,13 @@
     "carryOverToNextWeek": false
   },
   "routine": [
-    { "id": "push-ups", "name": "Push-ups", "sets": 3, "repetitions": { "target": 12 }, "progression": "add-repetitions-manually" },
-    { "id": "pike-push-ups", "name": "Pike push-ups", "sets": 3, "repetitions": { "min": 6, "max": 10 } },
-    { "id": "chair-dips", "name": "Chair dips", "sets": 3, "repetitions": { "min": 8, "max": 12 }, "note": "Use a stable household chair" },
-    { "id": "diamond-push-ups", "name": "Diamond push-ups", "sets": 3, "repetitions": { "min": 6, "max": 10 } },
-    { "id": "prone-rows", "name": "Prone rows", "sets": 3, "repetitions": { "min": 12, "max": 15 } },
-    { "id": "glute-bridges", "name": "Glute bridges", "sets": 3, "repetitions": { "min": 12, "max": 20 } },
-    { "id": "single-leg-romanian-deadlifts", "name": "Single-leg Romanian deadlifts", "sets": 3, "repetitions": { "target": 10 }, "perSide": true }
+    { "id": "decline-push-ups", "name": "Decline push-ups", "sets": 3, "repetitions": { "min": 8, "max": 12 }, "note": "Feet on a chair \u2014 lower surface if 8 is a grind" },
+    { "id": "pike-push-ups", "name": "Pike push-ups", "sets": 3, "repetitions": { "min": 8, "max": 12 } },
+    { "id": "chair-dips", "name": "Chair dips", "sets": 3, "repetitions": { "min": 10, "max": 15 }, "note": "Use a stable household chair" },
+    { "id": "diamond-push-ups", "name": "Diamond push-ups", "sets": 3, "repetitions": { "min": 8, "max": 12 } },
+    { "id": "prone-rows", "name": "Prone rows", "sets": 3, "repetitions": { "min": 15, "max": 18 } },
+    { "id": "single-leg-glute-bridges", "name": "Single-leg glute bridges", "sets": 3, "repetitions": { "min": 10, "max": 15 }, "perSide": true, "note": "One foot planted, other leg straight out \u2014 squeeze hard at the top" },
+    { "id": "single-leg-romanian-deadlifts", "name": "Single-leg Romanian deadlifts", "sets": 3, "repetitions": { "target": 12 }, "perSide": true },
+    { "id": "leg-raises", "name": "Lying leg raises", "sets": 3, "repetitions": { "min": 10, "max": 15 }, "note": "Lower back pressed flat \u2014 straighten the legs to make it harder" }
   ]
 }

@@ -32,6 +32,12 @@ service cloud.firestore {
         && data.date == date
         && data.planVersion == 2
         && data.exercises is map
+        // Retired movements stay on this list on purpose. Signing off a
+        // workout merges into the existing document, so rules see the whole
+        // merged result — a day recorded under the old routine has to stay
+        // valid, and a browser tab still holding the old plan has to keep
+        // saving. Nothing is removed here when the routine changes; ids are
+        // only ever added.
         && data.exercises.keys().hasOnly([
           'push-ups',
           'pike-push-ups',
@@ -39,7 +45,10 @@ service cloud.firestore {
           'diamond-push-ups',
           'prone-rows',
           'glute-bridges',
-          'single-leg-romanian-deadlifts'
+          'single-leg-romanian-deadlifts',
+          'decline-push-ups',
+          'single-leg-glute-bridges',
+          'leg-raises'
         ])
         && validExercise(data.exercises, 'push-ups')
         && validExercise(data.exercises, 'pike-push-ups')
@@ -48,6 +57,9 @@ service cloud.firestore {
         && validExercise(data.exercises, 'prone-rows')
         && validExercise(data.exercises, 'glute-bridges')
         && validExercise(data.exercises, 'single-leg-romanian-deadlifts')
+        && validExercise(data.exercises, 'decline-push-ups')
+        && validExercise(data.exercises, 'single-leg-glute-bridges')
+        && validExercise(data.exercises, 'leg-raises')
         && data.workoutCompleted is bool
         && data.updatedAt == request.time;
     }
