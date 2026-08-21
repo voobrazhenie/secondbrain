@@ -10,6 +10,7 @@ Live site: **https://voobrazhenie.github.io/secondbrain/**
 - `dailyplan/` is the separate recurring-task checklist. Its non-exercise configuration is `dailyplan/daily.json`.
 - `jobs/`, `streams/`, `ideas/`, `finance/`, and `cleaning/` are unrelated features and retain their existing data models.
 - `firestore.rules` applies strict schema validation to exercise documents while preserving owner-only access for other user data.
+- `tokens.css` at the repo root is the shared design system (colors, stroke width, shadow). `/`, `dailyplan/`, `jobs/`, `streams/`, `ideas/`, and `finance/` link to it instead of redefining their own copy. `exercise/` and `cleaning/` are not on it yet — they keep their own separate styles for now.
 
 DailyPlan keeps an embedded copy of `daily.json` for `file://` use. After changing `daily.json`, run:
 

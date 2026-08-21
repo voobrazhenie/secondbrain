@@ -13,15 +13,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Second Brain">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="./tokens.css">
 <style>
   /* Same neo-brutalist system as dailyplan/ — thick strokes, squared corners,
-     solid accent blocks, hard zero-blur shadows. */
-  :root{
-    --paper:#F2EDE0; --card:#FFFDF7; --ink:#111111;
-    --yellow:#FFD53D; --teal:#00C2CB; --pink:#FF3D8B; --lime:#B8E62E;
-    --grey:#7A756A;
-    --stroke:2.5px; --shadow:5px 5px 0 var(--ink);
-  }
+     solid accent blocks, hard zero-blur shadows. Shared colors/spacing live in
+     tokens.css; only page-specific rules stay here. */
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
     margin:0; background:var(--paper); color:var(--ink);

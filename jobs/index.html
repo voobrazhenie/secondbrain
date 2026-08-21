@@ -27,14 +27,10 @@
 
   Seed or edit the data from Claude Code, or inline here once signed in.
 -->
+<link rel="stylesheet" href="../tokens.css">
 <style>
-  /* Same neo-brutalist system as / and dailyplan/. */
-  :root{
-    --paper:#F2EDE0; --card:#FFFDF7; --ink:#111111;
-    --yellow:#FFD53D; --teal:#00C2CB; --pink:#FF3D8B; --lime:#B8E62E;
-    --grey:#7A756A;
-    --stroke:2.5px; --shadow:5px 5px 0 var(--ink);
-  }
+  /* Same neo-brutalist system as / and dailyplan/. Shared colors/spacing live
+     in tokens.css; only page-specific rules stay here. */
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
     margin:0; background:var(--paper); color:var(--ink);
