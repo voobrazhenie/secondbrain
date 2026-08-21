@@ -1,0 +1,10 @@
+/* Shared design tokens for Second Brain — colors, strokes, shadows.
+   One canonical copy; pages link to this instead of redefining their own.
+   Values taken from dailyplan/index.html, the most complete/current set.
+   exercise/ and cleaning/ are not on this system yet — left alone on purpose. */
+:root{
+  --paper:#F2EDE0; --card:#FFFDF7; --sunk:#E8E4D6; --ink:#111111;
+  --yellow:#FFD53D; --teal:#00C2CB; --pink:#FF3D8B; --lime:#B8E62E;
+  --grey:var(--ink); --faint:#A39D91;
+  --stroke:2.5px; --shadow:4px 4px 0 var(--ink);
+}

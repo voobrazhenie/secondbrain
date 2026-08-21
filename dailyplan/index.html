@@ -18,16 +18,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="DailyPlan">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="../tokens.css">
 <style>
   /* Neo-brutalist character sheet — thick strokes, squared corners, solid accent
-     blocks, hard zero-blur shadows. Light on paper rather than the old dark UI. */
-  :root{
-    --paper:#F2EDE0; --card:#FFFDF7; --sunk:#E8E4D6; --ink:#111111;
-    --yellow:#FFD53D; --teal:#00C2CB; --pink:#FF3D8B; --lime:#B8E62E;
-    --grey:var(--ink); --faint:#A39D91;
-    --stroke:2.5px; --shadow:4px 4px 0 var(--ink);
-    --maxw:430px;
-  }
+     blocks, hard zero-blur shadows. Light on paper rather than the old dark UI.
+     Shared colors/spacing live in tokens.css; --maxw is page-specific. */
+  :root{ --maxw:430px; }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
     margin:0; background:var(--yellow); color:var(--ink);
