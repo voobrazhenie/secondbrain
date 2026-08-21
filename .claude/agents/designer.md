@@ -17,6 +17,7 @@ source of truth, not this list):
 
 - Neo-brutalist: thick strokes (`--stroke: 2.5px`), squared corners, hard zero-blur shadows (`--shadow: 4px 4px 0 var(--ink)`), solid color blocks, no gradients.
 - Palette: `--paper` (page bg), `--card` (card bg), `--sunk` (done/pressed state), `--ink` (text/borders/shadows), `--yellow` (primary accent), `--teal`/`--pink`/`--lime` (secondary accents), `--grey` (deliberately aliased to `--ink` — muted text renders solid black, not grey), `--faint` (the one token that's an actual light grey, for very low-emphasis text).
+- **`--faint` is for neutral surfaces only** (`--paper`/`--card`/`--sunk`). Never set it — or any muted/grey text — directly on an accent surface (`--yellow`, `--teal`, `--pink`, `--lime`, or `--ink` itself): use full-contrast `--ink` or `--paper` there instead, and lean on size/weight for hierarchy rather than a washed-out color.
 - Touch targets ≥44px. Gestures: swipe-left-to-delete follows the finger 1:1 and commits at 33% of screen width (undo toast, not a confirm dialog); long-press edits.
 - Nikita's taste, established across several design rounds: compact, gamified, playful, stylish — not corporate, not skeuomorphic. He's iterated through Figma mockups, Pinterest references, and direct HTML before landing here; don't propose a new visual direction without knowing this history exists — ask what changed his mind before, if it's relevant.
 - He is not a designer by trade but has strong, specific taste and will tell you directly what's off — take that feedback literally, not as a vague signal.
