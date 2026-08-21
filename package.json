@@ -1,0 +1,12 @@
+{
+  "name": "secondbrain",
+  "private": true,
+  "type": "module",
+  "description": "Second Brain is a set of static pages — no build step and no runtime dependencies. Everything here is tooling: the test runner is node's own, and Playwright is only for screenshotting a page during review.",
+  "scripts": {
+    "test": "node --test exercise/*.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}
