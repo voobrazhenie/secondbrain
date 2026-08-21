@@ -14,13 +14,24 @@ service cloud.firestore {
         && sets[2] is int && sets[2] > 0 && sets[2] <= 999;
     }
 
+    // Which of the three sets have actually been ticked off. Optional: days
+    // recorded before per-set tracking existed carry `sets` and `completed`
+    // and no `done`, and they still have to validate. A missing list reads as
+    // "all three, if the exercise is complete" on the page, never as zero.
+    function validDone(done) {
+      return done is list
+        && done.size() == 3
+        && done[0] is bool && done[1] is bool && done[2] is bool;
+    }
+
     function validExercise(exercises, id) {
       return !(id in exercises) || (
         exercises[id] is map
         && exercises[id].keys().hasAll(['sets', 'completed'])
-        && exercises[id].keys().hasOnly(['sets', 'completed'])
+        && exercises[id].keys().hasOnly(['sets', 'completed', 'done'])
         && validSets(exercises[id].sets)
         && exercises[id].completed is bool
+        && (!('done' in exercises[id]) || validDone(exercises[id].done))
       );
     }
 

@@ -1,7 +1,7 @@
 # exercise/ — mechanism notes
 
-Directory-scoped: loads when work touches this folder. This page is intentionally independent
-from DailyPlan and uses no local exercise cache.
+Directory-scoped: loads when work touches this folder. This page uses no local exercise cache and
+owns its own data; the one link to DailyPlan is the sign-off tick described below.
 
 ## Owns `users/{uid}/exerciseDays/{YYYY-MM-DD}`
 
@@ -9,11 +9,26 @@ One document per authenticated user and Berlin calendar date:
 `{ date, planVersion, exercises, workoutCompleted, updatedAt }`. The document ID must equal
 `date`; exercise map keys are the stable IDs from `dailyplan/plan.json`. Repetition arrays and
 exercise completion flags use targeted nested updates so one exercise cannot erase another.
+
+Each exercise entry is `{ sets, done, completed }`. `done` is three booleans — which sets are
+actually ticked — and is **optional**: days recorded before it existed have only `sets` and
+`completed`, and must keep validating. Treat a missing `done` as all-three-if-completed, never as
+zero. `completed` is derived (`done.every(Boolean)`) but stays stored, because the schedule and the
+sign-off gate read it. Every set write sends the whole entry so `sets` and `done` cannot disagree
+about how many sets exist.
+
 `updatedAt` is always a server timestamp and there are no per-exercise or workout-completion
 timestamps.
 
 DailyPlan never reads or writes this collection. There is no compatibility layer for the old
 exercise schema.
+
+The link runs one way only: signing off a workout also ticks `t-workout` (**Physical training**) in
+`users/{uid}/days/{date}`, which DailyPlan owns. Only the tick is written — this page has no copy of
+`daily.json` and cannot compute the day's XP, which DailyPlan recomputes from its own ticks on its
+next render, so the stored `xpEarned` lags until then. A failed tick must never fail the workout:
+the session is already signed off by that point. The id is duplicated as `DAILY_TICK_ID` in `app.js`
+and as an item in `dailyplan/daily.json`; `app.test.mjs` fails if one is renamed without the other.
 
 ## Auth and server reads
 
@@ -35,8 +50,12 @@ previews assume each upcoming eligible workout is completed and remain read-only
 
 Only the current eligible workout is editable. Past completed days are review-only; future days
 are planned previews. Rest days show exactly `This is a rest day`. `workoutCompleted` is the one
-explicit sign-off and only true values count toward the weekly total. There are no inter-set
-countdown or hold timers.
+explicit sign-off and only true values count toward the weekly total, and it cannot be undone.
+
+Sets are tapped, not typed: tap a tile to complete it, hold it for 520 ms to edit its repetitions.
+A tile seeds at the top of the plan's range. There **is** a rest timer — 60 s between sets, 90 s
+between exercises — which is device-local and never persisted; the earlier rule forbidding it was
+retired by the redesign. `DONE` is locked until all 24 sets are ticked.
 
 ## Plan and rules
 

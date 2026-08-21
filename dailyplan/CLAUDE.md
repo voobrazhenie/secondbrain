@@ -23,8 +23,21 @@ don't hardcode a one-off case in `deriveDay()`.
 ## Exercise separation
 
 This page owns only DailyPlan tasks in `users/{uid}/days/{date}`. It does not display workout
-rows, select workout sessions, or read/write `exerciseDays`. Workout completion is intentionally
-separate from DailyPlan ticks and XP.
+rows, select workout sessions, or read/write `exerciseDays`.
+
+The separation is no longer total, and the exception runs one way. The exercise page writes one
+tick into this page's own collection — `ticks['t-workout']`, the **Physical training** item in
+`daily.json` — when a workout is signed off. Nothing here reaches back the other way.
+
+Two consequences to know before touching either side:
+
+- **`t-workout` is a shared id.** It is written by `exercise/app.js` (as `DAILY_TICK_ID`) and
+  defined in `daily.json`. Renaming or removing the item silently breaks the tick;
+  `exercise/app.test.mjs` fails if the two drift apart.
+- **The exercise page cannot compute XP.** It has no copy of `daily.json`, so it writes the tick
+  and nothing else. `xpEarned` on that day's document stays stale until this page next renders and
+  recomputes it from its own ticks — which is why `xpEarned` is recomputed wholesale rather than
+  incremented.
 
 ## XP and levels
 

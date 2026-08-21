@@ -9,7 +9,7 @@
     "carryOverToNextWeek": false
   },
   "routine": [
-    { "id": "decline-push-ups", "name": "Decline push-ups", "sets": 3, "repetitions": { "min": 8, "max": 12 }, "note": "Feet on a chair \u2014 lower surface if 8 is a grind" },
+    { "id": "decline-push-ups", "name": "Decline push-ups", "sets": 3, "repetitions": { "min": 8, "max": 12 }, "priority": true, "note": "Feet on a chair \u2014 lower surface if 8 is a grind" },
     { "id": "pike-push-ups", "name": "Pike push-ups", "sets": 3, "repetitions": { "min": 8, "max": 12 } },
     { "id": "chair-dips", "name": "Chair dips", "sets": 3, "repetitions": { "min": 10, "max": 15 }, "note": "Use a stable household chair" },
     { "id": "diamond-push-ups", "name": "Diamond push-ups", "sets": 3, "repetitions": { "min": 8, "max": 12 } },

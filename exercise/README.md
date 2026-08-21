@@ -48,7 +48,7 @@ users/{uid}/exerciseDays/{YYYY-MM-DD}
   date: "2026-08-18",
   planVersion: 2,
   exercises: {
-    "push-ups": { sets: [12, 12, 12], completed: true }
+    "push-ups": { sets: [12, 12, 12], done: [true, true, true], completed: true }
   },
   workoutCompleted: false,
   updatedAt: serverTimestamp()
@@ -57,7 +57,37 @@ users/{uid}/exerciseDays/{YYYY-MM-DD}
 
 The document ID and `date` match. Exercise keys are stable plan IDs. Repetitions are integers for the three performed sets. Only `workoutCompleted: true` counts toward the week. There are no session rotation IDs, weekly summary documents, browser timestamps, workout-completion timestamps, or per-exercise timestamps.
 
+`done` records which of the three sets have actually been ticked off, so closing the page mid-workout does not lose the sets already finished. It is **optional and additive**: days written before per-set tracking carry `sets` and `completed` and no `done`, and both shapes validate under the same plan version. The page reads a missing `done` as all three sets for a completed exercise and none otherwise — never as a half-finished set nobody recorded. `completed` stays in the document as the derived answer (`done.every(Boolean)`) because the schedule and the sign-off gate both read it.
+
 Exercise saves update a nested `exercises/{id}` field with `FieldPath`, so another exercise is not overwritten. Completion is a document-level merge. Every successful write is followed by a fresh server read of the selected Monday–Sunday week.
+
+## Recording a session
+
+The routine is a list of tiles, not a form. Each set is one tile showing the repetitions it will
+be recorded at:
+
+- **Tap** a tile to mark that set done. It fills in, the exercise's counter moves (`2/3`), and the
+  write goes up immediately — there is no save button and nothing is batched until the end.
+- **Hold** a tile (520 ms) to open the repetition editor for that set, then `APPLY` or Enter. The
+  press that opens the editor never also toggles the set.
+- A tile starts at **the top of the plan's range** — 12 for an 8–12 exercise, 18 for 15–18. Tapping
+  means "I hit the target"; a worse set is one hold away. Seeding the bottom of the range instead
+  would make every good set an edit.
+
+Writes are optimistic: the tile paints first and the write follows, because a tile that waits for a
+round trip before it darkens feels broken mid-set. A rejected write puts the old value back and
+says so in the sync row.
+
+The **rest timer** sits above the routine and starts itself when a set is ticked: 60 seconds
+between sets, 90 seconds when an exercise is finished, `+30S` and `SKIP` to steer it, `READY` at
+zero, and `SESSION COMPLETE` once all 24 sets are in. It is device-local and deliberately **not**
+persisted — a timer that survived a reload would be counting rest already taken. This replaces the
+earlier rule that the page has no inter-set timers; the redesign decided the timer earns its place.
+
+`DONE` stays locked until all 24 sets are ticked, and shows how many are left while it waits.
+Signing off writes `workoutCompleted: true` and ticks `t-workout` (**Physical training**) on the
+DailyPlan day. There is no undo: un-completing a session would move the rest day and the weekly
+count under an already-derived schedule.
 
 ## Reads, authentication, and navigation
 
@@ -65,7 +95,7 @@ The exercise page uses server-only reads; it has no live listener and no localSt
 
 While auth resolves, exercises stay hidden. Signed-out users see a sign-in prompt and no routine or saved sets. Sign-out immediately clears in-memory exercise records. A later sign-in performs a fresh server read before rendering results. Connection failures clear current results and show a retry state instead of stale cache data.
 
-Previous day, Today, and Next day controls update `?date=YYYY-MM-DD`. Completed and partial past workout sessions are read-only reviews with no timestamps. Future workout sessions are read-only planned previews. Rest days display `This is a rest day` and no exercise list.
+Previous day, Today, and Next day controls update `?date=YYYY-MM-DD`, as does tapping a day in the week strip. Completed and partial past workout sessions are read-only reviews with no timestamps. Future workout sessions are read-only planned previews. Rest days display `This is a rest day` and no exercise list.
 
 ## Security and testing
 

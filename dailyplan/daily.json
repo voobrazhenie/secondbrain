@@ -42,7 +42,14 @@
       ]
     },
     {
-      "title": "Recover", "emoji": "🌙",
+      "title": "Train", "emoji": "\ud83c\udfcb\ufe0f",
+      "note": "Ticked for you when you finish a workout on the exercise page \u2014 you do not need to tick it by hand.",
+      "items": [
+        { "id": "t-workout", "emoji": "\ud83c\udfcb\ufe0f", "text": "Physical training", "detail": "One full equipment-free session, up to three a week. Signed off on the exercise page.", "xp": 25 }
+      ]
+    },
+    {
+      "title": "Recover", "emoji": "\ud83c\udf19",
       "items": [
         { "id": "r-sleep", "emoji": "😴", "text": "7–9 hours, consistent wake time", "detail": "Short sleep measurably suppresses muscle gain and raises appetite. Consistent wake time matters more than consistent bedtime.", "xp": 20 },
         { "id": "r-smoked-weed", "emoji": "🌿", "text": "Smoked weed", "detail": "Tick it on the days you did. Costs XP on purpose — it changes sleep architecture, and sleep is the recovery lever the plan leans on hardest.", "xp": -20 },
