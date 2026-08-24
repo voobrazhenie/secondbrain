@@ -26,8 +26,39 @@ test("authentication gates rendering and sign-out clears exercise state immediat
 test("writes use nested exercise fields and re-read the selected week", () => {
   assert.match(app, /new fb\.FieldPath\("exercises", exercise\.id\)/);
   assert.match(app, /serverTimestamp\(\)/);
-  assert.match(app, /readSelectedWeek\("successful exercise write"\)/);
-  assert.match(app, /readSelectedWeek\("successful workout completion"\)/);
+  assert.match(app, /readSelectedWeek\("successful exercise write", \{ force: true \}\)/);
+  assert.match(app, /readSelectedWeek\("successful workout completion", \{ force: true \}\)/);
+});
+
+/* The read that follows a write must not be answered by a read that started
+   before it: that one predates the tick and paints the set back off. */
+test("the refresh after a write never joins a refresh already running", () => {
+  assert.match(app, /async function readSelectedWeek\(reason, \{ force = false \} = \{\}\)/);
+  assert.match(app, /if \(!force\) return inFlight\.promise;/);
+  assert.match(app, /await inFlight\.promise\.catch\(\(\) => \{\}\);/);
+});
+
+/* Two taps in the same second on a day with no document yet both used to be
+   told the document already existed, because the local record is written
+   optimistically before the first save lands. */
+test("saves run in order and choose create or update from the server's answer", () => {
+  assert.match(app, /writeChain = writeChain/);
+  assert.match(app, /if \(serverDays\.has\(date\)\)/);
+  assert.match(app, /serverDays = new Set\(fresh\.keys\(\)\)/);
+  // ...and never from the record the page just wrote to itself.
+  assert.doesNotMatch(app, /if \(previous\) \{\s*await fb\.updateDoc/);
+});
+
+/* A rejected write used to read as a connection fault whatever the cause, and
+   RETRY re-read the week instead of re-sending the set — which left it unsaved
+   and turned the warning green on the way back. */
+test("a rejected set says why and RETRY sends it again", () => {
+  assert.match(app, /error\?\.code === "permission-denied"/);
+  assert.match(app, /function retryWrite\(\)/);
+  assert.match(app, /queueWrite\(exercise, item, previous\)/);
+  assert.match(app, /label: "Retry", run: retryWrite/);
+  // The strip cannot go back to SYNCED while a set is still unsaved.
+  assert.match(app, /if \(unsavedWrite\) \{/);
 });
 
 test("date navigation writes the selected date to the query string", () => {
@@ -96,9 +127,15 @@ test("signing off ticks Physical training on the DailyPlan day", () => {
     "t-workout is written by the exercise page but does not exist in dailyplan/daily.json");
 });
 
-test("the sign-off button is locked until every set is ticked", () => {
-  assert.match(app, /button\.disabled = !tally\.complete \|\| writePending/);
-  assert.match(app, /if \(!tallyOf\(routine\)\.complete\) return;/);
+/* The routine is still being shaped, so a session that stopped early is still
+   a session. Nothing about the tally may gate the sign-off. */
+test("a workout can be signed off before every set is ticked", () => {
+  assert.match(app, /button\.disabled = writePending;/);
+  assert.doesNotMatch(app, /!tally\.complete/);
+  assert.doesNotMatch(app, /if \(!tallyOf\(routine\)\.complete\) return;/);
+  // Signing off having tapped nothing creates the document, and rules require
+  // `exercises` on it — but an empty map must never be merged over real sets.
+  assert.match(app, /\.\.\.\(serverDays\.has\(date\) \? \{\} : \{ exercises: \{\} \}\)/);
 });
 
 test("the page takes its palette from the shared theme rather than redefining it", () => {

@@ -43,9 +43,22 @@ test("every exercise in the plan is one firestore.rules will accept", () => {
 
 test("every allowed id is also validated individually, not just permitted", () => {
   for (const id of allowedIds) {
-    assert.ok(rulesSource.includes(`validExercise(data.exercises, '${id}')`),
+    assert.ok(rulesSource.includes(`validExercise(data.exercises, changed, '${id}')`),
       `${id} is allowed by firestore.rules but its shape is never checked`);
   }
+});
+
+/* Rules are capped at 1000 evaluated expressions per request. Checking all ten
+   entries on every write costs more the more the day holds, and at six
+   exercises a single tapped set was rejected — with every test here still
+   passing. Validation has to stay proportional to what the write changed.
+   tools/rules-check.mjs proves the behaviour; this keeps the shape. */
+test("only the entries a write changes are validated", () => {
+  assert.match(rulesSource, /\.diff\(before\)\.affectedKeys\(\)/);
+  assert.match(rulesSource, /function validExercise\(exercises, changed, id\)/);
+  assert.match(rulesSource, /!changed\.hasAny\(\[id\]\)/);
+  // A new id has to clear the allowlist on its way in, too.
+  assert.match(rulesSource, /changed\.hasOnly\(\[/);
 });
 
 test("retired exercises stay allowed so old records can still be signed off", () => {

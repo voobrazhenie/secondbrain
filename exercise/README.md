@@ -84,10 +84,17 @@ zero, and `SESSION COMPLETE` once all 24 sets are in. It is device-local and del
 persisted — a timer that survived a reload would be counting rest already taken. This replaces the
 earlier rule that the page has no inter-set timers; the redesign decided the timer earns its place.
 
-`DONE` stays locked until all 24 sets are ticked, and shows how many are left while it waits.
-Signing off writes `workoutCompleted: true` and ticks `t-workout` (**Physical training**) on the
-DailyPlan day. There is no undo: un-completing a session would move the rest day and the weekly
-count under an already-derived schedule.
+`DONE` is available at any point in the session, including with nothing ticked; it shows how many
+sets are in so far. It used to stay locked until all 24 were ticked, which is wrong while the
+routine is still being shaped — a session that stopped early is still a session, and it records what
+it recorded. Signing off writes `workoutCompleted: true` and ticks `t-workout`
+(**Physical training**) on the DailyPlan day. A partly-ticked session counts as one of the three
+weekly sessions and still earns the following rest day. There is no undo: un-completing a session
+would move the rest day and the weekly count under an already-derived schedule.
+
+Signing off with no document for the day yet also writes `exercises: {}`, because the rules require
+the field. That empty map is only ever sent on a create — merging it into a day that already holds
+sets would be a different write.
 
 ## Reads, authentication, and navigation
 
@@ -101,14 +108,20 @@ Previous day, Today, and Next day controls update `?date=YYYY-MM-DD`, as does ta
 
 `firestore.rules` requires ownership, the date/document-ID match, plan version 2, expected top-level/exercise fields, boolean completion flags, three valid repetition integers, and `updatedAt == request.time`. The stricter exercise match is excluded from the general owner-only rule for unrelated collections.
 
+**Only the exercise entries a write actually changes are validated**, and this is not an optimisation. Rules are capped at 1000 evaluated expressions per request. The earlier version checked all ten allowed entries every time, so the cost grew with the size of the stored day: at six exercises a single tapped set was refused, which is why sets 16–24 could never be saved and no full session was ever signed off. The rules take `request.resource.data.exercises.diff(before).affectedKeys()` and gate each entry check on it, keeping the work proportional to the tap rather than to the day's history. If a future change reintroduces whole-map validation, the page breaks again halfway through a workout.
+
 Run:
 
 ```bash
 node --test exercise/*.test.mjs
+node tools/rules-check.mjs                 # dry-run the rules in this repo
+node tools/rules-check.mjs --live          # dry-run the ruleset serving traffic
 firebase deploy --only firestore:rules --project claudecode-3bb06
 ```
 
-The automated tests cover catch-up/rest examples, the three-session cap, new-week/no-carryover behavior, partial data, Europe/Berlin DST/week boundaries, auth/source constraints, targeted writes, navigation copy, and future read-only previews. Validate rules with the Firebase rules validator before deployment.
+The automated tests cover catch-up/rest examples, the three-session cap, new-week/no-carryover behavior, partial data, Europe/Berlin DST/week boundaries, auth/source constraints, targeted writes, navigation copy, and future read-only previews.
+
+`tools/rules-check.mjs` is the one that evaluates rules rather than reading their source. It sends a full eight-exercise day — plus both retired ids, a pre-`done` entry, a sign-off with nothing recorded — through the Firebase Rules simulator, along with the denials that must keep holding. Nothing is written or deployed. It needs the service-account credentials and network access, so it is not part of `npm test`; run it by hand before every rules deployment, then again with `--live` afterwards. The file-level tests cannot catch an expression-budget failure: every one of them passed while the page was broken.
 
 ## Legacy removal and deployment
 

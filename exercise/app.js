@@ -34,6 +34,22 @@ let inFlight = null;
 let writePending = false;
 let initialPageShow = true;
 
+/* Which dates the server is known to hold a document for. The write path picks
+   between creating and updating from this, not from the local record: the local
+   record is written optimistically before the first save lands, so two quick
+   taps on a fresh day would otherwise both be told the document already exists
+   and the second would fail. */
+let serverDays = new Set();
+
+/* Taps are saved one at a time, in order. Without this the second tap of a
+   fresh day races the first one's create. */
+let writeChain = Promise.resolve();
+
+/* The last write that was rejected, kept so RETRY can send that exact set
+   again. It also keeps render() from painting the strip green over a set that
+   never saved. Cleared by the next successful write. */
+let unsavedWrite = null;
+
 /* Which set is open for editing, as {id, index}, and whether the pointer that
    is currently down has already been claimed by a long press — without the
    second flag the click that follows a hold would toggle the set as well. */
@@ -69,6 +85,8 @@ function clearExerciseData() {
   inFlight = null;
   writePending = false;
   editing = null;
+  serverDays = new Set();
+  unsavedWrite = null;
   stopTimer();
 }
 
@@ -519,7 +537,8 @@ function makeSignoff(tally) {
   button.type = "button";
   button.className = "signoff";
   button.setAttribute("aria-pressed", "false");
-  button.disabled = !tally.complete || writePending;
+  /* Never gated on the tally: an unfinished session can still be signed off. */
+  button.disabled = writePending;
 
   const box = document.createElement("span");
   box.className = "box";
@@ -533,7 +552,7 @@ function makeSignoff(tally) {
   const note = document.createElement("span");
   note.textContent = tally.complete
     ? "Finish the session and mark Physical training done on the daily page."
-    : `${tally.total - tally.done} of ${tally.total} sets still to go.`;
+    : `${tally.done} of ${tally.total} sets ticked — sign off anyway. This cannot be undone.`;
   copy.append(title, note);
 
   button.append(box, copy);
@@ -618,19 +637,33 @@ function render() {
     renderSignedOut();
     return;
   }
-  setChip("", "SYNCED");
-  setSync("on", "Synced as your account", { label: "Sign out", run: signOutNow });
+  if (unsavedWrite) {
+    /* A rejected set outranks the signed-in state: the page is talking to
+       Firebase perfectly well and still holding a set it could not store. */
+    setChip("err", "NOT SAVED");
+    setSync("err", unsavedWrite.message, { label: "Retry", run: retryWrite });
+  } else {
+    setChip("", "SYNCED");
+    setSync("on", "Synced as your account", { label: "Sign out", run: signOutNow });
+  }
   renderAuthenticated();
 }
 
 /* ---------- reads ---------- */
 
-async function readSelectedWeek(reason) {
+/* `force` is for the read that follows a write. Joining the read already in
+   flight would be wrong there: it may have started before the write landed, and
+   its answer would paint the set back off until the next refresh. */
+async function readSelectedWeek(reason, { force = false } = {}) {
   if (!user || !db || !fb) return;
   const uid = user.uid;
   const range = weekRange(selectedDate);
   const key = `${uid}:${range.start}:${range.end}`;
-  if (inFlight?.key === key) return inFlight.promise;
+  if (inFlight?.key === key) {
+    if (!force) return inFlight.promise;
+    await inFlight.promise.catch(() => {});
+    if (!user || user.uid !== uid || selectedDate < range.start || selectedDate > range.end) return;
+  }
   if (weekRecords.size === 0) {
     showPanel("Loading workout week", `Reading ${range.start} through ${range.end} from the server…`);
   }
@@ -652,10 +685,12 @@ async function readSelectedWeek(reason) {
       snapshot.forEach(doc => fresh.set(doc.id, doc.data()));
       if (previousSnapshot.exists()) fresh.set(previousSnapshot.id, previousSnapshot.data());
       weekRecords = fresh;
+      serverDays = new Set(fresh.keys());
       render();
     } catch (error) {
       if (!user || user.uid !== uid) return;
       weekRecords = new Map();
+      serverDays = new Set();
       setChip("err", "OFFLINE");
       setSync("err", "Could not reach Firebase.", { label: "Sign out", run: signOutNow });
       showPanel("Connection error", "Current workout data could not be read from Firebase. Cached browser data is not shown.", {
@@ -688,7 +723,7 @@ function cancelHold() {
 /* Applies a change to today's record locally, paints it, then writes. The paint
    comes first on purpose: a set tile that waits for a round trip before it
    darkens feels broken mid-workout. A rejected write puts the old value back. */
-async function commitExercise(exercise, mutate) {
+function commitExercise(exercise, mutate) {
   if (!user || writePending || selectedDate !== berlinDate()) return;
   const previous = weekRecords.get(selectedDate);
   const item = { exercise, ...readExercise(previous, exercise) };
@@ -704,30 +739,66 @@ async function commitExercise(exercise, mutate) {
   weekRecords.set(selectedDate, record);
   renderAuthenticated();
 
-  const ref = fb.doc(db, "users", user.uid, "exerciseDays", selectedDate);
+  queueWrite(exercise, item, previous);
+}
+
+/* Saves run one at a time and in order. Two taps in the same second on a day
+   with no document yet would otherwise both try to create it. */
+function queueWrite(exercise, item, previous) {
+  writeChain = writeChain
+    .catch(() => {})
+    .then(() => writeExercise(exercise, item, previous));
+  return writeChain;
+}
+
+async function writeExercise(exercise, item, previous) {
+  const uid = user.uid;
+  const date = selectedDate;
+  const ref = fb.doc(db, "users", uid, "exerciseDays", date);
   try {
-    if (previous) {
+    /* Whether the document exists is the server's answer, not the local
+       record's: the local one was written optimistically a moment ago. */
+    if (serverDays.has(date)) {
       await fb.updateDoc(ref,
         new fb.FieldPath("exercises", exercise.id), exercisePayload(item),
         "updatedAt", fb.serverTimestamp());
     } else {
       await fb.setDoc(ref, {
-        date: selectedDate,
+        date,
         planVersion: PLAN_VERSION,
         exercises: { [exercise.id]: exercisePayload(item) },
         workoutCompleted: false,
         updatedAt: fb.serverTimestamp()
       });
     }
-    await readSelectedWeek("successful exercise write");
+    serverDays.add(date);
+    unsavedWrite = null;
+    await readSelectedWeek("successful exercise write", { force: true });
   } catch (error) {
-    if (previous) weekRecords.set(selectedDate, previous);
-    else weekRecords.delete(selectedDate);
-    renderAuthenticated();
-    setChip("err", "NOT SAVED");
-    setSync("err", "That set did not save. Check the connection.", { label: "Retry", run: () => readSelectedWeek("retry") });
+    if (previous) weekRecords.set(date, previous);
+    else weekRecords.delete(date);
+    /* "Check the connection" was shown for every rejection, including a write
+       the server understood and refused, which sent the search in the wrong
+       direction for a week. Say which one it was. */
+    unsavedWrite = {
+      exercise,
+      item,
+      previous,
+      message: error?.code === "permission-denied"
+        ? `Firebase refused that set (${exercise.name}). It is not saved.`
+        : "That set did not save. Check the connection."
+    };
+    render();
     console.error("Exercise write failed", error);
   }
+}
+
+/* RETRY sends the same set again. It used to re-read the week instead, which
+   left the set unsaved and turned the warning green on the way back. */
+function retryWrite() {
+  if (!unsavedWrite || !user) return;
+  const { exercise, item, previous } = unsavedWrite;
+  queueWrite(exercise, item, previous);
 }
 
 function toggleSet(exercise, index) {
@@ -743,27 +814,33 @@ function saveSetReps(exercise, index, reps) {
   commitExercise(exercise, item => { item.reps[index] = reps; });
 }
 
+/* Sign-off does not wait for all 24 sets. The routine is still being shaped,
+   and a session that stopped early is still a session — what it recorded is
+   what it recorded. The day/status and weekly-cap guards stay. */
 async function completeWorkout() {
   if (!user || writePending || selectedDate !== berlinDate()) return;
-  const record = weekRecords.get(selectedDate);
-  const routine = readRoutine(record);
-  if (!tallyOf(routine).complete) return;
 
   const schedule = buildWeekSchedule({ selectedDate, todayDate: berlinDate(), records: weekRecords });
   if (schedule.selected.status !== "workout" || schedule.completedCount >= 3) return;
 
   const uid = user.uid;
+  const date = selectedDate;
   writePending = true;
   renderAuthenticated();
   try {
-    await fb.setDoc(fb.doc(db, "users", uid, "exerciseDays", selectedDate), {
-      date: selectedDate,
+    await fb.setDoc(fb.doc(db, "users", uid, "exerciseDays", date), {
+      date,
       planVersion: PLAN_VERSION,
       workoutCompleted: true,
-      updatedAt: fb.serverTimestamp()
+      updatedAt: fb.serverTimestamp(),
+      /* Signing off having tapped nothing creates the document, and rules
+         require `exercises` on it. Only ever sent on a create: merging an
+         empty map into a day that has sets would be a different write. */
+      ...(serverDays.has(date) ? {} : { exercises: {} })
     }, { merge: true });
+    serverDays.add(date);
     await tickDailyPlan(uid);
-    await readSelectedWeek("successful workout completion");
+    await readSelectedWeek("successful workout completion", { force: true });
   } catch (error) {
     showPanel("Save failed", "The workout was not marked complete. Check the connection and retry.", {
       error: true,

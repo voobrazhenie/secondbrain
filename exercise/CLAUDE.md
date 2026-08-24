@@ -55,7 +55,16 @@ explicit sign-off and only true values count toward the weekly total, and it can
 Sets are tapped, not typed: tap a tile to complete it, hold it for 520 ms to edit its repetitions.
 A tile seeds at the top of the plan's range. There **is** a rest timer — 60 s between sets, 90 s
 between exercises — which is device-local and never persisted; the earlier rule forbidding it was
-retired by the redesign. `DONE` is locked until all 24 sets are ticked.
+retired by the redesign. `DONE` is **never gated on the tally**: a session can be signed off at any
+point, including with nothing ticked, and still counts as one of the three weekly sessions. The
+earlier rule locking it to all 24 sets is retired — the routine is still being shaped, and a
+session that stopped early is still a session. Signing off on a day with no document yet must also
+send `exercises: {}`, which rules require; never merge that empty map into a day that has sets.
+
+Saves are serialised and pick create vs update from what the server is known to hold, not from the
+local record — the local record is written optimistically before the save lands. The refresh after
+a write must not join a refresh already in flight, which may predate the tick. A rejected write
+says which kind of rejection it was, and `RETRY` re-sends that set rather than re-reading the week.
 
 ## Plan and rules
 
@@ -75,6 +84,18 @@ remain allowed for exactly that reason.
 `firestore.rules` validates the owner, document date, plan version, top-level keys, exercise map
 shape, repetition lists, booleans, and request-time timestamp. Keep partial nested updates valid
 while rejecting unknown fields. See `exercise/README.md` for the full schema and deployment steps.
+
+**Validate only the entries a write changed.** Rules are capped at 1000 evaluated expressions per
+request, and checking all ten allowed entries every time costs more the more the day holds: at six
+exercises a single tapped set was refused, so sets 16–24 could never be saved and no session was
+ever signed off. `validExercise` takes the `diff(before).affectedKeys()` set and returns true
+immediately for an entry the write did not touch. Any rewrite that goes back to validating the
+whole map breaks the page halfway through a workout, and `plan.test.mjs` fails if the shape is lost.
+
+`plan.test.mjs` reads the rules as text and cannot catch that — every test passed while the page was
+broken. `tools/rules-check.mjs` evaluates them through the Firebase Rules simulator against a full
+eight-exercise day. Run it before and after every rules deployment; it needs credentials and network
+so it stays out of `npm test`.
 
 Rules do not deploy themselves. Editing this file is not enough — the `exerciseDays` validation sat
 undeployed from 18 to 20 August while the live rules still allowed any document shape. After

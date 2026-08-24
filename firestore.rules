@@ -24,8 +24,14 @@ service cloud.firestore {
         && done[0] is bool && done[1] is bool && done[2] is bool;
     }
 
-    function validExercise(exercises, id) {
-      return !(id in exercises) || (
+    // Only entries this write actually touched are checked. Validating all ten
+    // on every write is what broke the page: the cost grows with the size of
+    // the stored map, and at six exercises a single tapped set blew past
+    // Firestore's cap of 1000 evaluated expressions per request, so every write
+    // after the fifth exercise was rejected. `changed` keeps the work
+    // proportional to the tap, not to the day's history.
+    function validExercise(exercises, changed, id) {
+      return !changed.hasAny([id]) || !(id in exercises) || (
         exercises[id] is map
         && exercises[id].keys().hasAll(['sets', 'completed'])
         && exercises[id].keys().hasOnly(['sets', 'completed', 'done'])
@@ -37,6 +43,11 @@ service cloud.firestore {
 
     function validExerciseDay(date) {
       let data = request.resource.data;
+      // On a create there is no prior document. Testing `request.method` rather
+      // than `resource == null` on purpose: the null check still dereferences
+      // `resource.data` in the other branch and fails the write.
+      let before = request.method == 'create' ? {} : resource.data.get('exercises', {});
+      let changed = data.exercises.diff(before).affectedKeys();
       return data.keys().hasAll(['date', 'planVersion', 'exercises', 'workoutCompleted', 'updatedAt'])
         && data.keys().hasOnly(['date', 'planVersion', 'exercises', 'workoutCompleted', 'updatedAt'])
         && date.matches('^\\d{4}-\\d{2}-\\d{2}$')
@@ -61,16 +72,28 @@ service cloud.firestore {
           'single-leg-glute-bridges',
           'leg-raises'
         ])
-        && validExercise(data.exercises, 'push-ups')
-        && validExercise(data.exercises, 'pike-push-ups')
-        && validExercise(data.exercises, 'chair-dips')
-        && validExercise(data.exercises, 'diamond-push-ups')
-        && validExercise(data.exercises, 'prone-rows')
-        && validExercise(data.exercises, 'glute-bridges')
-        && validExercise(data.exercises, 'single-leg-romanian-deadlifts')
-        && validExercise(data.exercises, 'decline-push-ups')
-        && validExercise(data.exercises, 'single-leg-glute-bridges')
-        && validExercise(data.exercises, 'leg-raises')
+        && changed.hasOnly([
+          'push-ups',
+          'pike-push-ups',
+          'chair-dips',
+          'diamond-push-ups',
+          'prone-rows',
+          'glute-bridges',
+          'single-leg-romanian-deadlifts',
+          'decline-push-ups',
+          'single-leg-glute-bridges',
+          'leg-raises'
+        ])
+        && validExercise(data.exercises, changed, 'push-ups')
+        && validExercise(data.exercises, changed, 'pike-push-ups')
+        && validExercise(data.exercises, changed, 'chair-dips')
+        && validExercise(data.exercises, changed, 'diamond-push-ups')
+        && validExercise(data.exercises, changed, 'prone-rows')
+        && validExercise(data.exercises, changed, 'glute-bridges')
+        && validExercise(data.exercises, changed, 'single-leg-romanian-deadlifts')
+        && validExercise(data.exercises, changed, 'decline-push-ups')
+        && validExercise(data.exercises, changed, 'single-leg-glute-bridges')
+        && validExercise(data.exercises, changed, 'leg-raises')
         && data.workoutCompleted is bool
         && data.updatedAt == request.time;
     }

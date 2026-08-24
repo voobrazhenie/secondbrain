@@ -206,8 +206,8 @@
     .signoff .copy b{display:block;font-size:16px;font-family:"Arial Black",Impact,sans-serif;letter-spacing:.02em}
     .signoff .copy span{display:block;font-size:10.5px;font-weight:600;color:var(--faint);margin-top:3px;line-height:1.4}
     .signoff[aria-pressed="true"] .copy span{color:var(--ink)}
-    /* Locked until every set is ticked. Deliberately still legible rather than
-       greyed to nothing: it is a progress signal, not a dead control. */
+    /* Only while a sign-off is in flight — the button is not gated on the
+       tally. Deliberately still legible rather than greyed to nothing. */
     .signoff:disabled{cursor:not-allowed;box-shadow:2px 2px 0 var(--ink);background:var(--sunk)}
     .signoff:disabled:active{transform:none}
     .signoff:disabled .copy b{color:var(--faint)}
