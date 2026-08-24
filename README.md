@@ -9,8 +9,9 @@ Live site: **https://voobrazhenie.github.io/secondbrain/**
 - `exercise/` is the authenticated workout-session page. Its plan is `dailyplan/plan.json`; scheduling code and tests live in `exercise/schedule.mjs` and `exercise/schedule.test.mjs`.
 - `dailyplan/` is the separate recurring-task checklist. Its non-exercise configuration is `dailyplan/daily.json`.
 - `jobs/`, `streams/`, `ideas/`, `finance/`, and `cleaning/` are unrelated features and retain their existing data models.
+- `opportunities/` is the private grants / residencies / exhibitions tracker. It is signed-in only — signed-out visitors see a sign-in prompt and no data — and stores one document per entry in `users/{uid}/opportunities/{id}`.
 - `firestore.rules` applies strict schema validation to exercise documents while preserving owner-only access for other user data.
-- `theme.css` at the repo root is the shared design system (colors, stroke width, shadow). `/`, `dailyplan/`, `jobs/`, `streams/`, `ideas/`, and `finance/` link to it instead of redefining their own copy. `exercise/` and `cleaning/` are not on it yet — they keep their own separate styles for now.
+- `theme.css` at the repo root is the shared design system (colors, stroke width, shadow). `/`, `dailyplan/`, `jobs/`, `streams/`, `ideas/`, `finance/`, and `opportunities/` link to it instead of redefining their own copy. `exercise/` and `cleaning/` are not on it yet — they keep their own separate styles for now.
 
 DailyPlan keeps an embedded copy of `daily.json` for `file://` use. After changing `daily.json`, run:
 

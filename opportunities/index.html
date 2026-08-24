@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#FFD53D">
+<meta name="robots" content="noindex, nofollow">
+<title>Opportunities — Second Brain</title>
+
+<!-- Add to Home Screen. iOS ignores the manifest's name/display, so the
+     apple-* metas below are what actually make it launch standalone.
+     One manifest for the whole Second Brain, so moving between sections
+     never falls back to Safari. -->
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Second Brain">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!--
+  PRIVATE MODULE. This file ships no opportunity data at all — not a title, not a
+  deadline, not a link. Everything renders from users/{uid}/opportunities in
+  Firestore, which firestore.rules restricts to that signed-in uid. A visitor to
+  the public Pages site sees the sign-in prompt and nothing else.
+-->
+<link rel="stylesheet" href="../theme.css">
+<style>
+  /* Same neo-brutalist system as / and dailyplan/. Shared colors/spacing live
+     in theme.css; only page-specific rules stay here. Yellow page background,
+     following dailyplan's convention rather than the paper/off-white the
+     reading pages use. */
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0; background:var(--yellow); color:var(--ink);
+    padding:
+      calc(5vh + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
+      calc(60px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+    font:16px/1.5 "Archivo","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* Explicit color plus -webkit-appearance:none on every button: iOS Safari
+     renders unstyled button text in system blue otherwise. */
+  button,input,textarea,select{font:inherit}
+  button{cursor:pointer;color:var(--ink);-webkit-appearance:none;appearance:none;background:transparent}
+  a{color:var(--ink)}
+  .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900}
+  .wrap{max-width:560px;margin:0 auto}
+  .hide{display:none !important}
+
+  a.back{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.08em;
+    text-decoration:none;color:var(--ink);border-bottom:2px solid var(--ink);margin-bottom:16px}
+  .eyebrow{display:inline-block;background:var(--ink);color:var(--paper);
+    font-size:10px;letter-spacing:.1em;padding:4px 9px;margin-bottom:18px}
+
+  /* ---------- sync bar (same contract as dailyplan/, jobs/ and streams/) ---------- */
+  .sync{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+    border:2px solid var(--ink);background:var(--card);box-shadow:3px 3px 0 var(--ink);
+    padding:9px 11px;margin:0 0 20px;font-size:12px;font-weight:700;color:var(--grey)}
+  .sync .dot{flex:0 0 auto;width:9px;height:9px;border:2px solid var(--ink);background:var(--sunk)}
+  .sync.on .dot{background:var(--lime)}
+  .sync.err .dot{background:var(--pink)}
+  .sync .msg{flex:1;min-width:150px}
+
+  /* ---------- gate ---------- */
+  #gate{border:2.5px dashed var(--ink);padding:22px 20px;text-align:center;background:var(--card)}
+  #gate p{margin:0;font-weight:700;font-size:14px;color:var(--grey)}
+
+  /* ---------- add panel ---------- */
+  .add-panel{background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:14px;margin-bottom:18px}
+  .field{display:block;margin-bottom:11px}
+  .field span{display:block;font-size:9px;letter-spacing:.08em;margin-bottom:4px}
+  /* 16px minimum on the controls — anything smaller makes iOS zoom on focus. */
+  .field input,.field textarea,.field select{display:block;width:100%;border:2px solid var(--ink);
+    background:var(--paper);color:var(--ink);padding:9px 10px;font-size:16px;font-weight:650;border-radius:0}
+  .field textarea{min-height:70px;resize:vertical;line-height:1.45}
+  .checkline{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12px;font-weight:800}
+  .checkline input{width:16px;height:16px}
+  .more-toggle{background:none;border:0;padding:0;margin-bottom:12px;font-size:11px;font-weight:800;
+    letter-spacing:.04em;text-decoration:underline;color:var(--grey)}
+  .form-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .btn{background:var(--card);color:var(--ink);border:2px solid var(--ink);
+    padding:8px 12px;font-size:11px;font-weight:900;letter-spacing:.04em;
+    box-shadow:2px 2px 0 var(--ink);font-family:"Arial Black",Impact,sans-serif}
+  .btn.primary{background:var(--yellow)}
+  .btn:active{transform:translate(2px,2px);box-shadow:none}
+
+  /* ---------- section headers ---------- */
+  .list-head{display:flex;align-items:center;gap:9px;margin:24px 0 10px}
+  .list-head.first{margin-top:0}
+  .list-head .t{font-size:11px;letter-spacing:.08em;background:var(--ink);color:var(--paper);
+    padding:3px 8px}
+  .list-head .rule{height:2px;background:var(--ink);flex:1}
+  .list-head .count{font-size:10px;color:var(--grey);font-weight:800}
+  /* Same small icon-button-next-to-a-count pattern as the daily page's own "+". */
+  .list-head .add{flex:0 0 auto;width:26px;height:26px;padding:0;font-size:15px;line-height:1;
+    background:var(--card);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
+    display:flex;align-items:center;justify-content:center;font-family:"Arial Black",Impact,sans-serif}
+  .list-head .add:active{transform:translate(2px,2px);box-shadow:none}
+  .empty{border:2.5px dashed var(--ink);padding:16px;text-align:center;
+    color:var(--grey);font-weight:700;font-size:12.5px}
+
+  .section-toggle{width:100%;display:flex;align-items:center;gap:9px;background:none;border:0;
+    padding:0;margin:24px 0 10px;text-align:left}
+  .section-toggle .t{font-size:11px;letter-spacing:.08em;background:var(--sunk);color:var(--ink);
+    padding:3px 8px;font-weight:900}
+  .section-toggle .rule{height:2px;background:var(--faint);flex:1}
+  .section-toggle .count{font-size:10px;color:var(--grey);font-weight:800}
+  .section-toggle .chev{font-size:11px;font-weight:900}
+  .section-body{margin-bottom:6px}
+  .archive-body .opp{opacity:.82}
+
+  /* ---------- card shell ---------- */
+  .oppwrap{margin-bottom:11px}
+  .opp{position:relative;background:var(--card);border:var(--stroke) solid var(--ink);
+    box-shadow:var(--shadow)}
+  .opp.drop-before{box-shadow:0 -6px 0 var(--teal),var(--shadow)}
+  .opp.drop-after{box-shadow:0 6px 0 var(--teal),var(--shadow)}
+
+  /* The tray is clipped to the collapsed row, not to the whole card: an open
+     card's body is transparent, so a tray bound to .opp would show pink behind
+     the expanded content. */
+  .rowclip{position:relative;overflow:hidden}
+  .tray{position:absolute;top:0;right:0;bottom:0;width:132px;display:flex}
+  .tray button{flex:1;border:0;font-size:10px;font-weight:900;letter-spacing:.03em;
+    color:var(--paper);font-family:"Arial Black",Impact,sans-serif}
+  .tray .tr-archive{background:var(--ink)}
+  .tray .tr-delete{background:var(--pink)}
+
+  /* The handle block is always present and the same width on every card,
+     priority or not — only its color changes — so cards stay aligned. */
+  .surface{position:relative;background:var(--card);display:flex;align-items:stretch;
+    transition:transform .16s ease-out;touch-action:pan-y}
+  .handle{flex:0 0 auto;width:30px;display:flex;align-items:center;justify-content:center;
+    cursor:default;border-right:2px solid var(--ink);background:var(--sunk)}
+  .handle.drag{cursor:grab;touch-action:none}
+  .opp.dragging{opacity:.45;position:relative;z-index:3}
+  .handle.hf{background:var(--pink)}
+  .handle svg{width:13px;height:13px}
+  .rowbody{flex:1;min-width:0;padding:11px 12px;cursor:pointer}
+  .cat-label{display:block;font-size:9px;font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--faint);margin-bottom:3px}
+  .r-title{display:block;font-size:15px;font-weight:800;letter-spacing:-.005em;line-height:1.25;
+    overflow-wrap:anywhere}
+  .deadline{display:block;font-size:11px;font-weight:700;color:var(--grey);margin-top:4px}
+  .deadline.passed{color:var(--pink)}
+  .deadline.none{font-style:italic;color:var(--faint)}
+  .r-chev{flex:0 0 auto;width:28px;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:900;color:var(--grey)}
+
+  /* ---------- expanded body ---------- */
+  .opp-body{border-top:2px solid var(--ink);padding:13px 14px}
+  .kv{display:block;margin-bottom:11px}
+  .kv .k{display:block;font-size:9px;letter-spacing:.08em;color:var(--grey);margin-bottom:3px}
+  .desc-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13.5px;margin:0}
+  .desc-text.empty{color:var(--faint);font-style:italic;font-weight:600}
+
+  a.link-open{display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:var(--paper);
+    text-decoration:none;font-size:11.5px;font-weight:800;padding:6px 11px;border:2px solid var(--ink);
+    margin-top:2px}
+  a.link-open svg{width:11px;height:11px;flex:0 0 auto}
+
+  .action-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding-top:11px;
+    border-top:2px solid var(--sunk);margin-top:11px}
+  .applied-toggle,.hf-toggle{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--ink);
+    background:var(--card);color:var(--ink);padding:6px 9px;font-size:10px;font-weight:900;letter-spacing:.02em}
+  .applied-toggle .dot,.hf-toggle .dot{width:8px;height:8px;border:2px solid var(--ink);background:var(--sunk)}
+  .applied-toggle.on{background:var(--teal)}
+  .hf-toggle.on{background:var(--pink)}
+  .applied-toggle.on .dot,.hf-toggle.on .dot{background:var(--ink)}
+  .abtn{background:var(--card);color:var(--ink);border:2px solid var(--ink);
+    padding:6px 10px;font-size:10px;font-weight:900;letter-spacing:.03em;
+    box-shadow:2px 2px 0 var(--ink);font-family:"Arial Black",Impact,sans-serif}
+  .abtn:active{transform:translate(2px,2px);box-shadow:none}
+  /* Archive and Delete travel together, so a narrow screen wraps the pair
+     instead of stranding Delete on a line of its own. */
+  .right-actions{display:flex;gap:7px;margin-left:auto}
+  .abtn.danger{background:var(--pink);color:#fff}
+
+  .confirm{margin-top:11px;border:2px solid var(--ink);background:var(--sunk);padding:11px}
+  .confirm .ct{font-size:11px;font-weight:900;margin-bottom:9px}
+  .reasons{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+  .reason{background:var(--card);border:2px solid var(--ink);font-size:10px;font-weight:800;
+    padding:5px 8px}
+  .reason[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .confirm-actions{display:flex;gap:7px}
+
+  footer{margin-top:30px;padding-top:14px;border-top:2px solid var(--ink);
+    font-size:11px;font-weight:700;color:var(--grey);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">&larr; SECOND BRAIN</a><br>
+  <span class="eyebrow blk">OPPORTUNITIES</span>
+
+  <div class="sync" id="sync">
+    <span class="dot"></span>
+    <span class="msg" id="syncMsg">Connecting&hellip;</span>
+    <button class="btn" id="authBtn" hidden></button>
+  </div>
+
+  <div id="gate">
+    <p>This module is private. Sign in with the account that owns this data to see it.</p>
+  </div>
+
+  <div id="app" class="hide">
+    <!-- The add panel is static markup, never rebuilt by render(): a snapshot
+         arriving mid-typing would otherwise throw away a half-written entry. -->
+    <form class="add-panel hide" id="addPanel">
+      <label class="field">
+        <span class="blk">TITLE</span>
+        <input id="fTitle" name="title" maxlength="100" required autocomplete="off" placeholder="What is it called?">
+      </label>
+      <button class="more-toggle" type="button" id="moreToggle">Add category, deadline, link, description &#9662;</button>
+      <div id="addMore" class="hide">
+        <label class="field">
+          <span class="blk">CATEGORY</span>
+          <select id="fCategory" name="category">
+            <option value="">— none —</option>
+            <option value="grant">Grant</option>
+            <option value="residency">Residency</option>
+            <option value="exhibition">Exhibition / Festival</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="blk">DEADLINE</span>
+          <input id="fDeadline" name="deadline" type="date">
+        </label>
+        <label class="field">
+          <span class="blk">LINK</span>
+          <input id="fLink" name="link" type="url" autocomplete="off" placeholder="https://…">
+        </label>
+        <label class="field">
+          <span class="blk">DESCRIPTION</span>
+          <textarea id="fDescription" name="description" maxlength="2000" placeholder="Anything worth remembering about it"></textarea>
+        </label>
+        <label class="checkline">
+          <input id="fHighFocus" name="highFocus" type="checkbox">
+          <span>Mark as High Focus</span>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="btn primary" type="submit">ADD</button>
+        <button class="btn" type="button" id="cancelAdd">CANCEL</button>
+      </div>
+    </form>
+
+    <div class="list-head first">
+      <span class="t blk">CURRENT</span><span class="rule"></span>
+      <span class="count blk" id="currentCount">0</span>
+      <button class="add" type="button" id="addBtn" aria-label="Add opportunity">+</button>
+    </div>
+    <div id="currentList"></div>
+
+    <button class="section-toggle" type="button" id="appliedToggle" aria-expanded="false">
+      <span class="t blk">APPLIED</span><span class="rule"></span>
+      <span class="count blk" id="appliedCount">0</span>
+      <span class="chev" id="appliedChev">&#9662;</span>
+    </button>
+    <div class="section-body hide" id="appliedList"></div>
+
+    <button class="section-toggle" type="button" id="archiveToggle" aria-expanded="false">
+      <span class="t blk">ARCHIVE</span><span class="rule"></span>
+      <span class="count blk" id="archiveCount">0</span>
+      <span class="chev" id="archiveChev">&#9662;</span>
+    </button>
+    <div class="section-body archive-body hide" id="archiveList"></div>
+  </div>
+
+  <footer>Swipe a collapsed card left for Archive or Delete. Drag the handle to reorder Current. Private to your account.</footer>
+</div>
+
+<script type="module">
+"use strict";
+
+const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
+const $ = id => document.getElementById(id);
+
+const CATS = { grant:"Grant", residency:"Residency", exhibition:"Exhibition / Festival", other:"Other" };
+
+/* The reason chips are a friction step in front of the confirm button, nothing
+   more. The choice is deliberately not stored anywhere — the document just
+   goes. Don't add a field for it. */
+const REASONS = ["Not interested", "Deadline too soon", "Not eligible", "Other"];
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const TRAY_W = 132;        // px — matches .tray width
+const SWIPE_REVEAL = 40;   // px of leftward travel that opens the tray
+const TAP_SLOP = 8;        // shorter than this is a tap, not a swipe
+
+const newId = () => "o-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+function fmtDate(iso) {
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d)) return "";
+  return d.getDate() + " " + MONTHS[d.getMonth()];
+}
+
+function daysLeft(iso) {
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d)) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((d - today) / 86400000);
+}
+
+function deadlineParts(iso) {
+  if (!iso) return { text:"No deadline set", cls:"deadline none" };
+  const left = daysLeft(iso);
+  if (left === null) return { text:"No deadline set", cls:"deadline none" };
+  if (left < 0) return { text:fmtDate(iso) + " · passed", cls:"deadline passed" };
+  const tail = left === 0 ? "today" : left + (left === 1 ? " day left" : " days left");
+  return { text:fmtDate(iso) + " · " + tail, cls:"deadline" };
+}
+
+/* Only http(s) links get rendered as links — the field is free text and a
+   javascript: URL typed into it must never become a clickable href. */
+function safeUrl(url) {
+  try {
+    const u = new URL(url);
+    return (u.protocol === "http:" || u.protocol === "https:") ? u.href : "";
+  } catch { return ""; }
+}
+
+/* Every field is defaulted here, so a partial document written by hand from
+   tools/firebase-admin.mjs still renders instead of breaking the page. */
+function clean(id, raw) {
+  const r = raw || {};
+  return {
+    id,
+    title: typeof r.title === "string" ? r.title.slice(0, 100) : "",
+    category: CATS[r.category] ? r.category : "",
+    deadline: typeof r.deadline === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.deadline) ? r.deadline : "",
+    link: typeof r.link === "string" ? r.link.trim() : "",
+    description: typeof r.description === "string" ? r.description.slice(0, 2000) : "",
+    highFocus: r.highFocus === true,
+    state: r.state === "applied" ? "applied" : "considering",
+    archived: r.archived === true,
+    order: typeof r.order === "number" ? r.order : 0,
+    createdAt: r.createdAt && typeof r.createdAt.toMillis === "function" ? r.createdAt.toMillis() : 0
+  };
+}
+
+const byOrder = (a, b) => (a.order - b.order) || (a.createdAt - b.createdAt);
+
+const App = {
+  fb:null, uid:null, items:[], unsub:null,
+  openId:null, revealedId:null, editingId:null, deletingId:null, reason:null,
+  appliedOpen:false, archiveOpen:false, addOpen:false, addMoreOpen:false,
+
+  setUI(state, msg, btnLabel, btnAction) {
+    $("sync").className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
+    $("syncMsg").textContent = msg;
+    const btn = $("authBtn");
+    if (btnLabel) { btn.hidden = false; btn.textContent = btnLabel; btn.onclick = btnAction; }
+    else { btn.hidden = true; btn.onclick = null; }
+  },
+
+  async init() {
+    let config = null;
+    try { ({ firebaseConfig: config } = await import("./firebase-config.js")); }
+    catch { /* file:// origin, or the file is missing */ }
+    if (!config || !config.projectId) {
+      this.setUI("err", "No Firebase config — this module can't load without it.");
+      return;
+    }
+    try {
+      const [{ initializeApp }, authMod, fsMod] = await Promise.all([
+        import(SDK + "firebase-app.js"),
+        import(SDK + "firebase-auth.js"),
+        import(SDK + "firebase-firestore.js")
+      ]);
+      const app = initializeApp(config);
+      const db = fsMod.initializeFirestore(app, {
+        localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() })
+      });
+      this.fb = { auth: authMod.getAuth(app), db, a: authMod, f: fsMod };
+      authMod.getRedirectResult(this.fb.auth).catch(() => {});
+      authMod.onAuthStateChanged(this.fb.auth, u => this.onAuth(u));
+    } catch (e) {
+      console.warn("Firebase unavailable:", e);
+      this.setUI("err", "Couldn't reach Firebase.", "Retry", () => location.reload());
+    }
+  },
+
+  onAuth(user) {
+    if (this.unsub) { this.unsub(); this.unsub = null; }
+    if (!user) {
+      this.uid = null; this.items = [];
+      this.openId = this.revealedId = this.editingId = this.deletingId = null;
+      this.closeAdd();
+      $("app").classList.add("hide");
+      $("gate").classList.remove("hide");
+      this.setUI("off", "Signed out — nothing loaded.", "Sign in with Google", () => this.signIn());
+      return;
+    }
+    this.uid = user.uid;
+    this.setUI("on", `Signed in as ${user.email || "your account"}`, "Sign out", () => this.signOut());
+    $("gate").classList.add("hide");
+    $("app").classList.remove("hide");
+    this.attach();
+  },
+
+  async signIn() {
+    const { a, auth } = this.fb;
+    try {
+      this.setUI("off", "Opening Google sign-in…");
+      await a.signInWithPopup(auth, new a.GoogleAuthProvider());
+    } catch (e) {
+      const code = (e && e.code) || "";
+      if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+        try { await a.signInWithRedirect(auth, new a.GoogleAuthProvider()); return; }
+        catch (e2) { e = e2; }
+      }
+      const msg =
+        code === "auth/unauthorized-domain" ? "This domain isn't authorised in Firebase Auth yet."
+      : code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" ? "Sign-in was cancelled."
+      : `Sign-in failed (${e.code || e.message}).`;
+      this.setUI("err", msg, "Try again", () => this.signIn());
+    }
+  },
+
+  async signOut() {
+    try { await this.fb.a.signOut(this.fb.auth); }
+    catch (e) { this.setUI("err", `Couldn't sign out (${e.message}).`, "Try again", () => this.signOut()); }
+  },
+
+  attach() {
+    const { f, db } = this.fb;
+    const col = f.collection(db, "users", this.uid, "opportunities");
+    this.unsub = f.onSnapshot(col,
+      snap => {
+        this.items = snap.docs.map(d => clean(d.id, d.data())).sort(byOrder);
+        // An open edit form lives inside a card that render() would rebuild,
+        // so a snapshot arriving mid-edit waits until the form closes.
+        if (!this.editingId) this.render();
+      },
+      err => this.setUI("err", `Couldn't read opportunities (${err.code || err.message}).`)
+    );
+  },
+
+  ref(id) {
+    const { f, db } = this.fb;
+    return f.doc(db, "users", this.uid, "opportunities", id);
+  },
+
+  async patch(id, fields) {
+    const { f } = this.fb;
+    try { await f.updateDoc(this.ref(id), { ...fields, updatedAt: f.serverTimestamp() }); }
+    catch (e) { this.setUI("err", `Couldn't save (${e.code || e.message}).`); }
+  },
+
+  async add(fields) {
+    const { f } = this.fb;
+    const current = this.items.filter(it => it.state === "considering" && !it.archived);
+    const min = current.length ? Math.min(...current.map(it => it.order)) : 10;
+    try {
+      await f.setDoc(this.ref(newId()), {
+        ...fields,
+        state: "considering",
+        archived: false,
+        order: min - 10,                 // new entries land at the top of Current
+        createdAt: f.serverTimestamp(),
+        updatedAt: f.serverTimestamp()
+      });
+    } catch (e) { this.setUI("err", `Couldn't add (${e.code || e.message}).`); }
+  },
+
+  async remove(id) {
+    if (this.openId === id) this.openId = null;
+    this.deletingId = null; this.reason = null;
+    try { await this.fb.f.deleteDoc(this.ref(id)); }
+    catch (e) { this.setUI("err", `Couldn't delete (${e.code || e.message}).`); }
+  },
+
+  /* ---------- add panel ---------- */
+
+  openAdd() {
+    this.addOpen = true;
+    $("addPanel").classList.remove("hide");
+    $("fTitle").focus();
+  },
+
+  closeAdd() {
+    this.addOpen = false; this.addMoreOpen = false;
+    $("addPanel").classList.add("hide");
+    $("addMore").classList.add("hide");
+    $("moreToggle").innerHTML = "Add category, deadline, link, description &#9662;";
+    $("addPanel").reset();
+  },
+
+  /* ---------- reorder ---------- */
+
+  reorder(id, targetId, before) {
+    if (!id || id === targetId) return;
+    const current = this.items.filter(it => it.state === "considering" && !it.archived);
+    const from = current.findIndex(it => it.id === id);
+    if (from < 0) return;
+    const [moved] = current.splice(from, 1);
+    let to = current.findIndex(it => it.id === targetId);
+    if (to < 0) return;
+    if (!before) to += 1;
+    current.splice(to, 0, moved);
+    // Renumbering by position means the untouched cards keep the value they
+    // already have, so only the shifted range is actually written.
+    current.forEach((it, index) => {
+      const order = index * 10;
+      if (it.order !== order) { it.order = order; this.patch(it.id, { order }); }
+    });
+    this.items.sort(byOrder);
+    this.render();
+  },
+
+  clearDropMarks() {
+    document.querySelectorAll(".drop-before,.drop-after")
+      .forEach(el => el.classList.remove("drop-before", "drop-after"));
+  },
+
+  /* ---------- render ---------- */
+
+  render() {
+    const current = this.items.filter(it => it.state === "considering" && !it.archived);
+    const applied = this.items.filter(it => it.state === "applied" && !it.archived);
+    const archive = this.items.filter(it => it.archived);
+
+    this.fill("currentList", "currentCount", current, "current", "Nothing saved yet. Use + to add one.");
+    this.fill("appliedList", "appliedCount", applied, "applied", "Nothing marked Applied yet.");
+    this.fill("archiveList", "archiveCount", archive, "archive", "Nothing archived.");
+
+    $("appliedList").classList.toggle("hide", !this.appliedOpen);
+    $("appliedChev").innerHTML = this.appliedOpen ? "&#9652;" : "&#9662;";
+    $("appliedToggle").setAttribute("aria-expanded", String(this.appliedOpen));
+    $("archiveList").classList.toggle("hide", !this.archiveOpen);
+    $("archiveChev").innerHTML = this.archiveOpen ? "&#9652;" : "&#9662;";
+    $("archiveToggle").setAttribute("aria-expanded", String(this.archiveOpen));
+  },
+
+  fill(listId, countId, rows, section, emptyText) {
+    const list = $(listId);
+    list.textContent = "";
+    $(countId).textContent = String(rows.length);
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = emptyText;
+      list.appendChild(empty);
+      return;
+    }
+    for (const it of rows) list.appendChild(this.card(it, section));
+  },
+
+  card(it, section) {
+    const wrap = document.createElement("div");
+    wrap.className = "oppwrap";
+    const card = document.createElement("article");
+    card.className = "opp";
+    card.dataset.id = it.id;
+    wrap.appendChild(card);
+
+    if (this.editingId === it.id) {
+      card.appendChild(this.editForm(it));
+      return wrap;
+    }
+
+    const draggable = section === "current";
+    const revealed = this.revealedId === it.id;
+    const isOpen = this.openId === it.id;
+
+    const clip = document.createElement("div");
+    clip.className = "rowclip";
+
+    const tray = document.createElement("div");
+    tray.className = "tray";
+    const trayLeft = document.createElement("button");
+    trayLeft.type = "button";
+    trayLeft.className = "tr-archive";
+    trayLeft.textContent = it.archived ? "RESTORE" : "ARCHIVE";
+    trayLeft.onclick = () => {
+      this.revealedId = null;
+      this.patch(it.id, { archived: !it.archived });
+    };
+    const trayDelete = document.createElement("button");
+    trayDelete.type = "button";
+    trayDelete.className = "tr-delete";
+    trayDelete.textContent = "DELETE";
+    trayDelete.onclick = () => {
+      this.revealedId = null;
+      this.openId = it.id;
+      this.deletingId = it.id;
+      this.reason = null;
+      this.render();
+    };
+    tray.append(trayLeft, trayDelete);
+
+    const surface = document.createElement("div");
+    surface.className = "surface";
+    surface.style.transform = `translateX(${revealed ? -TRAY_W : 0}px)`;
+
+    const handle = document.createElement("span");
+    handle.className = "handle" + (draggable ? " drag" : "") + (it.highFocus ? " hf" : "");
+    // Present on every card so rows stay aligned, but only announced where it
+    // actually does something.
+    if (draggable) handle.setAttribute("aria-label", "Drag to reorder");
+    else handle.setAttribute("aria-hidden", "true");
+    handle.innerHTML = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true">'
+      + '<circle cx="5" cy="3" r="1.4" fill="#111"/><circle cx="11" cy="3" r="1.4" fill="#111"/>'
+      + '<circle cx="5" cy="8" r="1.4" fill="#111"/><circle cx="11" cy="8" r="1.4" fill="#111"/>'
+      + '<circle cx="5" cy="13" r="1.4" fill="#111"/><circle cx="11" cy="13" r="1.4" fill="#111"/></svg>';
+    if (draggable) this.attachDrag(handle, card, it);
+
+    const body = document.createElement("div");
+    body.className = "rowbody";
+    if (it.category) {
+      const cat = document.createElement("span");
+      cat.className = "cat-label";
+      cat.textContent = CATS[it.category];
+      body.appendChild(cat);
+    }
+    const title = document.createElement("span");
+    title.className = "r-title blk";
+    title.textContent = it.title || "Untitled";
+    const dl = deadlineParts(it.deadline);
+    const deadline = document.createElement("span");
+    deadline.className = dl.cls;
+    deadline.textContent = dl.text;
+    body.append(title, deadline);
+
+    const chev = document.createElement("div");
+    chev.className = "r-chev";
+    chev.innerHTML = isOpen ? "&#9652;" : "&#9662;";
+
+    surface.append(handle, body, chev);
+    this.attachSwipe(surface, it);
+    clip.append(tray, surface);
+    card.appendChild(clip);
+
+    if (isOpen) card.appendChild(this.cardBody(it));
+    return wrap;
+  },
+
+  /* Reordering runs on pointer events rather than HTML5 drag-and-drop: this
+     page lives on an iPhone home screen, and Safari fires no drag events for
+     touch at all, so a native-draggable handle would be dead on the device it
+     matters on. Pointer events cover mouse and finger with one path.
+
+     The handle stops its own pointer events from reaching the row, so a drag
+     never doubles as a tap that opens the card. */
+  attachDrag(handle, card, it) {
+    let startY = 0, moved = false, targetId = null, before = false;
+
+    handle.addEventListener("pointerdown", event => {
+      if (event.button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      startY = event.clientY;
+      moved = false; targetId = null;
+      handle.setPointerCapture(event.pointerId);
+    });
+
+    handle.addEventListener("pointermove", event => {
+      if (!handle.hasPointerCapture(event.pointerId)) return;
+      const dy = event.clientY - startY;
+      if (!moved && Math.abs(dy) < 6) return;
+      moved = true;
+      card.classList.add("dragging");
+      card.style.transform = `translateY(${dy}px)`;
+      this.clearDropMarks();
+      const hit = this.cardUnder(event.clientY, it.id);
+      targetId = hit ? hit.id : null;
+      if (hit) { before = hit.before; hit.el.classList.add(before ? "drop-before" : "drop-after"); }
+    });
+
+    const finish = event => {
+      event.stopPropagation();
+      if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+      card.classList.remove("dragging");
+      card.style.transform = "";
+      this.clearDropMarks();
+      if (moved && targetId) this.reorder(it.id, targetId, before);
+      moved = false; targetId = null;
+    };
+    handle.addEventListener("pointerup", finish);
+    handle.addEventListener("pointercancel", finish);
+  },
+
+  cardUnder(clientY, selfId) {
+    for (const el of document.querySelectorAll("#currentList .opp")) {
+      if (el.dataset.id === selfId) continue;
+      const rect = el.getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        return { el, id:el.dataset.id, before: clientY < rect.top + rect.height / 2 };
+      }
+    }
+    return null;
+  },
+
+  /* Swipe only does anything while the card is collapsed — once it is open the
+     same Archive/Delete sit in the action row, so there is exactly one active
+     path at a time. A tap on a revealed row closes the tray rather than opening
+     the card, for the same reason. */
+  attachSwipe(surface, it) {
+    let downX = null;
+    surface.addEventListener("pointerdown", event => {
+      downX = this.openId === it.id ? null : event.clientX;
+    });
+    surface.addEventListener("pointercancel", () => { downX = null; });
+    surface.addEventListener("pointerup", event => {
+      if (downX === null) {
+        if (this.openId === it.id) this.toggleOpen(it.id);
+        return;
+      }
+      const dx = downX - event.clientX;
+      downX = null;
+      if (Math.abs(dx) < TAP_SLOP) {
+        if (this.revealedId === it.id) { this.revealedId = null; this.render(); }
+        else this.toggleOpen(it.id);
+        return;
+      }
+      if (dx > SWIPE_REVEAL) { this.revealedId = it.id; this.render(); }
+      else if (this.revealedId === it.id) { this.revealedId = null; this.render(); }
+    });
+  },
+
+  toggleOpen(id) {
+    this.openId = this.openId === id ? null : id;
+    this.revealedId = null;
+    this.deletingId = null;
+    this.reason = null;
+    this.render();
+  },
+
+  cardBody(it) {
+    const body = document.createElement("div");
+    body.className = "opp-body";
+
+    const kv = document.createElement("span");
+    kv.className = "kv";
+    const k = document.createElement("span");
+    k.className = "k blk";
+    k.textContent = "DESCRIPTION";
+    const desc = document.createElement("p");
+    desc.className = "desc-text" + (it.description ? "" : " empty");
+    desc.textContent = it.description || "No description.";
+    kv.append(k, desc);
+    body.appendChild(kv);
+
+    const href = safeUrl(it.link);
+    if (href) {
+      const holder = document.createElement("div");
+      const link = document.createElement("a");
+      link.className = "link-open";
+      link.href = href;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.append(document.createTextNode("LINK"));
+      // An inline SVG arrow, not a Unicode glyph — the character renders at a
+      // different weight and baseline on every platform.
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 12 12");
+      svg.setAttribute("fill", "none");
+      svg.setAttribute("stroke", "currentColor");
+      svg.setAttribute("stroke-width", "1.6");
+      svg.setAttribute("stroke-linecap", "round");
+      svg.setAttribute("stroke-linejoin", "round");
+      svg.setAttribute("aria-hidden", "true");
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", "M4 8L8 4M4.5 4H8V7.5");
+      svg.appendChild(path);
+      link.appendChild(svg);
+      holder.appendChild(link);
+      body.appendChild(holder);
+    }
+
+    const row = document.createElement("div");
+    row.className = "action-row";
+
+    if (it.archived) {
+      row.appendChild(this.actionBtn("RESTORE TO CURRENT", () => this.patch(it.id, { archived:false })));
+    } else {
+      const applied = it.state === "applied";
+      const appliedBtn = this.toggleBtn("APPLIED", "applied-toggle", applied,
+        () => this.patch(it.id, { state: applied ? "considering" : "applied" }));
+      const focusBtn = this.toggleBtn("HIGH FOCUS", "hf-toggle", it.highFocus,
+        () => this.patch(it.id, { highFocus: !it.highFocus }));
+      row.append(appliedBtn, focusBtn,
+        this.actionBtn("EDIT", () => { this.editingId = it.id; this.deletingId = null; this.render(); }));
+    }
+
+    const right = document.createElement("div");
+    right.className = "right-actions";
+    if (!it.archived) right.appendChild(this.actionBtn("ARCHIVE", () => this.patch(it.id, { archived:true })));
+    const del = this.actionBtn("DELETE", () => {
+      this.deletingId = it.id; this.reason = null; this.render();
+    });
+    del.classList.add("danger");
+    right.appendChild(del);
+    row.appendChild(right);
+    body.appendChild(row);
+
+    if (this.deletingId === it.id) body.appendChild(this.confirmDelete(it));
+    return body;
+  },
+
+  confirmDelete(it) {
+    const box = document.createElement("div");
+    box.className = "confirm";
+    const heading = document.createElement("div");
+    heading.className = "ct blk";
+    heading.textContent = "DELETE THIS OPPORTUNITY?";
+    box.appendChild(heading);
+
+    if (!it.archived) {
+      const reasons = document.createElement("div");
+      reasons.className = "reasons";
+      for (const label of REASONS) {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "reason";
+        chip.textContent = label;
+        chip.setAttribute("aria-pressed", String(this.reason === label));
+        chip.onclick = () => { this.reason = this.reason === label ? null : label; this.render(); };
+        reasons.appendChild(chip);
+      }
+      box.appendChild(reasons);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "confirm-actions";
+    const confirm = this.actionBtn("CONFIRM DELETE", () => this.remove(it.id));
+    confirm.classList.add("danger");
+    actions.append(confirm, this.actionBtn("CANCEL", () => {
+      this.deletingId = null; this.reason = null; this.render();
+    }));
+    box.appendChild(actions);
+    return box;
+  },
+
+  actionBtn(label, action) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "abtn";
+    button.textContent = label;
+    button.onclick = action;
+    return button;
+  },
+
+  toggleBtn(label, className, on, action) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className + (on ? " on" : "");
+    button.setAttribute("aria-pressed", String(on));
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    const text = document.createElement("span");
+    text.textContent = label;
+    button.append(dot, text);
+    button.onclick = action;
+    return button;
+  },
+
+  editForm(it) {
+    const form = document.createElement("form");
+    form.className = "opp-body";
+    const title = this.field("TITLE", "input", it.title, { maxLength:100, required:true });
+    const category = this.categoryField(it.category);
+    const deadline = this.field("DEADLINE", "input", it.deadline, { type:"date" });
+    const link = this.field("LINK", "input", it.link, { type:"url" });
+    const description = this.field("DESCRIPTION", "textarea", it.description, { maxLength:2000 });
+
+    const actions = document.createElement("div");
+    actions.className = "form-actions";
+    const save = document.createElement("button");
+    save.type = "submit"; save.className = "btn primary"; save.textContent = "SAVE";
+    const cancel = document.createElement("button");
+    cancel.type = "button"; cancel.className = "btn"; cancel.textContent = "CANCEL";
+    cancel.onclick = () => { this.editingId = null; this.render(); };
+    actions.append(save, cancel);
+
+    form.append(title.label, category.label, deadline.label, link.label, description.label, actions);
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const value = title.control.value.trim();
+      if (!value) { title.control.focus(); return; }
+      this.editingId = null;
+      this.patch(it.id, {
+        title: value.slice(0, 100),
+        category: category.control.value,
+        deadline: deadline.control.value,
+        link: link.control.value.trim(),
+        description: description.control.value.trim().slice(0, 2000)
+      });
+      this.render();
+    });
+    setTimeout(() => { title.control.focus(); }, 0);
+    return form;
+  },
+
+  field(labelText, tag, value, options = {}) {
+    const label = document.createElement("label");
+    label.className = "field";
+    const caption = document.createElement("span");
+    caption.className = "blk";
+    caption.textContent = labelText;
+    const control = document.createElement(tag);
+    control.value = value || "";
+    if (options.type) control.type = options.type;
+    if (options.maxLength) control.maxLength = options.maxLength;
+    if (options.required) control.required = true;
+    label.append(caption, control);
+    return { label, control };
+  },
+
+  categoryField(value) {
+    const label = document.createElement("label");
+    label.className = "field";
+    const caption = document.createElement("span");
+    caption.className = "blk";
+    caption.textContent = "CATEGORY";
+    const select = document.createElement("select");
+    const options = [["", "— none —"]].concat(Object.entries(CATS));
+    for (const [v, text] of options) {
+      const option = document.createElement("option");
+      option.value = v; option.textContent = text;
+      if (v === value) option.selected = true;
+      select.appendChild(option);
+    }
+    label.append(caption, select);
+    return { label, control:select };
+  }
+};
+
+/* ---------- page-level wiring ---------- */
+
+$("addBtn").onclick = () => { if (App.addOpen) App.closeAdd(); else App.openAdd(); };
+$("cancelAdd").onclick = () => App.closeAdd();
+$("moreToggle").onclick = () => {
+  App.addMoreOpen = !App.addMoreOpen;
+  $("addMore").classList.toggle("hide", !App.addMoreOpen);
+  $("moreToggle").innerHTML = App.addMoreOpen
+    ? "Hide details &#9652;"
+    : "Add category, deadline, link, description &#9662;";
+};
+$("addPanel").addEventListener("submit", event => {
+  event.preventDefault();
+  const title = $("fTitle").value.trim();
+  if (!title) { $("fTitle").focus(); return; }
+  App.add({
+    title: title.slice(0, 100),
+    category: $("fCategory").value,
+    deadline: $("fDeadline").value,
+    link: $("fLink").value.trim(),
+    description: $("fDescription").value.trim().slice(0, 2000),
+    highFocus: $("fHighFocus").checked
+  });
+  App.closeAdd();
+});
+$("appliedToggle").onclick = () => { App.appliedOpen = !App.appliedOpen; App.render(); };
+$("archiveToggle").onclick = () => { App.archiveOpen = !App.archiveOpen; App.render(); };
+
+App.init();
+</script>
+</body>
+</html>
