@@ -75,6 +75,13 @@
   .field input,.field textarea,.field select{display:block;width:100%;border:2px solid var(--ink);
     background:var(--paper);color:var(--ink);padding:9px 10px;font-size:16px;font-weight:650;border-radius:0}
   .field textarea{min-height:70px;resize:vertical;line-height:1.45}
+  /* iOS gives date inputs their own intrinsic width and centres the value, so
+     the field spills out of the card and the date floats in the middle. Strip
+     the native appearance and pin the value to the left. */
+  .field input[type="date"]{-webkit-appearance:none;appearance:none;
+    min-width:0;max-width:100%;min-height:42px;text-align:left;line-height:1.2}
+  .field input[type="date"]::-webkit-date-and-time-value{text-align:left;margin:0}
+  .field input[type="date"]::-webkit-calendar-picker-indicator{margin-left:auto}
   .checkline{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12px;font-weight:800}
   .checkline input{width:16px;height:16px}
   .more-toggle{background:none;border:0;padding:0;margin-bottom:12px;font-size:11px;font-weight:800;
@@ -154,7 +161,8 @@
   .kv{display:block;margin-bottom:11px}
   .kv .k{display:block;font-size:9px;letter-spacing:.08em;color:var(--grey);margin-bottom:3px}
   .desc-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13.5px;margin:0}
-  .desc-text.empty{color:var(--faint);font-style:italic;font-weight:600}
+  /* Not .empty — that is the dashed placeholder box used for empty sections. */
+  .desc-text.blank{color:var(--faint);font-style:italic;font-weight:600}
 
   a.link-open{display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:var(--paper);
     text-decoration:none;font-size:11.5px;font-weight:800;padding:6px 11px;border:2px solid var(--ink);
@@ -178,13 +186,8 @@
   .right-actions{display:flex;gap:7px;margin-left:auto}
   .abtn.danger{background:var(--pink);color:#fff}
 
-  .confirm{margin-top:11px;border:2px solid var(--ink);background:var(--sunk);padding:11px}
-  .confirm .ct{font-size:11px;font-weight:900;margin-bottom:9px}
-  .reasons{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
-  .reason{background:var(--card);border:2px solid var(--ink);font-size:10px;font-weight:800;
-    padding:5px 8px}
-  .reason[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
-  .confirm-actions{display:flex;gap:7px}
+  /* Armed delete — the second tap is the confirmation. */
+  .abtn.danger.armed,.tray .tr-delete.armed{background:var(--ink);color:var(--paper)}
 
   footer{margin-top:30px;padding-top:14px;border-top:2px solid var(--ink);
     font-size:11px;font-weight:700;color:var(--grey);line-height:1.6}
@@ -239,7 +242,7 @@
         </label>
         <label class="checkline">
           <input id="fHighFocus" name="highFocus" type="checkbox">
-          <span>Mark as High Focus</span>
+          <span>Mark as Focus</span>
         </label>
       </div>
       <div class="form-actions">
@@ -281,14 +284,8 @@ const $ = id => document.getElementById(id);
 
 const CATS = { grant:"Grant", residency:"Residency", exhibition:"Exhibition / Festival", other:"Other" };
 
-/* The reason chips are a friction step in front of the confirm button, nothing
-   more. The choice is deliberately not stored anywhere — the document just
-   goes. Don't add a field for it. */
-const REASONS = ["Not interested", "Deadline too soon", "Not eligible", "Other"];
-
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const TRAY_W = 132;        // px — matches .tray width
-const SWIPE_REVEAL = 40;   // px of leftward travel that opens the tray
 const TAP_SLOP = 8;        // shorter than this is a tap, not a swipe
 
 const newId = () => "o-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -348,7 +345,7 @@ const byOrder = (a, b) => (a.order - b.order) || (a.createdAt - b.createdAt);
 
 const App = {
   fb:null, uid:null, items:[], unsub:null,
-  openId:null, revealedId:null, editingId:null, deletingId:null, reason:null,
+  openId:null, revealedId:null, editingId:null,
   appliedOpen:false, archiveOpen:false, addOpen:false, addMoreOpen:false,
 
   setUI(state, msg, btnLabel, btnAction) {
@@ -390,7 +387,7 @@ const App = {
     if (this.unsub) { this.unsub(); this.unsub = null; }
     if (!user) {
       this.uid = null; this.items = [];
-      this.openId = this.revealedId = this.editingId = this.deletingId = null;
+      this.openId = this.revealedId = this.editingId = null;
       this.closeAdd();
       $("app").classList.add("hide");
       $("gate").classList.remove("hide");
@@ -471,7 +468,7 @@ const App = {
 
   async remove(id) {
     if (this.openId === id) this.openId = null;
-    this.deletingId = null; this.reason = null;
+    this.revealedId = null;
     try { await this.fb.f.deleteDoc(this.ref(id)); }
     catch (e) { this.setUI("err", `Couldn't delete (${e.code || e.message}).`); }
   },
@@ -586,13 +583,7 @@ const App = {
     trayDelete.type = "button";
     trayDelete.className = "tr-delete";
     trayDelete.textContent = "DELETE";
-    trayDelete.onclick = () => {
-      this.revealedId = null;
-      this.openId = it.id;
-      this.deletingId = it.id;
-      this.reason = null;
-      this.render();
-    };
+    this.armDelete(trayDelete, "DELETE", () => this.remove(it.id));
     tray.append(trayLeft, trayDelete);
 
     const surface = document.createElement("div");
@@ -697,38 +688,83 @@ const App = {
     return null;
   },
 
-  /* Swipe only does anything while the card is collapsed — once it is open the
+  /* The row tracks the finger 1:1 with the transition switched off, then snaps
+     open or shut on release — a jump straight to the open tray reads as a
+     glitch rather than a gesture. The first few pixels decide whether this is a
+     horizontal swipe or the page scrolling, and the loser is ignored.
+
+     Swipe only does anything while the card is collapsed: once it is open the
      same Archive/Delete sit in the action row, so there is exactly one active
      path at a time. A tap on a revealed row closes the tray rather than opening
      the card, for the same reason. */
   attachSwipe(surface, it) {
-    let downX = null;
+    let startX = 0, startY = 0, base = 0, dx = 0, axis = null, tracking = false;
+
+    const settle = offset => {
+      surface.style.transition = "";
+      surface.style.transform = `translateX(${offset}px)`;
+    };
+
     surface.addEventListener("pointerdown", event => {
-      downX = this.openId === it.id ? null : event.clientX;
+      if (event.button) return;
+      tracking = true; axis = null; dx = 0;
+      startX = event.clientX; startY = event.clientY;
+      base = this.revealedId === it.id ? -TRAY_W : 0;
     });
-    surface.addEventListener("pointercancel", () => { downX = null; });
-    surface.addEventListener("pointerup", event => {
-      if (downX === null) {
-        if (this.openId === it.id) this.toggleOpen(it.id);
+
+    surface.addEventListener("pointermove", event => {
+      if (!tracking || this.openId === it.id) return;
+      const ax = event.clientX - startX;
+      const ay = event.clientY - startY;
+      if (axis === null) {
+        if (Math.abs(ax) < TAP_SLOP && Math.abs(ay) < TAP_SLOP) return;
+        axis = Math.abs(ax) > Math.abs(ay) ? "x" : "y";
+        if (axis === "x") {
+          surface.style.transition = "none";
+          surface.setPointerCapture(event.pointerId);
+        }
+      }
+      if (axis !== "x") return;
+      dx = Math.max(-TRAY_W, Math.min(0, base + ax));
+      surface.style.transform = `translateX(${dx}px)`;
+    });
+
+    surface.addEventListener("pointerup", () => {
+      if (!tracking) return;
+      tracking = false;
+
+      if (axis === "x") {
+        axis = null;
+        // Past the halfway mark it opens, otherwise it falls back shut.
+        const reveal = dx <= -TRAY_W / 2;
+        if (reveal && this.revealedId && this.revealedId !== it.id) this.resetTray(this.revealedId);
+        this.revealedId = reveal ? it.id : null;
+        settle(reveal ? -TRAY_W : 0);
         return;
       }
-      const dx = downX - event.clientX;
-      downX = null;
-      if (Math.abs(dx) < TAP_SLOP) {
-        if (this.revealedId === it.id) { this.revealedId = null; this.render(); }
-        else this.toggleOpen(it.id);
-        return;
-      }
-      if (dx > SWIPE_REVEAL) { this.revealedId = it.id; this.render(); }
-      else if (this.revealedId === it.id) { this.revealedId = null; this.render(); }
+      axis = null;
+
+      if (this.openId === it.id) { this.toggleOpen(it.id); return; }
+      if (this.revealedId === it.id) { this.revealedId = null; settle(0); return; }
+      this.toggleOpen(it.id);
     });
+
+    surface.addEventListener("pointercancel", () => {
+      tracking = false; axis = null;
+      settle(this.revealedId === it.id ? -TRAY_W : 0);
+    });
+  },
+
+  /* Sliding one row open closes whichever other one was open, without a full
+     re-render — the snap has to animate from where the row actually is. */
+  resetTray(id) {
+    const other = document.querySelector(`.opp[data-id="${id}"] .surface`);
+    if (other) { other.style.transition = ""; other.style.transform = "translateX(0px)"; }
   },
 
   toggleOpen(id) {
     this.openId = this.openId === id ? null : id;
     this.revealedId = null;
-    this.deletingId = null;
-    this.reason = null;
     this.render();
   },
 
@@ -742,7 +778,7 @@ const App = {
     k.className = "k blk";
     k.textContent = "DESCRIPTION";
     const desc = document.createElement("p");
-    desc.className = "desc-text" + (it.description ? "" : " empty");
+    desc.className = "desc-text" + (it.description ? "" : " blank");
     desc.textContent = it.description || "No description.";
     kv.append(k, desc);
     body.appendChild(kv);
@@ -783,59 +819,45 @@ const App = {
       const applied = it.state === "applied";
       const appliedBtn = this.toggleBtn("APPLIED", "applied-toggle", applied,
         () => this.patch(it.id, { state: applied ? "considering" : "applied" }));
-      const focusBtn = this.toggleBtn("HIGH FOCUS", "hf-toggle", it.highFocus,
+      const focusBtn = this.toggleBtn("FOCUS", "hf-toggle", it.highFocus,
         () => this.patch(it.id, { highFocus: !it.highFocus }));
       row.append(appliedBtn, focusBtn,
-        this.actionBtn("EDIT", () => { this.editingId = it.id; this.deletingId = null; this.render(); }));
+        this.actionBtn("EDIT", () => { this.editingId = it.id; this.render(); }));
     }
 
     const right = document.createElement("div");
     right.className = "right-actions";
     if (!it.archived) right.appendChild(this.actionBtn("ARCHIVE", () => this.patch(it.id, { archived:true })));
-    const del = this.actionBtn("DELETE", () => {
-      this.deletingId = it.id; this.reason = null; this.render();
-    });
+    const del = this.actionBtn("DELETE", () => {});
     del.classList.add("danger");
+    this.armDelete(del, "DELETE", () => this.remove(it.id));
     right.appendChild(del);
     row.appendChild(right);
     body.appendChild(row);
-
-    if (this.deletingId === it.id) body.appendChild(this.confirmDelete(it));
     return body;
   },
 
-  confirmDelete(it) {
-    const box = document.createElement("div");
-    box.className = "confirm";
-    const heading = document.createElement("div");
-    heading.className = "ct blk";
-    heading.textContent = "DELETE THIS OPPORTUNITY?";
-    box.appendChild(heading);
-
-    if (!it.archived) {
-      const reasons = document.createElement("div");
-      reasons.className = "reasons";
-      for (const label of REASONS) {
-        const chip = document.createElement("button");
-        chip.type = "button";
-        chip.className = "reason";
-        chip.textContent = label;
-        chip.setAttribute("aria-pressed", String(this.reason === label));
-        chip.onclick = () => { this.reason = this.reason === label ? null : label; this.render(); };
-        reasons.appendChild(chip);
+  /* Delete asks once, on the button itself: the first tap arms it, the second
+     one within four seconds does it. A stray tap can't destroy anything, and
+     there is no dialog to read. */
+  armDelete(button, label, action) {
+    let armed = false, timer = null;
+    const disarm = () => {
+      armed = false; clearTimeout(timer);
+      button.textContent = label;
+      button.classList.remove("armed");
+    };
+    button.onclick = () => {
+      if (!armed) {
+        armed = true;
+        button.textContent = "SURE?";
+        button.classList.add("armed");
+        timer = setTimeout(disarm, 4000);
+        return;
       }
-      box.appendChild(reasons);
-    }
-
-    const actions = document.createElement("div");
-    actions.className = "confirm-actions";
-    const confirm = this.actionBtn("CONFIRM DELETE", () => this.remove(it.id));
-    confirm.classList.add("danger");
-    actions.append(confirm, this.actionBtn("CANCEL", () => {
-      this.deletingId = null; this.reason = null; this.render();
-    }));
-    box.appendChild(actions);
-    return box;
+      clearTimeout(timer);
+      action();
+    };
   },
 
   actionBtn(label, action) {
