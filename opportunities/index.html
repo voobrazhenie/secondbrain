@@ -169,21 +169,22 @@
     margin-top:2px}
   a.link-open svg{width:11px;height:11px;flex:0 0 auto}
 
-  .action-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding-top:11px;
+  .action-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:11px;
     border-top:2px solid var(--sunk);margin-top:11px}
-  .applied-toggle,.hf-toggle{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--ink);
-    background:var(--card);color:var(--ink);padding:6px 9px;font-size:10px;font-weight:900;letter-spacing:.02em}
-  .applied-toggle .dot,.hf-toggle .dot{width:8px;height:8px;border:2px solid var(--ink);background:var(--sunk)}
+  /* One row on a phone: the five buttons have to fit inside ~320px, so the
+     toggles carry their state in the fill alone — no status square. */
+  .applied-toggle,.hf-toggle{display:inline-flex;align-items:center;border:2px solid var(--ink);
+    background:var(--card);color:var(--ink);padding:6px 7px;font-size:10px;font-weight:900;
+    letter-spacing:.02em;font-family:"Arial Black",Impact,sans-serif}
   .applied-toggle.on{background:var(--teal)}
   .hf-toggle.on{background:var(--pink)}
-  .applied-toggle.on .dot,.hf-toggle.on .dot{background:var(--ink)}
   .abtn{background:var(--card);color:var(--ink);border:2px solid var(--ink);
-    padding:6px 10px;font-size:10px;font-weight:900;letter-spacing:.03em;
+    padding:6px 7px;font-size:10px;font-weight:900;letter-spacing:.02em;
     box-shadow:2px 2px 0 var(--ink);font-family:"Arial Black",Impact,sans-serif}
   .abtn:active{transform:translate(2px,2px);box-shadow:none}
   /* Archive and Delete travel together, so a narrow screen wraps the pair
      instead of stranding Delete on a line of its own. */
-  .right-actions{display:flex;gap:7px;margin-left:auto}
+  .right-actions{display:flex;gap:6px;margin-left:auto}
   .abtn.danger{background:var(--pink);color:#fff}
 
   /* Armed delete — the second tap is the confirmation. */
@@ -191,6 +192,14 @@
 
   footer{margin-top:30px;padding-top:14px;border-top:2px solid var(--ink);
     font-size:11px;font-weight:700;color:var(--grey);line-height:1.6}
+
+  /* Phone widths: squeeze the tracking and the gaps so the five action
+     buttons stay on one line instead of dropping Archive and Delete. */
+  @media (max-width:420px){
+    .action-row{gap:5px}
+    .right-actions{gap:5px}
+    .abtn,.applied-toggle,.hf-toggle{padding:6px 6px;letter-spacing:0}
+  }
 </style>
 </head>
 <body>
@@ -874,11 +883,7 @@ const App = {
     button.type = "button";
     button.className = className + (on ? " on" : "");
     button.setAttribute("aria-pressed", String(on));
-    const dot = document.createElement("span");
-    dot.className = "dot";
-    const text = document.createElement("span");
-    text.textContent = label;
-    button.append(dot, text);
+    button.textContent = label;
     button.onclick = action;
     return button;
   },
