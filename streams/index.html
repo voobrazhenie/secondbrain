@@ -111,10 +111,11 @@
     border-right:2px solid var(--ink);background:var(--sunk);cursor:grab;touch-action:none}
   .handle svg{width:13px;height:13px}
   .stream.hot .handle{background:var(--pink)}
-  .rowbody{flex:1;min-width:0;display:flex;align-items:center;padding:11px 12px;cursor:pointer}
+  /* A stream is one line and stays one line — no expanding. Selection and the
+     iOS callout are off so a long press reads as "rename", not "select text". */
+  .rowbody{flex:1;min-width:0;display:flex;align-items:center;padding:11px 14px 11px 12px;
+    cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
   .r-title{font-size:15px;font-weight:700;overflow-wrap:anywhere}
-  .r-chev{flex:0 0 auto;width:28px;display:flex;align-items:center;justify-content:center;
-    font-size:11px;font-weight:900;color:var(--grey)}
 
   .stream-body{border-top:2px solid var(--ink);padding:11px 12px}
   .acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -145,7 +146,7 @@
     <button class="btn" id="authBtn" hidden></button>
   </div>
 
-  <footer id="foot">Drag a stream by its handle — inside a section to reorder, into another to move it. Swipe a collapsed row left to delete. Signed out, streams stay in this browser. Signed in, they sync to your own account — readable only by you.</footer>
+  <footer id="foot">Drag a stream by its handle — inside a section to reorder, into another to move it. Hold a stream to rename it, swipe it left to delete. Signed out, streams stay in this browser. Signed in, they sync to your own account — readable only by you.</footer>
 </div>
 
 <script type="module">
@@ -164,7 +165,6 @@ const GROUPS = [
 ];
 let streams = [];      // [{ id, title, group }], array order = display order
 let editingId = null;  // stream showing its rename form instead of its row
-let openId = null;     // expanded stream
 let revealedId = null; // stream whose swipe tray is showing
 let addGroup = null;   // group whose add panel is open
 
@@ -209,7 +209,6 @@ function renameStream(id, title) {
 
 function removeStream(id) {
   streams = streams.filter(x => x.id !== id);
-  if (openId === id) openId = null;
   revealedId = null;
   saveLocal();
   render();
@@ -355,36 +354,11 @@ function streamRow(s, group) {
   title.textContent = s.title;
   body.appendChild(title);
 
-  const chev = document.createElement("div");
-  chev.className = "r-chev";
-  chev.innerHTML = openId === s.id ? "&#9652;" : "&#9662;";
-
-  surface.append(dragHandle(card, s), body, chev);
+  surface.append(dragHandle(card, s), body);
   attachSwipe(surface, s);
   clip.append(tray, surface);
   card.appendChild(clip);
-
-  if (openId === s.id) card.appendChild(cardBody(s));
   return card;
-}
-
-function cardBody(s) {
-  const body = document.createElement("div");
-  body.className = "stream-body";
-  const acts = document.createElement("div");
-  acts.className = "acts";
-
-  const edit = document.createElement("button");
-  edit.type = "button"; edit.className = "abtn"; edit.textContent = "EDIT";
-  edit.addEventListener("click", () => { editingId = s.id; render(); });
-
-  const del = document.createElement("button");
-  del.type = "button"; del.className = "abtn danger";
-  armDelete(del, "DELETE", () => removeStream(s.id));
-
-  acts.append(edit, del);
-  body.appendChild(acts);
-  return body;
 }
 
 /* Delete asks once, on the button itself: the first tap arms it, the second
@@ -532,12 +506,16 @@ function clearDropMarks() {
     .forEach(el => el.classList.remove("drop-before", "drop-after", "drop-in"));
 }
 
-/* ---------- swipe ----------
+/* ---------- swipe and long press ----------
    The row tracks the finger with the transition switched off, then snaps open
-   or shut on release. Only while the card is collapsed: once it is open the
-   same Delete sits in the action row. */
+   or shut on release — swipe left for Delete. Holding still for half a second
+   instead opens the rename form, which is the only way in now that the rows
+   don't expand. The first few pixels decide which gesture this is. */
+const LONG_PRESS_MS = 500;
+
 function attachSwipe(surface, s) {
   let startX = 0, startY = 0, base = 0, dx = 0, axis = null, tracking = false;
+  let timer = null, held = false;
 
   const settle = offset => {
     surface.style.transition = "";
@@ -546,18 +524,28 @@ function attachSwipe(surface, s) {
 
   surface.addEventListener("pointerdown", event => {
     if (event.button) return;
-    tracking = true; axis = null; dx = 0;
+    tracking = true; axis = null; dx = 0; held = false;
     startX = event.clientX; startY = event.clientY;
     base = revealedId === s.id ? -TRAY_W : 0;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (axis !== null) return;          // already swiping — not a hold
+      held = true;
+      if (navigator.vibrate) navigator.vibrate(12);
+      editingId = s.id;
+      revealedId = null;
+      render();
+    }, LONG_PRESS_MS);
   });
 
   surface.addEventListener("pointermove", event => {
-    if (!tracking || openId === s.id) return;
+    if (!tracking) return;
     const ax = event.clientX - startX;
     const ay = event.clientY - startY;
     if (axis === null) {
       if (Math.abs(ax) < TAP_SLOP && Math.abs(ay) < TAP_SLOP) return;
       axis = Math.abs(ax) > Math.abs(ay) ? "x" : "y";
+      clearTimeout(timer);
       if (axis === "x") {
         surface.style.transition = "none";
         surface.setPointerCapture(event.pointerId);
@@ -569,7 +557,8 @@ function attachSwipe(surface, s) {
   });
 
   surface.addEventListener("pointerup", () => {
-    if (!tracking) return;
+    clearTimeout(timer);
+    if (!tracking || held) { tracking = false; axis = null; return; }
     tracking = false;
 
     if (axis === "x") {
@@ -582,14 +571,24 @@ function attachSwipe(surface, s) {
     }
     axis = null;
 
-    if (openId === s.id) { toggleOpen(s.id); return; }
-    if (revealedId === s.id) { revealedId = null; settle(0); return; }
-    toggleOpen(s.id);
+    // A plain tap only puts a revealed row back; there is nothing to open.
+    if (revealedId === s.id) { revealedId = null; settle(0); }
   });
 
   surface.addEventListener("pointercancel", () => {
+    clearTimeout(timer);
     tracking = false; axis = null;
     settle(revealedId === s.id ? -TRAY_W : 0);
+  });
+
+  // Mouse equivalents of the hold.
+  surface.addEventListener("dblclick", event => {
+    event.preventDefault();
+    editingId = s.id; revealedId = null; render();
+  });
+  surface.addEventListener("contextmenu", event => {
+    event.preventDefault();
+    editingId = s.id; revealedId = null; render();
   });
 }
 
@@ -598,12 +597,6 @@ function attachSwipe(surface, s) {
 function resetTray(id) {
   const other = document.querySelector(`.stream[data-id="${id}"] .surface`);
   if (other) { other.style.transition = ""; other.style.transform = "translateX(0px)"; }
-}
-
-function toggleOpen(id) {
-  openId = openId === id ? null : id;
-  revealedId = null;
-  render();
 }
 
 /* ---------- sync ---------- */
