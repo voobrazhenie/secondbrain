@@ -292,21 +292,22 @@
       </div>
     </form>
 
-    <!-- Where a research pass drops what it found. Nothing arrives in CURRENT
-         on its own: he reads these and either keeps them or says no. Hidden
-         entirely when empty, which is most of the time. -->
-    <div class="list-head first unread-head hide" id="unreadHead">
-      <span class="t blk">UNREAD</span><span class="rule"></span>
-      <span class="count blk" id="unreadCount">0</span>
-    </div>
-    <div class="section-body unread hide" id="unreadList" data-group="unread"></div>
-
     <div class="list-head first" id="currentHead">
       <span class="t blk">CURRENT</span><span class="rule"></span>
       <span class="count blk" id="currentCount">0</span>
       <button class="add" type="button" id="addBtn" aria-label="Add a job">+</button>
     </div>
     <div class="section-body" id="currentList" data-group="current"></div>
+
+    <!-- Where a research pass drops what it found. It sits under the working
+         list on purpose: what he is already chasing comes first. Nothing
+         arrives in CURRENT on its own — he reads these and keeps them or says
+         no. Hidden entirely when empty, which is most of the time. -->
+    <div class="list-head unread-head hide" id="unreadHead">
+      <span class="t blk">UNREAD</span><span class="rule"></span>
+      <span class="count blk" id="unreadCount">0</span>
+    </div>
+    <div class="section-body unread hide" id="unreadList" data-group="unread"></div>
 
     <button class="section-toggle" type="button" id="parkedToggle" aria-expanded="false">
       <span class="t blk">NOT RELEVANT</span><span class="rule"></span>
@@ -607,7 +608,7 @@ const App = {
   /* An empty section is a valid drop target too, and so is the header above
      it — otherwise the first job you want to park has nowhere to land. */
   groupUnder(clientY) {
-    for (const [id, group] of [["unreadList", "unread"], ["currentList", "current"],
+    for (const [id, group] of [["currentList", "current"], ["unreadList", "unread"],
                                ["parkedList", "parked"]]) {
       const body = $(id);
       if (body.classList.contains("hide")) continue;
@@ -691,13 +692,12 @@ const App = {
       $("filters").appendChild(b);
     }
 
+    this.fill("currentList", "currentCount", this.visible(), live.length,
+              this.jobs.length ? "Nothing in this view." : "No opportunities stored yet.");
+
     this.fill("unreadList", "unreadCount", unread, unread.length, "");
     $("unreadHead").classList.toggle("hide", !unread.length);
     $("unreadList").classList.toggle("hide", !unread.length);
-    $("currentHead").classList.toggle("first", !unread.length);
-
-    this.fill("currentList", "currentCount", this.visible(), live.length,
-              this.jobs.length ? "Nothing in this view." : "No opportunities stored yet.");
     this.fill("parkedList", "parkedCount", parked, parked.length,
               "Nothing parked. Drag a job here, or use NOT RELEVANT inside a card.");
 
@@ -903,8 +903,9 @@ const App = {
       this.render();
     };
 
-    /* An unread job gets the one button it needs: keep it. Saying no is the
-       same NOT RELEVANT button every other card has. */
+    /* An unread job gets KEEP as well as the rest — reading it is not a
+       precondition for deciding it matters. Saying no is the same NOT RELEVANT
+       button every other card has. */
     const keep = document.createElement("button");
     keep.type = "button";
     keep.className = "abtn keep";
@@ -926,7 +927,7 @@ const App = {
     });
 
     right.append(park, del);
-    if (this.groupOf(j) === "unread") row.append(keep, edit, right);
+    if (this.groupOf(j) === "unread") row.append(focus, keep, edit, right);
     else row.append(focus, edit, right);
     return row;
   },
