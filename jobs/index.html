@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#FF3D8B">
+<meta name="theme-color" content="#4A1329">
 <meta name="robots" content="noindex, nofollow">
 <title>Jobs — Second Brain</title>
 
@@ -34,8 +34,16 @@
      headers, action row and sync bar all follow opportunities/ so the two
      private modules read as one thing. */
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+
+  /* This page runs dark. Full-strength --pink behind cream cards was loud
+     enough to flatten them; the same pink taken right down leaves the cards,
+     and the pink Focus handle, as the bright things on the screen. --on-page
+     is for the handful of labels and rules that sit straight on the
+     background instead of inside a card. */
+  :root{ --page:#4A1329; --on-page:#F6E4EC; --on-page-faint:#B98CA0 }
+
   body{
-    margin:0; background:var(--pink); color:var(--ink);
+    margin:0; background:var(--page); color:var(--ink);
     padding:
       calc(5vh + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
       calc(60px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
@@ -82,18 +90,19 @@
   /* ---------- section headers (from opportunities/) ---------- */
   .list-head{display:flex;align-items:center;gap:9px;margin:24px 0 10px}
   .list-head.first{margin-top:0}
-  .list-head .t{font-size:11px;letter-spacing:.08em;background:var(--ink);color:var(--paper);
+  .list-head .t{font-size:11px;letter-spacing:.08em;background:var(--on-page);color:var(--ink);
     padding:3px 8px}
-  .list-head .rule{height:2px;background:var(--ink);flex:1}
-  .list-head .count{font-size:10px;color:var(--grey);font-weight:800}
+  .list-head .rule{height:2px;background:var(--on-page-faint);flex:1}
+  .list-head .count{font-size:10px;color:var(--on-page);font-weight:800}
 
   .section-toggle{width:100%;display:flex;align-items:center;gap:9px;background:none;border:0;
     padding:0;margin:26px 0 10px;text-align:left}
-  .section-toggle .t{font-size:11px;letter-spacing:.08em;background:var(--sunk);color:var(--ink);
-    padding:3px 8px;font-weight:900}
-  .section-toggle .rule{height:2px;background:var(--faint);flex:1}
-  .section-toggle .count{font-size:10px;color:var(--grey);font-weight:800}
-  .section-toggle .chev{font-size:11px;font-weight:900}
+  .section-toggle .t{font-size:11px;letter-spacing:.08em;background:transparent;
+    color:var(--on-page-faint);border:2px solid var(--on-page-faint);
+    padding:1px 6px;font-weight:900}
+  .section-toggle .rule{height:2px;background:var(--on-page-faint);flex:1}
+  .section-toggle .count{font-size:10px;color:var(--on-page);font-weight:800}
+  .section-toggle .chev{font-size:11px;font-weight:900;color:var(--on-page)}
   /* Same small icon-button-next-to-a-count pattern as opportunities/. */
   .list-head .add{flex:0 0 auto;width:26px;height:26px;padding:0;font-size:15px;line-height:1;
     background:var(--card);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
@@ -104,8 +113,8 @@
   /* A section lights up while a card is being dragged over it, which is how a
      job moves between Current and Not relevant without opening it. */
   .drop-in{outline:2px dashed var(--teal);outline-offset:4px}
-  .empty{border:2.5px dashed var(--ink);padding:16px;text-align:center;
-    color:var(--grey);font-weight:700;font-size:12.5px}
+  .empty{border:2.5px dashed var(--on-page-faint);padding:16px;text-align:center;
+    color:var(--on-page);font-weight:700;font-size:12.5px}
 
   /* ---------- add and edit forms (same shape as opportunities/) ---------- */
   .add-panel{background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
