@@ -21,6 +21,13 @@ keeping it in the conversation.
 
 *(Standing rules so far. Ask him to add to this list; do not invent entries.)*
 
+- **Junior and mid-level, not senior.** He does not consider himself a senior
+  3D or environment artist yet, and a list full of senior and principal
+  postings is a list he cannot act on. Aim at roles asking roughly two to four
+  years. A senior posting goes on the list only when there is a specific reason
+  — the mid-level version of the same job is also open, or the years asked are
+  soft and the rest of the brief fits him unusually well — and the reason goes
+  in `flag` so he can see it is a stretch before he spends an evening on it.
 - Remote or Berlin first. Anything that needs relocation has to be worth the
   move and must be named as a move, not buried in the location field.
 - Never present a role he cannot actually take. A posting that rules out visa

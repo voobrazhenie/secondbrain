@@ -22,7 +22,7 @@
   /* Same neo-brutalist system as the rest of Second Brain — thick strokes,
      squared corners, solid accent blocks, hard zero-blur shadows. Shared
      colors/spacing live in theme.css; --maxw is page-specific. */
-  :root{ --maxw:430px; }
+  :root{ --maxw:var(--page-width); }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
     margin:0; background:var(--paper); color:var(--ink);
@@ -38,16 +38,7 @@
   .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;letter-spacing:-.01em}
 
   /* ---------- header ---------- */
-  a.back{
-    display:inline-block;font-size:11px;font-weight:800;letter-spacing:.08em;
-    text-decoration:none;color:var(--ink);border-bottom:2px solid var(--ink);margin-bottom:10px;
-  }
   a.back:hover{color:var(--pink)}
-  .eyebrow{
-    display:inline-block;background:var(--ink);color:var(--paper);
-    font-size:10px;letter-spacing:.1em;padding:4px 9px;margin:0 0 14px;
-    font-family:"Arial Black",Impact,sans-serif;
-  }
 
   /* ---------- hero: net worth ---------- */
   .hero{
@@ -294,8 +285,10 @@
 <body>
 <div class="wrap">
 
-  <a class="back" href="../">&larr; SECOND BRAIN</a>
-  <span class="eyebrow">FINANCE</span>
+  <nav class="crumbs">
+    <a class="crumb" href="../">SECOND BRAIN</a>
+    <span class="crumb here">FINANCE</span>
+  </nav>
 
   <div class="hero">
     <div class="k">NET WORTH, IN EUR</div>

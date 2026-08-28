@@ -13,7 +13,7 @@
        This page is deliberately phone-width: it is used one-handed, mid-set,
        and the set tiles need to stay under a thumb. Hence --maxw below rather
        than the 620px the reading-oriented pages use. */
-    :root{--maxw:430px}
+    :root{--maxw:var(--page-width)}
 
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     body{
@@ -33,10 +33,6 @@
     [hidden]{display:none!important}
 
     .topbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-    .home{
-      font-family:"Arial Black",Impact,sans-serif;font-weight:900;
-      font-size:9px;letter-spacing:.09em;color:var(--ink);text-decoration:none;
-    }
     .syncchip{
       display:inline-flex;align-items:center;gap:5px;
       background:var(--card);border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
@@ -269,7 +265,8 @@
 <body>
   <div class="wrap">
     <div class="topbar">
-      <a class="home" href="../">&larr; SECOND BRAIN</a>
+      <a class="crumb" href="../">SECOND BRAIN</a>
+      <span class="crumb here">EXERCISE</span>
       <span class="grow"></span>
       <span class="syncchip off" id="chip"><i></i><span id="chipText">CHECKING</span></span>
     </div>

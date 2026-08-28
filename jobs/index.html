@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#F2EDE0">
+<meta name="theme-color" content="#FF3D8B">
 <meta name="robots" content="noindex, nofollow">
 <title>Jobs — Second Brain</title>
 
@@ -35,7 +35,7 @@
      private modules read as one thing. */
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
-    margin:0; background:var(--paper); color:var(--ink);
+    margin:0; background:var(--pink); color:var(--ink);
     padding:
       calc(5vh + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
       calc(60px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
@@ -48,14 +48,10 @@
   button{cursor:pointer;color:var(--ink);-webkit-appearance:none;appearance:none;background:transparent}
   a{color:var(--ink)}
   .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900}
-  .wrap{max-width:620px;margin:0 auto}
+  .wrap{max-width:var(--page-width);margin:0 auto}
   .hide{display:none !important}
 
-  /* ---------- header (identical to opportunities/) ---------- */
-  a.back{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.08em;
-    text-decoration:none;color:var(--ink);border-bottom:2px solid var(--ink);margin-bottom:16px}
-  .eyebrow{display:inline-block;background:var(--ink);color:var(--paper);
-    font-size:10px;letter-spacing:.1em;padding:4px 9px;margin-bottom:18px}
+  /* Header is .crumbs from theme.css — one line, no back arrow. */
 
   /* ---------- sync bar ----------
      Quiet card with a status dot rather than a full-width colour block, and it
@@ -98,6 +94,11 @@
   .section-toggle .rule{height:2px;background:var(--faint);flex:1}
   .section-toggle .count{font-size:10px;color:var(--grey);font-weight:800}
   .section-toggle .chev{font-size:11px;font-weight:900}
+  /* Same small icon-button-next-to-a-count pattern as opportunities/. */
+  .list-head .add{flex:0 0 auto;width:26px;height:26px;padding:0;font-size:15px;line-height:1;
+    background:var(--card);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
+    display:flex;align-items:center;justify-content:center;font-family:"Arial Black",Impact,sans-serif}
+  .list-head .add:active{transform:translate(2px,2px);box-shadow:none}
   .section-body{margin-bottom:6px}
   .section-body.parked .job{opacity:.82}
   /* A section lights up while a card is being dragged over it, which is how a
@@ -105,6 +106,28 @@
   .drop-in{outline:2px dashed var(--teal);outline-offset:4px}
   .empty{border:2.5px dashed var(--ink);padding:16px;text-align:center;
     color:var(--grey);font-weight:700;font-size:12.5px}
+
+  /* ---------- add and edit forms (same shape as opportunities/) ---------- */
+  .add-panel{background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:14px;margin-bottom:18px}
+  .edit-form{border-top:2px solid var(--ink);padding:13px 14px;margin-top:8px}
+  .field{display:block;margin-bottom:11px}
+  .field span{display:block;font-size:9px;letter-spacing:.08em;margin-bottom:4px}
+  /* 16px minimum on the controls — anything smaller makes iOS zoom on focus. */
+  .field input,.field textarea{display:block;width:100%;border:2px solid var(--ink);
+    background:var(--paper);color:var(--ink);padding:9px 10px;font-size:16px;font-weight:650;
+    border-radius:0}
+  .field textarea{min-height:64px;resize:vertical;line-height:1.45}
+  .checkline{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12px;font-weight:800}
+  .checkline input{width:16px;height:16px}
+  .more-toggle{background:none;border:0;padding:0;margin-bottom:12px;font-size:11px;font-weight:800;
+    letter-spacing:.04em;text-decoration:underline;color:var(--grey)}
+  .form-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .fbtn{background:var(--card);color:var(--ink);border:2px solid var(--ink);
+    padding:8px 12px;font-size:11px;font-weight:900;letter-spacing:.04em;
+    box-shadow:2px 2px 0 var(--ink);font-family:"Arial Black",Impact,sans-serif}
+  .fbtn.primary{background:var(--yellow)}
+  .fbtn:active{transform:translate(2px,2px);box-shadow:none}
 
   /* ---------- job cards ---------- */
   .job{background:var(--card);border:var(--stroke) solid var(--ink);
@@ -125,10 +148,6 @@
      collapsed card the body is display:none, so the padding stays even
      top and bottom. */
   .jbody{margin-top:8px}
-  .rank{flex:0 0 auto;width:30px;height:30px;background:var(--yellow);
-    border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;
-    font-size:14px}
-  .job.parked .rank{background:var(--sunk)}
   .titles{flex:1;min-width:0}
   .co{display:block;font-size:16px;letter-spacing:-.01em;line-height:1.15}
   .ro{display:block;font-size:13px;font-weight:700;color:var(--grey);margin-top:3px}
@@ -193,8 +212,10 @@
 <body>
 <div class="wrap">
 
-  <a class="back" href="../">&larr; SECOND BRAIN</a><br>
-  <span class="eyebrow blk">JOB SEARCH</span>
+  <nav class="crumbs">
+    <a class="crumb" href="../">SECOND BRAIN</a>
+    <span class="crumb here">JOB SEARCH</span>
+  </nav>
 
   <div id="gate">
     <p>This module is private. Sign in with the account that owns this data to see it.</p>
@@ -203,9 +224,58 @@
   <div id="app" class="hide">
     <div class="filters" id="filters"></div>
 
+    <!-- Static markup, never rebuilt by render(): a snapshot arriving
+         mid-typing would otherwise throw away a half-written entry. -->
+    <form class="add-panel hide" id="addPanel">
+      <label class="field">
+        <span class="blk">COMPANY</span>
+        <input id="fCompany" maxlength="80" required autocomplete="off" placeholder="Who is hiring?">
+      </label>
+      <label class="field">
+        <span class="blk">ROLE</span>
+        <input id="fRole" maxlength="120" autocomplete="off" placeholder="What is the job called?">
+      </label>
+      <button class="more-toggle" type="button" id="moreToggle">Add location, link, pay, notes &#9662;</button>
+      <div id="addMore" class="hide">
+        <label class="field">
+          <span class="blk">LOCATION</span>
+          <input id="fLocation" maxlength="120" autocomplete="off" placeholder="Berlin, or Remote">
+        </label>
+        <label class="field">
+          <span class="blk">LINK</span>
+          <input id="fLink" type="url" autocomplete="off" placeholder="https://…">
+        </label>
+        <label class="field">
+          <span class="blk">PAY</span>
+          <input id="fPay" maxlength="80" autocomplete="off" placeholder="Whatever they published">
+        </label>
+        <label class="field">
+          <span class="blk">WHAT IT IS</span>
+          <textarea id="fWhat" maxlength="2000"></textarea>
+        </label>
+        <label class="field">
+          <span class="blk">WHY YOU</span>
+          <textarea id="fWhy" maxlength="2000"></textarea>
+        </label>
+        <label class="field">
+          <span class="blk">CATCH</span>
+          <textarea id="fFlag" maxlength="2000"></textarea>
+        </label>
+        <label class="checkline">
+          <input id="fRemote" type="checkbox">
+          <span>Remote</span>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="fbtn primary" type="submit">ADD</button>
+        <button class="fbtn" type="button" id="cancelAdd">CANCEL</button>
+      </div>
+    </form>
+
     <div class="list-head first">
       <span class="t blk">CURRENT</span><span class="rule"></span>
       <span class="count blk" id="currentCount">0</span>
+      <button class="add" type="button" id="addBtn" aria-label="Add a job">+</button>
     </div>
     <div class="section-body" id="currentList" data-group="current"></div>
 
@@ -240,9 +310,12 @@ const STATES = [
 ];
 const DONE = new Set(["passed", "closed"]);
 
+const newId = () => "j-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const slug = s => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+
 const App = {
   fb: null, uid: null, jobs: [], filter: "open", unsub: null,
-  open: new Set(), parkedOpen: false,
+  open: new Set(), parkedOpen: false, editingId: null, addOpen: false, addMoreOpen: false,
 
   setUI(state, msg, btnLabel, btnAction) {
     $("sync").className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
@@ -250,6 +323,63 @@ const App = {
     const btn = $("authBtn");
     if (btnLabel) { btn.hidden = false; btn.textContent = btnLabel; btn.onclick = btnAction; }
     else { btn.hidden = true; btn.onclick = null; }
+  },
+
+  /* Bound once. The panel is static markup so a live snapshot arriving while
+     he types can't wipe the half-written entry. */
+  bindAddPanel() {
+    $("addBtn").onclick = () => { this.addOpen = !this.addOpen; this.syncAddPanel(); };
+    $("cancelAdd").onclick = () => { this.addOpen = false; this.syncAddPanel(); };
+    $("moreToggle").onclick = () => {
+      this.addMoreOpen = !this.addMoreOpen;
+      $("addMore").classList.toggle("hide", !this.addMoreOpen);
+      $("moreToggle").innerHTML = this.addMoreOpen
+        ? "Hide location, link, pay, notes &#9652;"
+        : "Add location, link, pay, notes &#9662;";
+    };
+    $("addPanel").addEventListener("submit", e => {
+      e.preventDefault();
+      const company = $("fCompany").value.trim();
+      if (!company) { $("fCompany").focus(); return; }
+      this.add({
+        company,
+        role: $("fRole").value.trim(),
+        location: $("fLocation").value.trim(),
+        pay: $("fPay").value.trim(),
+        what: $("fWhat").value.trim(),
+        why: $("fWhy").value.trim(),
+        flag: $("fFlag").value.trim(),
+        remote: $("fRemote").checked,
+        link: $("fLink").value.trim()
+      });
+      this.addOpen = false;
+      this.syncAddPanel({ clear: true });
+    });
+  },
+
+  syncAddPanel({ clear = false } = {}) {
+    $("addPanel").classList.toggle("hide", !this.addOpen);
+    if (clear) {
+      for (const id of ["fCompany","fRole","fLocation","fLink","fPay","fWhat","fWhy","fFlag"]) $(id).value = "";
+      $("fRemote").checked = false;
+    }
+    if (this.addOpen) $("fCompany").focus();
+  },
+
+  /* New jobs go to the top of Current. Rank is still what orders the list —
+     the number just isn't printed on the card any more. */
+  async add(fields) {
+    const { f, db } = this.fb;
+    const top = Math.min(0, ...this.jobs.map(j => j.rank || 0));
+    const id = (slug(fields.company + "-" + fields.role) || newId()) + "-" + newId().slice(-4);
+    const links = fields.link ? [{ label: "The role", url: fields.link }] : [];
+    delete fields.link;
+    await f.setDoc(f.doc(db, "users", this.uid, "jobs", id), {
+      ...fields, links, rank: top - 1, live: true, status: "todo",
+      parked: false, focus: false,
+      addedBy: "hand",
+      createdAt: f.serverTimestamp(), updatedAt: f.serverTimestamp()
+    });
   },
 
   async init() {
@@ -292,6 +422,7 @@ const App = {
     this.setUI("on", `Signed in as ${user.email || "your account"}`, "Sign out", () => this.signOut());
     $("gate").classList.add("hide");
     $("app").classList.remove("hide");
+    this.bindAddPanel();
     this.attach();
   },
 
@@ -537,7 +668,7 @@ const App = {
 
   card(j) {
     const status = j.status || "todo";
-    const isOpen = this.open.has(j.id);
+    const isOpen = this.open.has(j.id) || this.editingId === j.id;
     const el = document.createElement("div");
     el.className = "job" + (DONE.has(status) ? " done" : "") + (j.parked ? " parked" : "");
     el.dataset.id = j.id;
@@ -548,8 +679,6 @@ const App = {
 
     const head = document.createElement("div");
     head.className = "job-h";
-    const rank = document.createElement("div");
-    rank.className = "rank blk"; rank.textContent = j.parked ? "•" : (j.rank ?? "•");
     const titles = document.createElement("div");
     titles.className = "titles";
     const co = document.createElement("span"); co.className = "co blk"; co.textContent = j.company || "";
@@ -557,7 +686,7 @@ const App = {
     titles.append(co, ro);
     const chev = document.createElement("span");
     chev.className = "chev blk"; chev.textContent = isOpen ? "▴" : "▾";
-    head.append(rank, titles, chev);
+    head.append(titles, chev);
     head.onclick = () => {
       if (this.open.has(j.id)) this.open.delete(j.id); else this.open.add(j.id);
       this.render();
@@ -645,6 +774,7 @@ const App = {
     body.appendChild(track);
 
     body.appendChild(this.actionRow(j));
+    if (this.editingId === j.id) body.appendChild(this.editForm(j));
     main.appendChild(body);
     el.appendChild(main);
 
@@ -665,6 +795,16 @@ const App = {
     const right = document.createElement("div");
     right.className = "right-actions";
 
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "abtn";
+    edit.textContent = this.editingId === j.id ? "CLOSE EDIT" : "EDIT";
+    edit.onclick = () => {
+      this.editingId = this.editingId === j.id ? null : j.id;
+      this.open.add(j.id);
+      this.render();
+    };
+
     const park = document.createElement("button");
     park.type = "button";
     park.className = "abtn";
@@ -680,8 +820,82 @@ const App = {
     });
 
     right.append(park, del);
-    row.append(focus, right);
+    row.append(focus, edit, right);
     return row;
+  },
+
+  field(labelText, tag, value, options = {}) {
+    const label = document.createElement("label");
+    label.className = "field";
+    const caption = document.createElement("span");
+    caption.className = "blk";
+    caption.textContent = labelText;
+    const control = document.createElement(tag);
+    control.value = value || "";
+    if (options.type) control.type = options.type;
+    if (options.maxLength) control.maxLength = options.maxLength;
+    label.append(caption, control);
+    return { label, control };
+  },
+
+  /* Edits the fields a research pass writes. Stage and notes are edited in
+     place above and are deliberately not repeated here. */
+  editForm(j) {
+    const form = document.createElement("form");
+    form.className = "edit-form";
+    const company  = this.field("COMPANY", "input", j.company, { maxLength: 80 });
+    const role     = this.field("ROLE", "input", j.role, { maxLength: 120 });
+    const location = this.field("LOCATION", "input", j.location, { maxLength: 120 });
+    const pay      = this.field("PAY", "input", j.pay, { maxLength: 80 });
+    const link     = this.field("LINK", "input", (j.links && j.links[0] && j.links[0].url) || "", { type: "url" });
+    const what     = this.field("WHAT IT IS", "textarea", j.what, { maxLength: 2000 });
+    const why      = this.field("WHY YOU", "textarea", j.why, { maxLength: 2000 });
+    const flag     = this.field("CATCH", "textarea", j.flag, { maxLength: 2000 });
+
+    const remoteLabel = document.createElement("label");
+    remoteLabel.className = "checkline";
+    const remote = document.createElement("input");
+    remote.type = "checkbox"; remote.checked = !!j.remote;
+    const remoteText = document.createElement("span");
+    remoteText.textContent = "Remote";
+    remoteLabel.append(remote, remoteText);
+
+    const actions = document.createElement("div");
+    actions.className = "form-actions";
+    const save = document.createElement("button");
+    save.type = "submit"; save.className = "fbtn primary"; save.textContent = "SAVE";
+    const cancel = document.createElement("button");
+    cancel.type = "button"; cancel.className = "fbtn"; cancel.textContent = "CANCEL";
+    cancel.onclick = () => { this.editingId = null; this.render(); };
+    actions.append(save, cancel);
+
+    form.append(company.label, role.label, location.label, pay.label, link.label,
+                what.label, why.label, flag.label, remoteLabel, actions);
+
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      // Keep any extra links a research pass added; only the first is edited here.
+      const rest = Array.isArray(j.links) ? j.links.slice(1) : [];
+      const url = link.control.value.trim();
+      const links = url
+        ? [{ label: (j.links && j.links[0] && j.links[0].label) || "The role", url }, ...rest]
+        : rest;
+      this.editingId = null;
+      this.patch(j.id, {
+        company: company.control.value.trim(),
+        role: role.control.value.trim(),
+        location: location.control.value.trim(),
+        pay: pay.control.value.trim(),
+        what: what.control.value.trim(),
+        why: why.control.value.trim(),
+        flag: flag.control.value.trim(),
+        remote: remote.checked,
+        links
+      });
+      this.render();
+    });
+    setTimeout(() => { company.control.focus(); }, 0);
+    return form;
   },
 
   /* Two taps on the same button rather than a dialog: the first arms it, the

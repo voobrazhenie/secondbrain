@@ -23,7 +23,7 @@
   /* Neo-brutalist character sheet — thick strokes, squared corners, solid accent
      blocks, hard zero-blur shadows. Light on paper rather than the old dark UI.
      Shared colors/spacing live in theme.css; --maxw is page-specific. */
-  :root{ --maxw:430px; }
+  :root{ --maxw:var(--page-width); }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
     margin:0; background:var(--yellow); color:var(--ink);
@@ -39,10 +39,6 @@
 
   /* ---------- header ---------- */
   .topbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-  .home{
-    font-family:"Arial Black",Impact,sans-serif;font-weight:900;
-    font-size:9px;letter-spacing:.09em;color:var(--ink);text-decoration:none;
-  }
   .home:hover{color:var(--pink)}
   .streak{
     display:inline-flex;align-items:center;gap:5px;
@@ -349,7 +345,8 @@
 <div class="wrap" id="wrap" data-auth="checking">
 
   <div class="topbar">
-    <a class="home" href="../">‹ SECOND BRAIN</a>
+    <a class="crumb" href="../">SECOND BRAIN</a>
+    <span class="crumb here">DAILYPLAN</span>
     <span class="grow"></span>
     <span class="streak" id="streak"><b id="streakN">0</b><span id="streakLbl">days</span></span>
   </div>

@@ -12,6 +12,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Second Brain">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!-- Linked for the shared page width, breadcrumb and handle rules. The
+     :root block below still overrides the colour tokens, so this page keeps
+     the palette it had until it is redesigned onto the system properly. -->
+<link rel="stylesheet" href="../theme.css">
 <style>
   :root{
     --paper:#F2EDE0;--card:#FFFDF7;--sunk:#E8E4D6;--ink:#111111;
@@ -27,7 +31,7 @@
   }
   button{font:inherit;color:inherit;cursor:pointer}
   .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900}
-  .wrap{max-width:520px;margin:0 auto}
+  .wrap{max-width:var(--page-width);margin:0 auto}
   .back{display:inline-block;color:var(--ink);text-decoration:none;font-size:9px;font-weight:900;
     letter-spacing:.09em;margin-bottom:13px}
   .hero{background:var(--teal);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
@@ -81,7 +85,10 @@
 </head>
 <body>
 <div class="wrap">
-  <a class="back" href="../">‹ SECOND BRAIN</a>
+  <nav class="crumbs">
+    <a class="crumb" href="../">SECOND BRAIN</a>
+    <span class="crumb here">FLAT RESET</span>
+  </nav>
   <section class="hero">
     <div class="eyebrow blk">FLAT RESET</div>
     <h1 class="blk">Clean<br>sweep. 🧹</h1>
