@@ -27,6 +27,7 @@ const db = await connect();
 await db.get("users/UID/jobsMeta/overview");   // one doc, or null
 await db.list("users/UID/jobs");               // whole collection
 await db.patch("users/UID/jobs/some-id", {});  // merge; other fields untouched
+await db.remove("users/UID/jobs/some-id");     // delete a document
 ```
 
 It authenticates itself: cloud sessions read the `FIREBASE_SA_EMAIL` and
@@ -40,8 +41,20 @@ These are Admin credentials and bypass `firestore.rules` entirely, so the rules
 give no protection against a mistake here. Read before overwriting, and never
 print the key or commit it.
 
-## Network limits in cloud sessions
+## Network in cloud sessions
 
-Cloud sessions (claude.ai/code) reach Google APIs and package registries only.
-Job boards, ATS APIs, and most of the web are blocked. Anything needing them —
-`job-scout` above all — has to run on his own machine, not here.
+Cloud sessions (claude.ai/code) do reach the open web, but not by every route,
+so check before concluding a site is unreachable:
+
+- **`curl` works** for most job boards and ATS APIs. Greenhouse, Lever, Ashby
+  and SmartRecruiters all answer their public board endpoints, which is the
+  reliable way to confirm a posting is still open.
+- **`WebFetch` is blocked** for those same domains by the egress proxy, and
+  says so explicitly. `WebSearch` works, and is how to find candidates.
+- **Some sites refuse this network in particular.** Epic and GitHub answer
+  `curl` with 403; Workable and Personio answer with a Cloudflare 429 for the
+  shared address. Those need another route — Epic's postings are readable
+  through the Greenhouse API — or an honest "not re-checked" note on the card.
+
+So `job-scout` can run here, as long as the handful of employers that stay
+unverifiable are marked as such rather than assumed live.
