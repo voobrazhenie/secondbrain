@@ -192,6 +192,9 @@
     border:2px solid var(--ink);padding:8px 9px;resize:vertical;min-height:38px}
   .saved{font-size:10.5px;font-weight:800;color:var(--grey);letter-spacing:.06em;
     text-transform:uppercase;min-height:13px}
+  /* SAVE NOTE only appears once the note differs from what is stored. */
+  .note-row{display:flex;align-items:center;gap:9px;margin-top:8px;min-height:20px}
+  .note-save{padding:6px 10px}
 
   /* ---------- action row (from opportunities/) ---------- */
   .action-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:11px;
@@ -325,6 +328,10 @@ const slug = s => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^
 const App = {
   fb: null, uid: null, jobs: [], filter: "open", unsub: null,
   open: new Set(), parkedOpen: false, editingId: null, addOpen: false, addMoreOpen: false,
+  /* Note text typed but not yet saved, by job id. A snapshot from Firestore
+     rebuilds the whole list, so without this a half-written note would be
+     replaced by whatever is stored the moment anything else changes. */
+  drafts: new Map(),
 
   setUI(state, msg, btnLabel, btnAction) {
     $("sync").className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
@@ -636,6 +643,14 @@ const App = {
   },
 
   render() {
+    /* A rebuild replaces every field on the page, so anything he is typing in
+       has to be found again afterwards — otherwise a write from another tab,
+       or his own Save, drops him out of the field mid-sentence. */
+    const active = document.activeElement;
+    const keep = active && active.dataset && active.dataset.notes
+      ? { id: active.dataset.notes, start: active.selectionStart, end: active.selectionEnd }
+      : null;
+
     const live = this.jobs.filter(j => !j.parked);
     const parked = this.jobs.filter(j => j.parked);
 
@@ -660,6 +675,14 @@ const App = {
     $("parkedChev").innerHTML = this.parkedOpen ? "&#9652;" : "&#9662;";
     $("parkedToggle").setAttribute("aria-expanded", String(this.parkedOpen));
     $("parkedToggle").onclick = () => { this.parkedOpen = !this.parkedOpen; this.render(); };
+
+    if (keep) {
+      const ta = $("app").querySelector(`textarea[data-notes="${CSS.escape(keep.id)}"]`);
+      if (ta) {
+        ta.focus({ preventScroll: true });
+        try { ta.setSelectionRange(keep.start, keep.end); } catch {}
+      }
+    }
   },
 
   fill(listId, countId, rows, count, emptyText) {
@@ -769,17 +792,41 @@ const App = {
     }
     track.appendChild(states);
 
+    /* Notes save on the button, not on a timer. Saving writes to Firestore,
+       the listener fires, and render() rebuilds the list — which used to yank
+       the cursor out of the field a second after he stopped typing. */
     const ta = document.createElement("textarea");
     ta.placeholder = "Notes — contacts, dates, what you sent…";
-    ta.value = j.notes || "";
+    ta.dataset.notes = j.id;
+    const stored = j.notes || "";
+    ta.value = this.drafts.has(j.id) ? this.drafts.get(j.id) : stored;
     ta.rows = 2;
-    let t = null;
-    ta.oninput = () => {
-      clearTimeout(t);
-      saved.textContent = "…";
-      t = setTimeout(() => this.patch(j.id, { notes: ta.value }, saved), 700);
+
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "fbtn primary note-save";
+    save.textContent = "SAVE NOTE";
+
+    /* The button only exists while there is something to save. */
+    const sync = () => {
+      const dirty = ta.value !== stored;
+      if (dirty) this.drafts.set(j.id, ta.value); else this.drafts.delete(j.id);
+      save.classList.toggle("hide", !dirty);
+      if (dirty) saved.textContent = "Unsaved";
+      else if (saved.textContent === "Unsaved") saved.textContent = "";
     };
-    track.append(ta, saved);
+    ta.oninput = sync;
+    save.onclick = () => {
+      this.drafts.delete(j.id);
+      save.classList.add("hide");
+      this.patch(j.id, { notes: ta.value }, saved);
+    };
+    sync();
+
+    const notesRow = document.createElement("div");
+    notesRow.className = "note-row";
+    notesRow.append(save, saved);
+    track.append(ta, notesRow);
     body.appendChild(track);
 
     body.appendChild(this.actionRow(j));
