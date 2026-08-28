@@ -68,9 +68,19 @@
 
   .stream{
     background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
-    padding:10px 11px;margin-bottom:9px;
+    margin-bottom:9px;display:flex;align-items:stretch;
   }
-  .stream.hot{border-left-width:7px;border-left-color:var(--yellow)}
+  .streammain{flex:1;min-width:0;padding:10px 11px}
+  /* Same drag-handle block as opportunities/, ideas/ and jobs/: always there so
+     the rows line up, and it carries the Focus-now colour the way the thick
+     left border used to. */
+  .handle{flex:0 0 auto;width:30px;display:flex;align-items:center;justify-content:center;
+    border-right:2px solid var(--ink);background:var(--sunk);cursor:grab;touch-action:none}
+  .handle svg{width:13px;height:13px}
+  .stream.hot .handle{background:var(--yellow)}
+  .stream.dragging{opacity:.45;position:relative;z-index:3}
+  .stream.drop-before{box-shadow:0 -6px 0 var(--teal),var(--shadow)}
+  .stream.drop-after{box-shadow:0 6px 0 var(--teal),var(--shadow)}
   .stream .row1{display:flex;align-items:center;gap:8px}
   .stream .title{flex:1;min-width:0;font-size:15px;font-weight:700;
     overflow-wrap:break-word;cursor:text}
@@ -94,8 +104,10 @@
   }
   .stream .acts button:active{transform:translate(2px,2px);box-shadow:none}
   .stream .acts button:disabled{opacity:.35;cursor:default;transform:none;box-shadow:2px 2px 0 var(--faint)}
-  .stream .acts button.rm{background:var(--paper)}
-  .stream .acts button.rm.arm{background:var(--pink);color:#fff}
+  /* Delete matches opportunities/: pink until it is armed, ink once the next
+     tap will actually remove the stream. */
+  .stream .acts button.rm{margin-left:auto;background:var(--pink);color:#fff}
+  .stream .acts button.rm.arm{background:var(--ink);color:var(--paper)}
 
   .empty{font-size:12px;font-weight:600;color:var(--grey);padding:2px 2px 10px}
 
@@ -131,7 +143,7 @@
     <button class="btn" id="authBtn" hidden></button>
   </div>
 
-  <footer id="foot">Signed out, streams stay in this browser. Signed in, they sync to your own account — readable only by you.</footer>
+  <footer id="foot">Drag a stream by its handle to reorder it. Signed out, streams stay in this browser. Signed in, they sync to your own account — readable only by you.</footer>
 </div>
 
 <script type="module">
@@ -154,6 +166,7 @@ let streams = [];     // [{ id, title, group }], array order = within-group disp
 let editingId = null; // stream currently showing a rename input instead of its title
 let armedId = null;   // stream currently in "tap again to remove" state
 let openId = null;    // stream currently showing its actions panel (rename/reorder/move/remove)
+let disarmTimer = null; // clears an armed DELETE after a few seconds
 
 function loadLocal() {
   try { streams = JSON.parse(localStorage.getItem(LS_STREAMS) || "[]"); }
@@ -203,16 +216,19 @@ function moveStream(id, toGroup) {
   render();
 }
 
-/* Swaps with the nearest same-group neighbour in the underlying flat array —
-   correct regardless of how the three groups are interleaved in it. */
-function reorderStream(id, dir) {
-  const i = streams.findIndex(x => x.id === id);
-  if (i < 0) return;
-  const group = streams[i].group;
-  let j = i + dir;
-  while (j >= 0 && j < streams.length && streams[j].group !== group) j += dir;
-  if (j < 0 || j >= streams.length) return;
-  [streams[i], streams[j]] = [streams[j], streams[i]];
+/* The flat array is the order, so a drop is a splice: pull the dragged stream
+   out and put it back next to its target. Both are in the same group, which
+   the caller has already checked. */
+function dropStream(id, targetId, before) {
+  if (!id || id === targetId) return;
+  const from = streams.findIndex(x => x.id === id);
+  const target = streams.find(x => x.id === targetId);
+  if (from < 0 || !target || streams[from].group !== target.group) return;
+  const [s] = streams.splice(from, 1);
+  let to = streams.findIndex(x => x.id === targetId);
+  if (to < 0) { streams.splice(from, 0, s); return; }
+  if (!before) to += 1;
+  streams.splice(to, 0, s);
   saveLocal();
   render();
 }
@@ -234,6 +250,7 @@ function render() {
 
     const sec = document.createElement("div");
     sec.className = "group";
+    sec.dataset.group = key;
 
     const h = document.createElement("div");
     h.className = "group-h";
@@ -268,6 +285,12 @@ function render() {
 function streamRow(s, group) {
   const row = document.createElement("div");
   row.className = "stream" + (group === "focus" ? " hot" : "");
+  row.dataset.id = s.id;
+  row.appendChild(dragHandle(row, s, group));
+
+  const main = document.createElement("div");
+  main.className = "streammain";
+  row.appendChild(main);
 
   const editing = editingId === s.id;
 
@@ -286,7 +309,7 @@ function streamRow(s, group) {
       else if (e.key === "Escape") { cancelled = true; editingId = null; render(); }
     });
     input.addEventListener("blur", commit);
-    row.appendChild(input);
+    main.appendChild(input);
     setTimeout(() => { input.focus(); input.select(); }, 0);
     return row;
   }
@@ -313,7 +336,7 @@ function streamRow(s, group) {
   more.addEventListener("click", () => { openId = open ? null : s.id; armedId = null; render(); });
   row1.appendChild(more);
 
-  row.appendChild(row1);
+  main.appendChild(row1);
   if (!open) return row;
 
   const acts = document.createElement("div");
@@ -322,47 +345,108 @@ function streamRow(s, group) {
   // A clickable title is a nice shortcut for mouse/touch, but it isn't
   // reachable by keyboard alone — this button is the real entry point.
   const edit = document.createElement("button");
-  edit.textContent = "✎"; edit.title = "Rename";
+  edit.textContent = "EDIT"; edit.title = "Rename";
   edit.addEventListener("click", () => { editingId = s.id; armedId = null; render(); });
   acts.appendChild(edit);
-
-  const items = streams.filter(x => x.group === group);
-  const pos = items.findIndex(x => x.id === s.id);
-
-  const up = document.createElement("button");
-  up.textContent = "↑"; up.title = "Move up";
-  up.disabled = pos <= 0;
-  up.addEventListener("click", () => reorderStream(s.id, -1));
-
-  const down = document.createElement("button");
-  down.textContent = "↓"; down.title = "Move down";
-  down.disabled = pos >= items.length - 1;
-  down.addEventListener("click", () => reorderStream(s.id, 1));
-
-  acts.append(up, down);
 
   for (const [key, label] of GROUPS) {
     if (key === group) continue;
     const b = document.createElement("button");
-    b.textContent = `→ ${label.split(",")[0]}`;
+    b.textContent = `→ ${label.split(",")[0].split(" ")[0]}`;
     b.title = `Move to ${label}`;
     b.disabled = isFull(key);
     b.addEventListener("click", () => moveStream(s.id, key));
     acts.appendChild(b);
   }
 
+  // Delete asks once, on the button itself: the first tap arms it, the second
+  // one does it, and it forgets after four seconds.
   const rm = document.createElement("button");
   rm.className = "rm" + (armedId === s.id ? " arm" : "");
-  rm.textContent = armedId === s.id ? "Sure?" : "✕";
+  rm.textContent = armedId === s.id ? "SURE?" : "DELETE";
   rm.title = armedId === s.id ? "Tap again to remove" : "Remove";
   rm.addEventListener("click", () => {
-    if (armedId !== s.id) { armedId = s.id; render(); return; }
+    if (armedId !== s.id) {
+      armedId = s.id;
+      render();
+      clearTimeout(disarmTimer);
+      disarmTimer = setTimeout(() => { if (armedId === s.id) { armedId = null; render(); } }, 4000);
+      return;
+    }
+    clearTimeout(disarmTimer);
     removeStream(s.id);
   });
   acts.appendChild(rm);
 
-  row.appendChild(acts);
+  main.appendChild(acts);
   return row;
+}
+
+/* Reordering runs on pointer events rather than HTML5 drag-and-drop, which
+   Safari never fires for touch. A stream can only be dropped inside its own
+   group — moving between groups is what the → buttons are for, and they are
+   the ones that know about the Focus-now cap. */
+function dragHandle(row, s, group) {
+  const handle = document.createElement("span");
+  handle.className = "handle";
+  handle.setAttribute("aria-label", "Drag to reorder");
+  handle.innerHTML = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true">'
+    + '<circle cx="5" cy="3" r="1.4" fill="#111"/><circle cx="11" cy="3" r="1.4" fill="#111"/>'
+    + '<circle cx="5" cy="8" r="1.4" fill="#111"/><circle cx="11" cy="8" r="1.4" fill="#111"/>'
+    + '<circle cx="5" cy="13" r="1.4" fill="#111"/><circle cx="11" cy="13" r="1.4" fill="#111"/></svg>';
+
+  let startY = 0, moved = false, targetId = null, before = false;
+
+  handle.addEventListener("pointerdown", event => {
+    if (event.button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    startY = event.clientY;
+    moved = false; targetId = null;
+    handle.setPointerCapture(event.pointerId);
+  });
+
+  handle.addEventListener("pointermove", event => {
+    if (!handle.hasPointerCapture(event.pointerId)) return;
+    const dy = event.clientY - startY;
+    if (!moved && Math.abs(dy) < 6) return;
+    moved = true;
+    row.classList.add("dragging");
+    row.style.transform = `translateY(${dy}px)`;
+    clearDropMarks();
+    const hit = rowUnder(event.clientY, s.id, group);
+    targetId = hit ? hit.id : null;
+    if (hit) { before = hit.before; hit.el.classList.add(before ? "drop-before" : "drop-after"); }
+  });
+
+  const finish = event => {
+    event.stopPropagation();
+    if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+    row.classList.remove("dragging");
+    row.style.transform = "";
+    clearDropMarks();
+    if (moved && targetId) dropStream(s.id, targetId, before);
+    moved = false; targetId = null;
+  };
+  handle.addEventListener("pointerup", finish);
+  handle.addEventListener("pointercancel", finish);
+  return handle;
+}
+
+function rowUnder(clientY, selfId, group) {
+  for (const el of document.querySelectorAll(`.group[data-group="${group}"] .stream`)) {
+    if (el.dataset.id === selfId) continue;
+    const rect = el.getBoundingClientRect();
+    if (clientY >= rect.top && clientY <= rect.bottom) {
+      return { el, id:el.dataset.id, before: clientY < rect.top + rect.height / 2 };
+    }
+  }
+  return null;
+}
+
+function clearDropMarks() {
+  document.querySelectorAll(".drop-before,.drop-after")
+    .forEach(el => el.classList.remove("drop-before", "drop-after"));
 }
 
 function addRow(group, cap, count) {
