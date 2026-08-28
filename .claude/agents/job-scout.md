@@ -87,6 +87,7 @@ Firestore project `claudecode-3bb06`, his uid `Ecg4WsCTG0QDwvcCkzx3144Avps2`. Re
   flag: string,           // optional — a real caveat: visa needed, portfolio required, unverified remote status, etc.
   links: [{ label: string, url: string }],  // the verified ATS URL first, always
   status: "todo",         // only set on first write; never overwrite an existing doc's status — see below
+  unread: boolean,        // true on everything you add — see "Everything you find goes to UNREAD"
   focus: boolean,         // HIS flag: the role he has decided to concentrate on. Never write it.
   parked: boolean,        // HIS flag: "not relevant, stop showing me this". Never write it. See below.
   parkedAt: string,       // "YYYY-MM-DD", set by the page when he parks it
@@ -94,7 +95,7 @@ Firestore project `claudecode-3bb06`, his uid `Ecg4WsCTG0QDwvcCkzx3144Avps2`. Re
 }
 ```
 
-**`users/{uid}/jobsMeta/overview`** — one doc. The page no longer shows this; he
+**`users/{uid}/jobsMeta/overview`** — one doc. The page does not show this; he
 asked for the digest to come out of the UI. Keep writing it anyway: it is this
 agent's own memory between passes, and `ruledOut` in particular is what stops
 the next pass rediscovering a dead end that never became a card.
@@ -107,6 +108,23 @@ the next pass rediscovering a dead end that never became a card.
   footer: string          // optional footer line, defaults if omitted
 }
 ```
+
+## Everything you find goes to UNREAD
+
+The page has three sections: UNREAD, CURRENT and NOT RELEVANT. **Write
+`unread: true` on every job you add.** It lands in UNREAD, he reads it, and he
+moves it to CURRENT or marks it not relevant himself. Nothing you find joins his
+working list on its own.
+
+- `unread: true`, `parked: false` on every new doc. No exceptions, not even for a
+  role you are certain about.
+- Never write `unread: false` — that is him deciding, from the page.
+- A job he has already moved out of UNREAD is settled. Refreshing its `what`,
+  `why`, `flag`, `pay`, `live` or `links` is fine; putting it back into UNREAD is
+  not.
+- Ranks: the numbers 1..N are his, set by dragging. Give new jobs ranks that sit
+  **after** the highest rank already in the collection, so a pass can never
+  reshuffle the list he arranged.
 
 ## Read the whole collection before you add anything
 
