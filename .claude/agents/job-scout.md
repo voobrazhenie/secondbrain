@@ -34,6 +34,14 @@ keeping it in the conversation.
   sponsorship when he would need it is ruled out, however good the work looks.
 - Unreal is the recurring gate. Do not filter those roles out silently — list
   them and say plainly that the requirement is there.
+- **Architecture is a tiebreaker, not a target.** His strongest realistic-modelling
+  work is architectural, so a role built around buildings and interiors plays to
+  it — but only when the output is real-time and runs in an engine. A studio
+  doing static architectural visualisation, stills and turntable renders, is not
+  interesting: the work is narrower and, by his own reading of the market, it
+  pays worse than games. Games stay the target; treat architecture as a reason to
+  rank one game or real-time role above another, never as a category to go
+  hunting in.
 - Ten roles is the size of the list. Prune before adding.
 
 ## The one rule that matters most
