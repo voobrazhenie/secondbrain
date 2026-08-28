@@ -12,6 +12,23 @@ You research job opportunities for Nikita Khudiakov — 3D / Environment Artist,
 
 His stated priorities, in order: **remote preferred, long-term preferred, bigger income is the main factor**, and he is specifically more valuable to companies at the intersection of 3D craft and AI — companies training or building generative-3D/world-model systems value someone who can judge *why* generated output is wrong, not just make things by hand.
 
+## His own rules for the search
+
+This section is his, not the agent's. Anything he says about how the search
+should run gets written down here so it survives a cleared context — read it
+before every pass, and add to it whenever he states a preference, rather than
+keeping it in the conversation.
+
+*(Standing rules so far. Ask him to add to this list; do not invent entries.)*
+
+- Remote or Berlin first. Anything that needs relocation has to be worth the
+  move and must be named as a move, not buried in the location field.
+- Never present a role he cannot actually take. A posting that rules out visa
+  sponsorship when he would need it is ruled out, however good the work looks.
+- Unreal is the recurring gate. Do not filter those roles out silently — list
+  them and say plainly that the requirement is there.
+- Ten roles is the size of the list. Prune before adding.
+
 ## The one rule that matters most
 
 **Verify against the employer's own ATS API, never trust an aggregator.** This was learned the hard way: a first pass sourced from Google/aggregator results and every single "remote environment artist" listing found that way turned out to be expired, some by years. Search engines keep serving dead postings indefinitely.
@@ -28,9 +45,9 @@ Cast a wide net across categories, not just "environment artist" as a search ter
 
 ## Where the data lives
 
-Repo: `C:\Nikita\ClaudeProjects\LifeInterface`. The page is `jobs/index.html` — plain HTML/JS reading live from Firestore, no build step, no job data ever committed to the file itself (it's a public repo; the module is private via `firestore.rules` gated on `request.auth.uid`).
+Repo: the Second Brain repo (`voobrazhenie/secondbrain`). The page is `jobs/index.html` — plain HTML/JS reading live from Firestore, no build step, no job data ever committed to the file itself (it's a public repo; the module is private via `firestore.rules` gated on `request.auth.uid`).
 
-Firestore project `claudecode-3bb06`, his uid `Ecg4WsCTG0QDwvcCkzx3144Avps2`. Use the Firebase MCP tools if loaded (ToolSearch for `mcp__firebase__firestore_*` if not visible). Two collections:
+Firestore project `claudecode-3bb06`, his uid `Ecg4WsCTG0QDwvcCkzx3144Avps2`. Read and write it with `tools/firebase-admin.mjs` — `connect()` gives `get`, `list`, `patch` and `remove`, and it authenticates itself from environment variables in cloud sessions. `patch` merges, which is what protects the fields he owns. Two collections:
 
 **`users/{uid}/jobs/{jobId}`** — one doc per opportunity:
 ```
@@ -46,11 +63,18 @@ Firestore project `claudecode-3bb06`, his uid `Ecg4WsCTG0QDwvcCkzx3144Avps2`. Us
   why: string,            // 1-3 sentences, why HIM specifically — cite real CV facts, not generic flattery
   flag: string,           // optional — a real caveat: visa needed, portfolio required, unverified remote status, etc.
   links: [{ label: string, url: string }],  // the verified ATS URL first, always
-  status: "todo"          // only set on first write; never overwrite an existing doc's status — see below
+  status: "todo",         // only set on first write; never overwrite an existing doc's status — see below
+  focus: boolean,         // HIS flag: the role he has decided to concentrate on. Never write it.
+  parked: boolean,        // HIS flag: "not relevant, stop showing me this". Never write it. See below.
+  parkedAt: string,       // "YYYY-MM-DD", set by the page when he parks it
+  verifiedAt: string      // "YYYY-MM-DD" — the day the link was last confirmed open
 }
 ```
 
-**`users/{uid}/jobsMeta/overview`** — the Digest panel, one doc:
+**`users/{uid}/jobsMeta/overview`** — one doc. The page no longer shows this; he
+asked for the digest to come out of the UI. Keep writing it anyway: it is this
+agent's own memory between passes, and `ruledOut` in particular is what stops
+the next pass rediscovering a dead end that never became a card.
 ```
 {
   strategy: string,       // "The read" — 2-4 sentences, the honest current state of the search
@@ -60,6 +84,35 @@ Firestore project `claudecode-3bb06`, his uid `Ecg4WsCTG0QDwvcCkzx3144Avps2`. Us
   footer: string          // optional footer line, defaults if omitted
 }
 ```
+
+## Read the whole collection before you add anything
+
+Every pass starts by listing `users/{uid}/jobs` in full — live, parked, all of
+it — and building the exclusion set from what is already there. Adding a role he
+already has, or one he has already dismissed, is the single most annoying thing
+this agent can do, because it makes the list untrustworthy and he has to re-make
+the same decision twice.
+
+A role is a duplicate if **any** of these matches something already in the
+collection, parked or not:
+
+- the same application URL (compare after stripping query strings);
+- the same company plus the same role title;
+- the same company plus the same job at a different seniority, **unless** you are
+  deliberately offering the pair as one decision — two levels of the same
+  posting on the same team is allowed, but say so in `why` on both cards so it
+  never reads as an accident.
+
+`parked: true` means he looked at it and said no. Treat it as permanent:
+
+- never re-add a parked role under a new doc id;
+- never flip `parked` back to false — only he does that, from the page;
+- if a parked role is genuinely worth a second look (the terms changed, they
+  dropped the requirement that blocked him), say so in `overview.thisWeek` and
+  let him decide. Do not un-park it yourself.
+
+The same goes for `focus`: it is his signal to himself about where his attention
+goes. Read it, respect it when you rank, never write it.
 
 ## Non-negotiables when writing
 

@@ -30,7 +30,9 @@
 <link rel="stylesheet" href="../theme.css">
 <style>
   /* Same neo-brutalist system as / and dailyplan/. Shared colors/spacing live
-     in theme.css; only page-specific rules stay here. */
+     in theme.css; only page-specific rules stay here. The header, section
+     headers, action row and sync bar all follow opportunities/ so the two
+     private modules read as one thing. */
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
     margin:0; background:var(--paper); color:var(--ink);
@@ -40,33 +42,40 @@
     font:16px/1.5 "Archivo","Helvetica Neue",Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
+  /* Explicit color plus -webkit-appearance:none on every button: iOS Safari
+     renders unstyled button text in system blue otherwise. */
+  button,input,textarea,select{font:inherit}
+  button{cursor:pointer;color:var(--ink);-webkit-appearance:none;appearance:none;background:transparent}
+  a{color:var(--ink)}
   .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900}
   .wrap{max-width:620px;margin:0 auto}
+  .hide{display:none !important}
 
+  /* ---------- header (identical to opportunities/) ---------- */
   a.back{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.08em;
     text-decoration:none;color:var(--ink);border-bottom:2px solid var(--ink);margin-bottom:16px}
   .eyebrow{display:inline-block;background:var(--ink);color:var(--paper);
-    font-size:10px;letter-spacing:.1em;padding:4px 9px;margin-bottom:14px}
-  h1{font-size:clamp(28px,7.5vw,38px);margin:0 0 12px;line-height:1.03;letter-spacing:-.02em}
-  h1 em{font-style:normal;background:var(--yellow);border:var(--stroke) solid var(--ink);
-    padding:0 8px;box-shadow:4px 4px 0 var(--ink);display:inline-block}
-  .lede{color:var(--grey);font-weight:600;margin:0 0 22px;font-size:14.5px}
+    font-size:10px;letter-spacing:.1em;padding:4px 9px;margin-bottom:18px}
 
-  /* ---------- sync bar (same contract as dailyplan/) ---------- */
-  .sync{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-    border:var(--stroke) solid var(--ink);background:var(--card);
-    padding:11px 13px;margin-bottom:22px;font-size:12.5px;font-weight:700}
-  .sync.on{background:var(--lime)}
-  .sync.err{background:var(--pink);color:#fff}
+  /* ---------- sync bar ----------
+     Quiet card with a status dot rather than a full-width colour block, and it
+     sits under the list: signing in is a once-a-month event, the jobs are the
+     page. Same markup and contract as opportunities/. */
+  .sync{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+    border:2px solid var(--ink);background:var(--card);box-shadow:3px 3px 0 var(--ink);
+    padding:9px 11px;margin:30px 0 0;font-size:12px;font-weight:700;color:var(--grey)}
+  .sync .dot{flex:0 0 auto;width:9px;height:9px;border:2px solid var(--ink);background:var(--sunk)}
+  .sync.on .dot{background:var(--lime)}
+  .sync.err .dot{background:var(--pink)}
   .sync .msg{flex:1;min-width:150px}
-  button{font:inherit;cursor:pointer}
-  .btn{background:var(--ink);color:var(--paper);border:var(--stroke) solid var(--ink);
-    font-size:12px;font-weight:800;padding:6px 11px;letter-spacing:.03em}
+  .btn{background:var(--ink);color:var(--paper);border:2px solid var(--ink);
+    font-size:11px;font-weight:800;padding:6px 10px;letter-spacing:.03em;
+    font-family:"Arial Black",Impact,sans-serif}
   .btn:active{transform:translate(2px,2px)}
 
   /* ---------- gate ---------- */
-  #gate{border:2.5px dashed var(--ink);padding:22px 20px;text-align:center}
-  #gate p{margin:0 0 14px;font-weight:700;font-size:14px;color:var(--grey)}
+  #gate{border:2.5px dashed var(--ink);padding:22px 20px;text-align:center;background:var(--card)}
+  #gate p{margin:0;font-weight:700;font-size:14px;color:var(--grey)}
 
   /* ---------- filters ---------- */
   .filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
@@ -74,33 +83,42 @@
     font-weight:800;padding:5px 10px;letter-spacing:.02em}
   .chip[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 
-  /* ---------- overview ---------- */
-  .panel{background:var(--card);border:var(--stroke) solid var(--ink);
-    box-shadow:var(--shadow);padding:15px 17px;margin-bottom:20px}
-  .panel h2{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
-    margin:0 0 9px;background:var(--teal);border:2px solid var(--ink);
-    display:inline-block;padding:3px 8px}
-  .panel p{margin:0 0 9px;font-size:13.8px}
-  .panel p:last-child{margin:0}
-  .panel ul{margin:8px 0 0;padding-left:19px;font-size:13.5px}
-  .panel li{margin-bottom:6px}
+  /* ---------- section headers (from opportunities/) ---------- */
+  .list-head{display:flex;align-items:center;gap:9px;margin:24px 0 10px}
+  .list-head.first{margin-top:0}
+  .list-head .t{font-size:11px;letter-spacing:.08em;background:var(--ink);color:var(--paper);
+    padding:3px 8px}
+  .list-head .rule{height:2px;background:var(--ink);flex:1}
+  .list-head .count{font-size:10px;color:var(--grey);font-weight:800}
+
+  .section-toggle{width:100%;display:flex;align-items:center;gap:9px;background:none;border:0;
+    padding:0;margin:26px 0 10px;text-align:left}
+  .section-toggle .t{font-size:11px;letter-spacing:.08em;background:var(--sunk);color:var(--ink);
+    padding:3px 8px;font-weight:900}
+  .section-toggle .rule{height:2px;background:var(--faint);flex:1}
+  .section-toggle .count{font-size:10px;color:var(--grey);font-weight:800}
+  .section-toggle .chev{font-size:11px;font-weight:900}
+  .section-body{margin-bottom:6px}
+  .section-body.parked .job{opacity:.82}
+  /* A section lights up while a card is being dragged over it, which is how a
+     job moves between Current and Not relevant without opening it. */
+  .drop-in{outline:2px dashed var(--teal);outline-offset:4px}
+  .empty{border:2.5px dashed var(--ink);padding:16px;text-align:center;
+    color:var(--grey);font-weight:700;font-size:12.5px}
 
   /* ---------- job cards ---------- */
   .job{background:var(--card);border:var(--stroke) solid var(--ink);
-    box-shadow:var(--shadow);margin-bottom:16px;display:flex;align-items:stretch}
+    box-shadow:var(--shadow);margin-bottom:14px;display:flex;align-items:stretch}
   .job.done{opacity:.55;box-shadow:2px 2px 0 var(--ink)}
   .job.dragging{opacity:.45;position:relative;z-index:3}
   .job.drop-before{box-shadow:0 -6px 0 var(--teal),var(--shadow)}
   .job.drop-after{box-shadow:0 6px 0 var(--teal),var(--shadow)}
   .jobmain{flex:1;min-width:0;padding:15px 17px}
   /* .handle comes from theme.css. It is on every card so they line up, and the
-     grip is what you drag rather than the whole card. */
+     grip is what you drag rather than the whole card. Pink means Focus, the
+     same signal opportunities/ uses. */
+  .handle.hf{background:var(--pink)}
   .chev{flex:0 0 auto;font-size:16px;font-weight:900;line-height:1.4}
-  .digest{width:100%;text-align:left;margin-bottom:20px;padding:11px 13px;font-size:12px}
-  .track-foot{display:flex;align-items:center;gap:10px;margin-top:8px}
-  .rm{background:var(--paper);border:2px solid var(--ink);font-size:10.5px;
-    font-weight:800;padding:5px 9px;letter-spacing:.02em;margin-left:auto;white-space:nowrap}
-  .rm.arm{background:var(--pink);color:#fff}
   .job-h{display:flex;align-items:flex-start;gap:11px;
     cursor:pointer;user-select:none}
   /* The gap under the header belongs to the body, not the header: on a
@@ -110,6 +128,7 @@
   .rank{flex:0 0 auto;width:30px;height:30px;background:var(--yellow);
     border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;
     font-size:14px}
+  .job.parked .rank{background:var(--sunk)}
   .titles{flex:1;min-width:0}
   .co{display:block;font-size:16px;letter-spacing:-.01em;line-height:1.15}
   .ro{display:block;font-size:13px;font-weight:700;color:var(--grey);margin-top:3px}
@@ -144,25 +163,38 @@
   textarea{width:100%;font:inherit;font-size:13px;background:var(--paper);
     border:2px solid var(--ink);padding:8px 9px;resize:vertical;min-height:38px}
   .saved{font-size:10.5px;font-weight:800;color:var(--grey);letter-spacing:.06em;
-    text-transform:uppercase;margin-top:5px;min-height:13px}
+    text-transform:uppercase;min-height:13px}
 
-  footer{margin-top:34px;padding-top:14px;border-top:2px solid var(--ink);
-    font-size:11px;font-weight:700;color:var(--grey);line-height:1.6}
-  .hide{display:none !important}
+  /* ---------- action row (from opportunities/) ---------- */
+  .action-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:11px;
+    border-top:2px solid var(--sunk);margin-top:11px}
+  .hf-toggle{display:inline-flex;align-items:center;border:2px solid var(--ink);
+    background:var(--card);color:var(--ink);padding:6px 7px;font-size:10px;font-weight:900;
+    letter-spacing:.02em;font-family:"Arial Black",Impact,sans-serif}
+  .hf-toggle.on{background:var(--pink)}
+  .abtn{background:var(--card);color:var(--ink);border:2px solid var(--ink);
+    padding:6px 7px;font-size:10px;font-weight:900;letter-spacing:.02em;
+    box-shadow:2px 2px 0 var(--ink);font-family:"Arial Black",Impact,sans-serif}
+  .abtn:active{transform:translate(2px,2px);box-shadow:none}
+  /* Park and Delete travel together, so a narrow screen wraps the pair
+     instead of stranding Delete on a line of its own. */
+  .right-actions{display:flex;gap:6px;margin-left:auto}
+  .abtn.danger{background:var(--pink);color:#fff}
+  /* Armed delete — the second tap is the confirmation. */
+  .abtn.danger.armed{background:var(--ink);color:var(--paper)}
+
+  @media (max-width:420px){
+    .action-row{gap:5px}
+    .right-actions{gap:5px}
+    .abtn,.hf-toggle{padding:6px 6px;letter-spacing:0}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <a class="back" href="../">&larr; SECOND BRAIN</a>
-  <span class="eyebrow">PRIVATE &middot; SIGNED-IN ONLY</span>
-  <h1 class="blk">Job <em>search</em></h1>
-  <p class="lede" id="lede">Verified opportunities, tracked by stage.</p>
-
-  <div class="sync" id="sync">
-    <span class="msg" id="syncMsg">Connecting&hellip;</span>
-    <button class="btn" id="authBtn" hidden></button>
-  </div>
+  <a class="back" href="../">&larr; SECOND BRAIN</a><br>
+  <span class="eyebrow blk">JOB SEARCH</span>
 
   <div id="gate">
     <p>This module is private. Sign in with the account that owns this data to see it.</p>
@@ -170,15 +202,31 @@
 
   <div id="app" class="hide">
     <div class="filters" id="filters"></div>
-    <button class="btn digest blk" id="digestBtn" aria-expanded="false">DIGEST ▾</button>
-    <div id="overview" class="hide"></div>
-    <div id="list"></div>
+
+    <div class="list-head first">
+      <span class="t blk">CURRENT</span><span class="rule"></span>
+      <span class="count blk" id="currentCount">0</span>
+    </div>
+    <div class="section-body" id="currentList" data-group="current"></div>
+
+    <button class="section-toggle" type="button" id="parkedToggle" aria-expanded="false">
+      <span class="t blk">NOT RELEVANT</span><span class="rule"></span>
+      <span class="count blk" id="parkedCount">0</span>
+      <span class="chev" id="parkedChev">&#9662;</span>
+    </button>
+    <div class="section-body parked hide" id="parkedList" data-group="parked"></div>
   </div>
 
-  <footer id="foot"></footer>
+  <div class="sync" id="sync">
+    <span class="dot"></span>
+    <span class="msg" id="syncMsg">Connecting&hellip;</span>
+    <button class="btn" id="authBtn" hidden></button>
+  </div>
 </div>
 
 <script type="module">
+"use strict";
+
 const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
 const $ = id => document.getElementById(id);
 
@@ -193,9 +241,8 @@ const STATES = [
 const DONE = new Set(["passed", "closed"]);
 
 const App = {
-  fb: null, uid: null, jobs: [], overview: null, filter: "open", unsub: null,
-  lastRefresh: 0,     // throttles refresh(), see there
-  open: new Set(), digestOpen: false,
+  fb: null, uid: null, jobs: [], filter: "open", unsub: null,
+  open: new Set(), parkedOpen: false,
 
   setUI(state, msg, btnLabel, btnAction) {
     $("sync").className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
@@ -235,10 +282,9 @@ const App = {
   onAuth(user) {
     if (this.unsub) { this.unsub(); this.unsub = null; }
     if (!user) {
-      this.uid = null; this.jobs = []; this.overview = null;
+      this.uid = null; this.jobs = [];
       $("app").classList.add("hide");
       $("gate").classList.remove("hide");
-      $("foot").textContent = "";
       this.setUI("off", "Signed out — nothing loaded.", "Sign in with Google", () => this.signIn());
       return;
     }
@@ -247,7 +293,6 @@ const App = {
     $("gate").classList.add("hide");
     $("app").classList.remove("hide");
     this.attach();
-    this.loadOverview();
   },
 
   async signIn() {
@@ -287,33 +332,6 @@ const App = {
     );
   },
 
-  async loadOverview() {
-    const { f, db } = this.fb;
-    try {
-      const snap = await f.getDoc(f.doc(db, "users", this.uid, "jobsMeta", "overview"));
-      this.overview = snap.exists() ? snap.data() : null;
-    } catch { this.overview = null; }
-    this.render();
-  },
-
-  /* The job list has a live listener, but the Digest above it is a one-shot
-     read at sign-in — so a refreshed digest written from elsewhere would
-     otherwise never appear on a page that stays open. Pull it again on every
-     return to the page.
-
-     Not while a field has focus: render() rebuilds every notes box, and the
-     status/notes on these cards are hand-kept. Losing a half-typed note to a
-     background refresh would be worse than a slightly stale digest. */
-  refresh() {
-    if (!this.uid) return;
-    const el = document.activeElement;
-    if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT")) return;
-    const now = Date.now();
-    if (now - this.lastRefresh < 45000) return;
-    this.lastRefresh = now;
-    this.loadOverview();
-  },
-
   ref(id) {
     const { f, db } = this.fb;
     return f.doc(db, "users", this.uid, "jobs", id);
@@ -334,26 +352,33 @@ const App = {
     await this.fb.f.deleteDoc(this.ref(id));
   },
 
+  /* Parking a job is the memory: a later research pass reads `parked` and
+     leaves those roles alone instead of finding them again. `parkedAt` is
+     there so the note on the card can say when you decided. */
+  setParked(id, parked) {
+    this.open.delete(id);
+    this.patch(id, { parked, parkedAt: parked ? new Date().toISOString().slice(0, 10) : "" });
+  },
+
   /* Reordering runs on pointer events rather than HTML5 drag-and-drop, which
-     Safari never fires for touch. Dropping a card renumbers rank across the
-     whole list, not just the filtered view, so the number on the card always
-     matches its place — and only the cards whose rank actually moved get
-     written. A later job-scout run that re-ranks will override this. */
+     Safari never fires for touch. Dropping onto the other section is how a job
+     moves between Current and Not relevant, so the handle watches which
+     section the finger is over as well as which card. */
   dragHandle(card, job) {
     const handle = document.createElement("span");
-    handle.className = "handle";
+    handle.className = "handle" + (job.focus ? " hf" : "");
     handle.setAttribute("aria-label", "Drag to reorder");
     handle.innerHTML = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true">'
       + '<circle cx="5" cy="3" r="1.4" fill="#111"/><circle cx="11" cy="3" r="1.4" fill="#111"/>'
       + '<circle cx="5" cy="8" r="1.4" fill="#111"/><circle cx="11" cy="8" r="1.4" fill="#111"/>'
       + '<circle cx="5" cy="13" r="1.4" fill="#111"/><circle cx="11" cy="13" r="1.4" fill="#111"/></svg>';
 
-    let startY = 0, moved = false, targetId = null, before = false;
+    let startY = 0, moved = false, targetId = null, targetGroup = null, before = false;
 
     handle.addEventListener("pointerdown", e => {
       if (e.button) return;
       e.preventDefault(); e.stopPropagation();
-      startY = e.clientY; moved = false; targetId = null;
+      startY = e.clientY; moved = false; targetId = null; targetGroup = null;
       handle.setPointerCapture(e.pointerId);
     });
 
@@ -365,9 +390,17 @@ const App = {
       card.classList.add("dragging");
       card.style.transform = `translateY(${dy}px)`;
       this.clearDropMarks();
+
       const hit = this.cardUnder(e.clientY, job.id);
-      targetId = hit ? hit.id : null;
-      if (hit) { before = hit.before; hit.el.classList.add(before ? "drop-before" : "drop-after"); }
+      targetId = null; targetGroup = null;
+      if (hit) {
+        targetId = hit.id; before = hit.before;
+        hit.el.classList.add(before ? "drop-before" : "drop-after");
+        if (hit.group !== this.groupOf(job)) this.markGroup(hit.group);
+      } else {
+        const sec = this.groupUnder(e.clientY);
+        if (sec && sec !== this.groupOf(job)) { targetGroup = sec; this.markGroup(sec); }
+      }
     });
 
     const finish = e => {
@@ -376,40 +409,74 @@ const App = {
       card.classList.remove("dragging");
       card.style.transform = "";
       this.clearDropMarks();
-      if (moved && targetId) this.reorder(job.id, targetId, before);
-      moved = false; targetId = null;
+      if (moved && (targetId || targetGroup)) this.drop(job.id, targetId, before, targetGroup);
+      moved = false; targetId = null; targetGroup = null;
     };
     handle.addEventListener("pointerup", finish);
     handle.addEventListener("pointercancel", finish);
     return handle;
   },
 
+  groupOf(job) { return job.parked ? "parked" : "current"; },
+
   cardUnder(clientY, selfId) {
-    for (const el of document.querySelectorAll("#list .job")) {
+    for (const el of document.querySelectorAll(".section-body .job")) {
       if (el.dataset.id === selfId) continue;
       const rect = el.getBoundingClientRect();
       if (clientY >= rect.top && clientY <= rect.bottom) {
-        return { el, id: el.dataset.id, before: clientY < rect.top + rect.height / 2 };
+        return {
+          el, id: el.dataset.id,
+          group: el.closest(".section-body").dataset.group,
+          before: clientY < rect.top + rect.height / 2
+        };
       }
     }
     return null;
   },
 
-  clearDropMarks() {
-    document.querySelectorAll(".drop-before,.drop-after")
-      .forEach(el => el.classList.remove("drop-before", "drop-after"));
+  /* An empty section is a valid drop target too, and so is the header above
+     it — otherwise the first job you want to park has nowhere to land. */
+  groupUnder(clientY) {
+    for (const [id, group] of [["currentList", "current"], ["parkedList", "parked"]]) {
+      const body = $(id);
+      if (body.classList.contains("hide")) continue;
+      const rect = body.getBoundingClientRect();
+      const top = rect.top - 34;   // the section header counts as the section
+      if (clientY >= top && clientY <= rect.bottom + 6) return group;
+    }
+    return null;
   },
 
-  reorder(id, targetId, before) {
+  markGroup(group) {
+    const el = document.querySelector(`.section-body[data-group="${group}"]`);
+    if (el) el.classList.add("drop-in");
+  },
+
+  clearDropMarks() {
+    document.querySelectorAll(".drop-before,.drop-after,.drop-in")
+      .forEach(el => el.classList.remove("drop-before", "drop-after", "drop-in"));
+  },
+
+  /* One drop handles both jobs: moving inside a section reorders it, and
+     moving across sections parks or unparks the job. */
+  drop(id, targetId, before, toGroup) {
     if (!id || id === targetId) return;
-    const rows = [...this.jobs];
-    const from = rows.findIndex(x => x.id === id);
-    if (from < 0) return;
-    const [moved] = rows.splice(from, 1);
-    let to = rows.findIndex(x => x.id === targetId);
+    const job = this.jobs.find(x => x.id === id);
+    if (!job) return;
+    const target = targetId ? this.jobs.find(x => x.id === targetId) : null;
+    const group = target ? this.groupOf(target) : toGroup;
+    if (!group) return;
+
+    if (group !== this.groupOf(job)) {
+      this.setParked(id, group === "parked");
+      if (!target) return;
+    }
+
+    const rows = this.jobs.filter(x => x.id !== id);
+    let to = targetId ? rows.findIndex(x => x.id === targetId) : rows.length;
     if (to < 0) return;
     if (!before) to += 1;
-    rows.splice(to, 0, moved);
+    rows.splice(to, 0, job);
     rows.forEach((x, i) => {
       const rank = i + 1;
       if (x.rank !== rank) { x.rank = rank; this.patch(x.id, { rank }); }
@@ -418,16 +485,21 @@ const App = {
     this.render();
   },
 
+  /* The chips filter by stage and only ever see live jobs — parked ones have
+     their own section and stay out of every count. */
   visible() {
-    if (this.filter === "all") return this.jobs;
-    if (this.filter === "open") return this.jobs.filter(j => !DONE.has(j.status || "todo"));
-    if (this.filter === "live") return this.jobs.filter(j => j.live !== false && !DONE.has(j.status || "todo"));
-    return this.jobs.filter(j => (j.status || "todo") === this.filter);
+    const live = this.jobs.filter(j => !j.parked);
+    if (this.filter === "all") return live;
+    if (this.filter === "open") return live.filter(j => !DONE.has(j.status || "todo"));
+    if (this.filter === "live") return live.filter(j => j.live !== false && !DONE.has(j.status || "todo"));
+    return live.filter(j => (j.status || "todo") === this.filter);
   },
 
   render() {
-    // filters
-    const counts = { all: this.jobs.length, open: this.jobs.filter(j => !DONE.has(j.status || "todo")).length };
+    const live = this.jobs.filter(j => !j.parked);
+    const parked = this.jobs.filter(j => j.parked);
+
+    const counts = { all: live.length, open: live.filter(j => !DONE.has(j.status || "todo")).length };
     const chips = [["open", `Open ${counts.open}`], ["live", "Live only"], ["applied", "Applied"],
                    ["interviewing", "Interviewing"], ["all", `All ${counts.all}`]];
     $("filters").innerHTML = "";
@@ -439,63 +511,35 @@ const App = {
       $("filters").appendChild(b);
     }
 
-    // digest — the read, this week, ruled out, corrections
-    const ov = this.overview;
-    const hasDigest = !!(ov && (ov.strategy || (ov.thisWeek || []).length
-      || (ov.ruledOut || []).length || (ov.corrections || []).length));
-    const dg = $("digestBtn");
-    dg.classList.toggle("hide", !hasDigest);
-    dg.textContent = this.digestOpen ? "DIGEST ▴" : "DIGEST ▾";
-    dg.setAttribute("aria-expanded", String(this.digestOpen));
-    dg.onclick = () => { this.digestOpen = !this.digestOpen; this.render(); };
-    $("overview").classList.toggle("hide", !this.digestOpen);
-    $("overview").innerHTML = "";
-    if (ov) {
-      if (ov.lede) $("lede").textContent = ov.lede;
-      const blocks = [
-        ["The read", ov.strategy, null],
-        ["This week", null, ov.thisWeek],
-        ["Ruled out", null, ov.ruledOut],
-        ["Corrections", null, ov.corrections]
-      ];
-      for (const [title, para, list] of blocks) {
-        if (!para && !(list && list.length)) continue;
-        const d = document.createElement("div");
-        d.className = "panel";
-        const h = document.createElement("h2"); h.className = "blk"; h.textContent = title;
-        d.appendChild(h);
-        if (para) { const p = document.createElement("p"); p.textContent = para; d.appendChild(p); }
-        if (list && list.length) {
-          const ul = document.createElement("ul");
-          for (const item of list) { const li = document.createElement("li"); li.textContent = item; ul.appendChild(li); }
-          d.appendChild(ul);
-        }
-        $("overview").appendChild(d);
-      }
-    }
+    this.fill("currentList", "currentCount", this.visible(), live.length,
+              this.jobs.length ? "Nothing in this view." : "No opportunities stored yet.");
+    this.fill("parkedList", "parkedCount", parked, parked.length,
+              "Nothing parked. Drag a job here, or use NOT RELEVANT inside a card.");
 
-    // jobs
-    const list = $("list");
+    $("parkedList").classList.toggle("hide", !this.parkedOpen);
+    $("parkedChev").innerHTML = this.parkedOpen ? "&#9652;" : "&#9662;";
+    $("parkedToggle").setAttribute("aria-expanded", String(this.parkedOpen));
+    $("parkedToggle").onclick = () => { this.parkedOpen = !this.parkedOpen; this.render(); };
+  },
+
+  fill(listId, countId, rows, count, emptyText) {
+    const list = $(listId);
     list.innerHTML = "";
-    const rows = this.visible();
+    $(countId).textContent = count;
     if (!rows.length) {
       const d = document.createElement("div");
-      d.className = "panel";
-      d.textContent = this.jobs.length ? "Nothing in this view." : "No opportunities stored yet.";
+      d.className = "empty"; d.textContent = emptyText;
       list.appendChild(d);
+      return;
     }
     for (const j of rows) list.appendChild(this.card(j));
-
-    $("foot").textContent = ov && ov.footer
-      ? ov.footer
-      : `${this.jobs.length} opportunities. Private to your account.`;
   },
 
   card(j) {
     const status = j.status || "todo";
     const isOpen = this.open.has(j.id);
     const el = document.createElement("div");
-    el.className = "job" + (DONE.has(status) ? " done" : "");
+    el.className = "job" + (DONE.has(status) ? " done" : "") + (j.parked ? " parked" : "");
     el.dataset.id = j.id;
     el.appendChild(this.dragHandle(el, j));
 
@@ -505,7 +549,7 @@ const App = {
     const head = document.createElement("div");
     head.className = "job-h";
     const rank = document.createElement("div");
-    rank.className = "rank blk"; rank.textContent = j.rank ?? "•";
+    rank.className = "rank blk"; rank.textContent = j.parked ? "•" : (j.rank ?? "•");
     const titles = document.createElement("div");
     titles.className = "titles";
     const co = document.createElement("span"); co.className = "co blk"; co.textContent = j.company || "";
@@ -532,6 +576,7 @@ const App = {
     if (j.remote) pills.push(["remote", "Remote"]);
     if (j.pay) pills.push(["pay", j.pay]);
     if (j.live === false) pills.push(["dead", "Closed listing"]);
+    if (j.parked && j.parkedAt) pills.push(["", `Parked ${j.parkedAt}`]);
     for (const [cls, text] of pills) {
       const s = document.createElement("span");
       s.className = "pill " + cls; s.textContent = text;
@@ -596,40 +641,70 @@ const App = {
       saved.textContent = "…";
       t = setTimeout(() => this.patch(j.id, { notes: ta.value }, saved), 700);
     };
-    const foot = document.createElement("div");
-    foot.className = "track-foot";
-    const rm = document.createElement("button");
-    rm.className = "rm"; rm.textContent = "Remove";
-    let armed = false, armTimer = null;
-    rm.onclick = () => {
-      if (!armed) {                       // two taps, so a stray tap can't delete
-        armed = true;
-        rm.classList.add("arm");
-        rm.textContent = "Tap again to remove";
-        armTimer = setTimeout(() => {
-          armed = false; rm.classList.remove("arm"); rm.textContent = "Remove";
-        }, 4000);
-        return;
-      }
-      clearTimeout(armTimer);
-      rm.textContent = "Removing…";
-      this.remove(j.id).catch(e => { rm.textContent = `Failed (${e.code || e.message})`; });
-    };
-    foot.append(saved, rm);
-
-    track.append(ta, foot);
+    track.append(ta, saved);
     body.appendChild(track);
+
+    body.appendChild(this.actionRow(j));
     main.appendChild(body);
     el.appendChild(main);
 
     return el;
+  },
+
+  actionRow(j) {
+    const row = document.createElement("div");
+    row.className = "action-row";
+
+    const focus = document.createElement("button");
+    focus.type = "button";
+    focus.className = "hf-toggle" + (j.focus ? " on" : "");
+    focus.textContent = "FOCUS";
+    focus.setAttribute("aria-pressed", String(!!j.focus));
+    focus.onclick = () => this.patch(j.id, { focus: !j.focus });
+
+    const right = document.createElement("div");
+    right.className = "right-actions";
+
+    const park = document.createElement("button");
+    park.type = "button";
+    park.className = "abtn";
+    park.textContent = j.parked ? "BRING BACK" : "NOT RELEVANT";
+    park.onclick = () => this.setParked(j.id, !j.parked);
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "abtn danger";
+    this.armDelete(del, "DELETE", () => {
+      del.textContent = "…";
+      this.remove(j.id).catch(e => { del.textContent = `FAILED (${e.code || e.message})`; });
+    });
+
+    right.append(park, del);
+    row.append(focus, right);
+    return row;
+  },
+
+  /* Two taps on the same button rather than a dialog: the first arms it, the
+     second does it, and it disarms itself after four seconds. */
+  armDelete(button, label, action) {
+    let armed = false, timer = null;
+    const disarm = () => { armed = false; button.classList.remove("armed"); button.textContent = label; };
+    button.textContent = label;
+    button.onclick = () => {
+      if (!armed) {
+        armed = true;
+        button.classList.add("armed");
+        button.textContent = "SURE?";
+        timer = setTimeout(disarm, 4000);
+        return;
+      }
+      clearTimeout(timer);
+      action();
+    };
   }
 };
 
 App.init();
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) App.refresh();
-});
 </script>
 </body>
 </html>

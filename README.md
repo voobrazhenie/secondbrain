@@ -8,7 +8,7 @@ Live site: **https://voobrazhenie.github.io/secondbrain/**
 
 - `exercise/` is the authenticated workout-session page. Its plan is `dailyplan/plan.json`; scheduling code and tests live in `exercise/schedule.mjs` and `exercise/schedule.test.mjs`.
 - `dailyplan/` is the separate recurring-task checklist. Its non-exercise configuration is `dailyplan/daily.json`.
-- `jobs/`, `streams/`, `ideas/`, `finance/`, and `cleaning/` are unrelated features and retain their existing data models.
+- `jobs/`, `streams/`, `ideas/`, `finance/`, and `cleaning/` are unrelated features and retain their existing data models. `jobs/` splits its list into CURRENT and NOT RELEVANT: `parked: true` on a job doc is Nikita saying no to it, and `.claude/agents/job-scout.md` treats that as permanent so a later research pass never offers the same role twice. `focus: true` is his own highlight, and shows as a pink drag handle.
 - `opportunities/` is the private grants / residencies / exhibitions tracker. It is signed-in only — signed-out visitors see a sign-in prompt and no data — and stores one document per entry in `users/{uid}/opportunities/{id}`.
 - `firestore.rules` applies strict schema validation to exercise documents while preserving owner-only access for other user data.
 - `theme.css` at the repo root is the shared design system (colors, stroke width, shadow, and the `.handle` drag grip). A card gets a handle only where a page asks for one — the stylesheet just says what it looks like. `/`, `dailyplan/`, `jobs/`, `streams/`, `ideas/`, `finance/`, and `opportunities/` link to it instead of redefining their own copy. `exercise/` and `cleaning/` are not on it yet — they keep their own separate styles for now.

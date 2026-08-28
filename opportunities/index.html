@@ -56,7 +56,7 @@
   /* ---------- sync bar (same contract as dailyplan/, jobs/ and streams/) ---------- */
   .sync{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
     border:2px solid var(--ink);background:var(--card);box-shadow:3px 3px 0 var(--ink);
-    padding:9px 11px;margin:0 0 20px;font-size:12px;font-weight:700;color:var(--grey)}
+    padding:9px 11px;margin:30px 0 0;font-size:12px;font-weight:700;color:var(--grey)}
   .sync .dot{flex:0 0 auto;width:9px;height:9px;border:2px solid var(--ink);background:var(--sunk)}
   .sync.on .dot{background:var(--lime)}
   .sync.err .dot{background:var(--pink)}
@@ -209,12 +209,6 @@
   <a class="back" href="../">&larr; SECOND BRAIN</a><br>
   <span class="eyebrow blk">OPPORTUNITIES</span>
 
-  <div class="sync" id="sync">
-    <span class="dot"></span>
-    <span class="msg" id="syncMsg">Connecting&hellip;</span>
-    <button class="btn" id="authBtn" hidden></button>
-  </div>
-
   <div id="gate">
     <p>This module is private. Sign in with the account that owns this data to see it.</p>
   </div>
@@ -282,6 +276,14 @@
       <span class="chev" id="archiveChev">&#9662;</span>
     </button>
     <div class="section-body archive-body hide" id="archiveList"></div>
+  </div>
+
+  <!-- Under the list, not above it: signing in happens once, the list is what
+       the page is for. jobs/ puts the same bar in the same place. -->
+  <div class="sync" id="sync">
+    <span class="dot"></span>
+    <span class="msg" id="syncMsg">Connecting&hellip;</span>
+    <button class="btn" id="authBtn" hidden></button>
   </div>
 
   <footer>Swipe a collapsed card left for Archive or Delete. Drag the handle to reorder Current. Private to your account.</footer>
