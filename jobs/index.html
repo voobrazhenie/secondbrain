@@ -93,11 +93,8 @@
   .job.drop-before{box-shadow:0 -6px 0 var(--teal),var(--shadow)}
   .job.drop-after{box-shadow:0 6px 0 var(--teal),var(--shadow)}
   .jobmain{flex:1;min-width:0;padding:15px 17px}
-  /* Same drag-handle block as opportunities/ and ideas/: always there so the
-     cards line up, and the grip is what you drag rather than the whole card. */
-  .handle{flex:0 0 auto;width:30px;display:flex;align-items:center;justify-content:center;
-    border-right:2px solid var(--ink);background:var(--sunk);cursor:grab;touch-action:none}
-  .handle svg{width:13px;height:13px}
+  /* .handle comes from theme.css. It is on every card so they line up, and the
+     grip is what you drag rather than the whole card. */
   .chev{flex:0 0 auto;font-size:16px;font-weight:900;line-height:1.4}
   .digest{width:100%;text-align:left;margin-bottom:20px;padding:11px 13px;font-size:12px}
   .track-foot{display:flex;align-items:center;gap:10px;margin-top:8px}

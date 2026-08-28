@@ -8,3 +8,15 @@
   --grey:var(--ink); --faint:#A39D91;
   --stroke:2.5px; --shadow:4px 4px 0 var(--ink);
 }
+
+/* Drag handle — the grey grip on the left of a card you can reorder.
+   Opt-in: a card gets one only if the page puts .handle in its markup, so
+   sections and cards that shouldn't be reorderable simply don't have one.
+   Pages override freely (Streams colors it pink for Focus Now, Opportunities
+   locks it on archived cards) — their own <style> block wins. */
+.handle{
+  flex:0 0 auto;width:30px;display:flex;align-items:center;justify-content:center;
+  border-right:2px solid var(--ink);background:var(--sunk);cursor:grab;
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+}
+.handle svg{width:13px;height:13px}

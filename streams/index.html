@@ -105,11 +105,7 @@
 
   .surface{position:relative;background:var(--card);display:flex;align-items:stretch;
     transition:transform .16s ease-out;touch-action:pan-y}
-  /* The handle is on every card so the rows line up, and it carries the
-     Focus-now colour. */
-  .handle{flex:0 0 auto;width:30px;display:flex;align-items:center;justify-content:center;
-    border-right:2px solid var(--ink);background:var(--sunk);cursor:grab;touch-action:none}
-  .handle svg{width:13px;height:13px}
+  /* .handle comes from theme.css; here it also carries the Focus-now colour. */
   .stream.hot .handle{background:var(--pink)}
   /* A stream is one line and stays one line — no expanding. Selection and the
      iOS callout are off so a long press reads as "rename", not "select text". */

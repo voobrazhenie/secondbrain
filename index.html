@@ -54,14 +54,6 @@
   }
   .card .name{flex:1;min-width:0;font-size:16px;letter-spacing:-.01em;line-height:1.2}
 
-  /* Handle matches the one on streams/, jobs/ and opportunities/. */
-  .handle{
-    flex:0 0 auto;width:30px;display:flex;align-items:center;justify-content:center;
-    border-right:2px solid var(--ink);background:var(--sunk);cursor:grab;
-    touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
-  }
-  .handle svg{width:13px;height:13px}
-
   .card.dragging{opacity:.45;position:relative;z-index:3}
   /* Yellow, not teal — the drop marker has to read against a teal page. */
   .card.drop-before{box-shadow:0 -6px 0 var(--yellow),var(--shadow)}

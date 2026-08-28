@@ -74,11 +74,8 @@
   .idea.drop-before{box-shadow:0 -6px 0 var(--teal),var(--shadow)}
   .idea.drop-after{box-shadow:0 6px 0 var(--teal),var(--shadow)}
   .idea-head{display:flex;align-items:stretch;min-height:48px}
-  /* Same drag-handle block as opportunities/: always present so every card
-     lines up, and the grip is what you drag rather than the whole card. */
-  .handle{flex:0 0 auto;width:30px;display:flex;align-items:center;justify-content:center;
-    border-right:2px solid var(--ink);background:var(--sunk);cursor:grab;touch-action:none}
-  .handle svg{width:13px;height:13px}
+  /* .handle comes from theme.css. It is on every card so they line up, and the
+     grip is what you drag rather than the whole card. */
   .idea-toggle{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);
     padding:11px 12px;text-align:left;display:flex;align-items:center;gap:10px;font-weight:800}
   .idea-title{flex:1;min-width:0;overflow-wrap:anywhere}

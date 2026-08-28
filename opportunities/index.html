@@ -139,12 +139,14 @@
      priority or not — only its color changes — so cards stay aligned. */
   .surface{position:relative;background:var(--card);display:flex;align-items:stretch;
     transition:transform .16s ease-out;touch-action:pan-y}
-  .handle{flex:0 0 auto;width:30px;display:flex;align-items:center;justify-content:center;
-    cursor:default;border-right:2px solid var(--ink);background:var(--sunk)}
+  /* .handle comes from theme.css, which assumes it is draggable. Only Current
+     reorders, so the default here is a locked handle and .drag opts back in —
+     without the touch-action reset, an archived card's handle would swallow
+     vertical scrolling. */
+  .handle{cursor:default;touch-action:auto}
   .handle.drag{cursor:grab;touch-action:none}
   .opp.dragging{opacity:.45;position:relative;z-index:3}
   .handle.hf{background:var(--pink)}
-  .handle svg{width:13px;height:13px}
   .rowbody{flex:1;min-width:0;padding:11px 12px;cursor:pointer}
   .cat-label{display:block;font-size:9px;font-weight:800;letter-spacing:.08em;
     text-transform:uppercase;color:var(--faint);margin-bottom:3px}
