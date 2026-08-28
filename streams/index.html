@@ -56,74 +56,76 @@
 
   /* ---------- groups ---------- */
   .group{margin-bottom:24px}
-  .group-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+  .group.drop-in{outline:2px dashed var(--teal);outline-offset:5px}
+  .group-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
   .group-h .t{font-size:11px;font-weight:900;letter-spacing:.07em;
     background:var(--ink);color:var(--paper);padding:3px 8px;
     font-family:"Arial Black",Impact,sans-serif}
-  .group-h .t.hot{background:var(--yellow);color:var(--ink)}
+  .group-h .t.hot{background:var(--pink);color:#fff}
   .group-h .r{flex:1;height:2px;background:var(--ink)}
   .group-h .cap{font-size:9.5px;font-weight:900;color:var(--grey);white-space:nowrap}
   .group-h .cap.full{color:var(--ink)}
+  /* Same small "+" next to the count as opportunities/ and the daily page. */
+  .group-h .add{flex:0 0 auto;width:26px;height:26px;padding:0;font-size:15px;line-height:1;
+    background:var(--card);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
+    display:flex;align-items:center;justify-content:center;font-family:"Arial Black",Impact,sans-serif}
+  .group-h .add:active{transform:translate(2px,2px);box-shadow:none}
+  .group-h .add:disabled{opacity:.35;cursor:default;transform:none;box-shadow:2px 2px 0 var(--faint)}
   .group-note{font-size:11px;font-weight:600;color:var(--grey);margin:-5px 0 10px}
 
-  .stream{
-    background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
-    margin-bottom:9px;display:flex;align-items:stretch;
-  }
-  .streammain{flex:1;min-width:0;padding:10px 11px}
-  /* Same drag-handle block as opportunities/, ideas/ and jobs/: always there so
-     the rows line up, and it carries the Focus-now colour the way the thick
-     left border used to. */
+  /* ---------- add panel ---------- */
+  .add-panel{background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:12px;margin-bottom:11px}
+  .field{display:block;margin-bottom:10px}
+  .field span{display:block;font-size:9px;letter-spacing:.08em;margin-bottom:4px}
+  /* 16px minimum — anything smaller makes iOS zoom the page on focus. */
+  .field input{display:block;width:100%;border:2px solid var(--ink);background:var(--paper);
+    color:var(--ink);padding:9px 10px;font-size:16px;font-weight:650;border-radius:0}
+  .form-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .btn{background:var(--card);color:var(--ink);border:2px solid var(--ink);
+    padding:8px 12px;font-size:11px;font-weight:900;letter-spacing:.04em;
+    box-shadow:2px 2px 0 var(--ink);font-family:"Arial Black",Impact,sans-serif}
+  .btn.primary{background:var(--yellow)}
+  .btn:active{transform:translate(2px,2px);box-shadow:none}
+
+  /* ---------- cards ---------- */
+  .stream{position:relative;background:var(--card);border:var(--stroke) solid var(--ink);
+    box-shadow:var(--shadow);margin-bottom:9px}
+  .stream.dragging{opacity:.45;z-index:3}
+  .stream.drop-before{box-shadow:0 -6px 0 var(--teal),var(--shadow)}
+  .stream.drop-after{box-shadow:0 6px 0 var(--teal),var(--shadow)}
+
+  /* The tray is clipped to the row, not the whole card: an open card's body is
+     transparent and would let the pink show through behind it. */
+  .rowclip{position:relative;overflow:hidden}
+  .tray{position:absolute;top:0;right:0;bottom:0;width:92px;display:flex}
+  .tray button{flex:1;border:0;background:var(--pink);color:var(--paper);
+    font-size:10px;font-weight:900;letter-spacing:.03em;font-family:"Arial Black",Impact,sans-serif}
+  .tray button.armed{background:var(--ink)}
+
+  .surface{position:relative;background:var(--card);display:flex;align-items:stretch;
+    transition:transform .16s ease-out;touch-action:pan-y}
+  /* The handle is on every card so the rows line up, and it carries the
+     Focus-now colour. */
   .handle{flex:0 0 auto;width:30px;display:flex;align-items:center;justify-content:center;
     border-right:2px solid var(--ink);background:var(--sunk);cursor:grab;touch-action:none}
   .handle svg{width:13px;height:13px}
-  .stream.hot .handle{background:var(--yellow)}
-  .stream.dragging{opacity:.45;position:relative;z-index:3}
-  .stream.drop-before{box-shadow:0 -6px 0 var(--teal),var(--shadow)}
-  .stream.drop-after{box-shadow:0 6px 0 var(--teal),var(--shadow)}
-  .stream .row1{display:flex;align-items:center;gap:8px}
-  .stream .title{flex:1;min-width:0;font-size:15px;font-weight:700;
-    overflow-wrap:break-word;cursor:text}
-  .stream input.rename{
-    display:block;width:100%;font:inherit;font-size:15px;font-weight:700;
-    border:2px solid var(--ink);background:var(--paper);padding:6px 7px;
-  }
-  .stream .more{
-    flex:0 0 auto;width:28px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;
-    background:var(--card);color:var(--ink);border:2px solid var(--ink);
-    font-size:16px;font-weight:900;line-height:1;letter-spacing:.06em;
-  }
-  .stream .more:active{transform:translate(2px,2px)}
-  .stream .more.open{background:var(--ink);color:var(--paper)}
-  .stream .acts{display:flex;gap:5px;flex-wrap:wrap;
-    margin-top:9px;padding-top:9px;border-top:2px dashed var(--sunk)}
-  .stream .acts button{
-    padding:5px 7px;font-size:11px;line-height:1;
-    background:var(--card);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
-    font-family:"Arial Black",Impact,sans-serif;
-  }
-  .stream .acts button:active{transform:translate(2px,2px);box-shadow:none}
-  .stream .acts button:disabled{opacity:.35;cursor:default;transform:none;box-shadow:2px 2px 0 var(--faint)}
-  /* Delete matches opportunities/: pink until it is armed, ink once the next
-     tap will actually remove the stream. */
-  .stream .acts button.rm{margin-left:auto;background:var(--pink);color:#fff}
-  .stream .acts button.rm.arm{background:var(--ink);color:var(--paper)}
+  .stream.hot .handle{background:var(--pink)}
+  .rowbody{flex:1;min-width:0;display:flex;align-items:center;padding:11px 12px;cursor:pointer}
+  .r-title{font-size:15px;font-weight:700;overflow-wrap:anywhere}
+  .r-chev{flex:0 0 auto;width:28px;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:900;color:var(--grey)}
+
+  .stream-body{border-top:2px solid var(--ink);padding:11px 12px}
+  .acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .abtn{background:var(--card);color:var(--ink);border:2px solid var(--ink);
+    padding:6px 8px;font-size:10px;font-weight:900;letter-spacing:.02em;
+    box-shadow:2px 2px 0 var(--ink);font-family:"Arial Black",Impact,sans-serif}
+  .abtn:active{transform:translate(2px,2px);box-shadow:none}
+  .abtn.danger{margin-left:auto;background:var(--pink);color:#fff}
+  .abtn.danger.armed{background:var(--ink);color:var(--paper)}
 
   .empty{font-size:12px;font-weight:600;color:var(--grey);padding:2px 2px 10px}
-
-  .add-row{display:flex;gap:8px;margin-top:2px}
-  .add-row input{
-    flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;padding:9px 10px;
-    background:var(--card);color:var(--ink);border:2px solid var(--ink);
-  }
-  .add-row button{
-    flex:0 0 auto;padding:9px 14px;font-size:11px;font-weight:900;letter-spacing:.04em;
-    background:var(--yellow);border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
-    font-family:"Arial Black",Impact,sans-serif;
-  }
-  .add-row button:active{transform:translate(2px,2px);box-shadow:none}
-  .add-row button:disabled{opacity:.4;cursor:default;transform:none;box-shadow:3px 3px 0 var(--faint)}
-  .add-row input:disabled{opacity:.5}
 
   footer{margin-top:30px;padding-top:14px;border-top:2px solid var(--ink);
     font-size:11px;font-weight:700;color:var(--grey);line-height:1.6}
@@ -143,7 +145,7 @@
     <button class="btn" id="authBtn" hidden></button>
   </div>
 
-  <footer id="foot">Drag a stream by its handle to reorder it. Signed out, streams stay in this browser. Signed in, they sync to your own account — readable only by you.</footer>
+  <footer id="foot">Drag a stream by its handle — inside a section to reorder, into another to move it. Swipe a collapsed row left to delete. Signed out, streams stay in this browser. Signed in, they sync to your own account — readable only by you.</footer>
 </div>
 
 <script type="module">
@@ -160,13 +162,14 @@ const GROUPS = [
   ["maintain", "MAINTAIN",               null],
   ["parked",   "PARKED, NOT FORGOTTEN",  null]
 ];
-const GROUP_LABEL = Object.fromEntries(GROUPS.map(([k, label]) => [k, label]));
+let streams = [];      // [{ id, title, group }], array order = display order
+let editingId = null;  // stream showing its rename form instead of its row
+let openId = null;     // expanded stream
+let revealedId = null; // stream whose swipe tray is showing
+let addGroup = null;   // group whose add panel is open
 
-let streams = [];     // [{ id, title, group }], array order = within-group display order
-let editingId = null; // stream currently showing a rename input instead of its title
-let armedId = null;   // stream currently in "tap again to remove" state
-let openId = null;    // stream currently showing its actions panel (rename/reorder/move/remove)
-let disarmTimer = null; // clears an armed DELETE after a few seconds
+const TRAY_W = 92;     // px — matches .tray width
+const TAP_SLOP = 8;    // shorter than this is a tap, not a swipe
 
 function loadLocal() {
   try { streams = JSON.parse(localStorage.getItem(LS_STREAMS) || "[]"); }
@@ -187,7 +190,8 @@ const isFull   = group => { const c = capOf(group); return c != null && countIn(
 function addStream(group, title) {
   title = (title || "").trim();
   if (!title || isFull(group)) return false;
-  streams.push({ id: newId(), title, group });
+  streams.push({ id: newId(), title: title.slice(0, 80), group });
+  addGroup = null;
   saveLocal();
   render();
   return true;
@@ -196,46 +200,44 @@ function addStream(group, title) {
 function renameStream(id, title) {
   title = (title || "").trim();
   const s = streams.find(x => x.id === id);
-  if (!s || !title) { editingId = null; render(); return; }
-  s.title = title;
   editingId = null;
-  saveLocal();
-  render();
-}
-
-/* Moved items land at the end of the array, which — since display order is
-   just "this group's items in array order" — puts them at the end of the
-   target group's list too. */
-function moveStream(id, toGroup) {
-  if (isFull(toGroup)) return;
-  const s = streams.find(x => x.id === id);
-  if (!s || s.group === toGroup) return;
-  s.group = toGroup;
-  streams = streams.filter(x => x.id !== id).concat(s);
-  saveLocal();
-  render();
-}
-
-/* The flat array is the order, so a drop is a splice: pull the dragged stream
-   out and put it back next to its target. Both are in the same group, which
-   the caller has already checked. */
-function dropStream(id, targetId, before) {
-  if (!id || id === targetId) return;
-  const from = streams.findIndex(x => x.id === id);
-  const target = streams.find(x => x.id === targetId);
-  if (from < 0 || !target || streams[from].group !== target.group) return;
-  const [s] = streams.splice(from, 1);
-  let to = streams.findIndex(x => x.id === targetId);
-  if (to < 0) { streams.splice(from, 0, s); return; }
-  if (!before) to += 1;
-  streams.splice(to, 0, s);
+  if (!s || !title) { render(); return; }
+  s.title = title.slice(0, 80);
   saveLocal();
   render();
 }
 
 function removeStream(id) {
   streams = streams.filter(x => x.id !== id);
-  armedId = null;
+  if (openId === id) openId = null;
+  revealedId = null;
+  saveLocal();
+  render();
+}
+
+/* The flat array is the order, so a drop is a splice. A card dropped into
+   another section changes group as it lands — that is the only way to move
+   between sections now — except into a section that is already full, which is
+   refused and leaves the card where it was. */
+function dropStream(id, targetId, before, toGroup) {
+  const from = streams.findIndex(x => x.id === id);
+  if (from < 0) return;
+  const moving = streams[from];
+  const target = targetId ? streams.find(x => x.id === targetId) : null;
+  const group = target ? target.group : toGroup;
+  if (!group) return;
+  if (group !== moving.group && isFull(group)) return;
+  if (target && target.id === id) return;
+
+  const [s] = streams.splice(from, 1);
+  s.group = group;
+  if (target) {
+    let to = streams.findIndex(x => x.id === targetId);
+    if (to < 0) streams.push(s);
+    else streams.splice(before ? to : to + 1, 0, s);
+  } else {
+    streams.push(s);          // dropped on an empty section
+  }
   saveLocal();
   render();
 }
@@ -255,18 +257,28 @@ function render() {
     const h = document.createElement("div");
     h.className = "group-h";
     const t = document.createElement("span");
-    t.className = "t"; t.textContent = label;
+    t.className = "t" + (key === "focus" ? " hot" : "");
+    t.textContent = label;
     const rule = document.createElement("span");
     rule.className = "r";
     h.append(t, rule);
-    if (key === "focus") t.classList.add("hot");
     if (cap != null) {
       const capEl = document.createElement("span");
       capEl.className = "cap" + (items.length >= cap ? " full" : "");
       capEl.textContent = items.length >= cap ? `${items.length}/${cap} · FULL` : `${items.length}/${cap}`;
       h.appendChild(capEl);
     }
+    const add = document.createElement("button");
+    add.className = "add";
+    add.type = "button";
+    add.textContent = "+";
+    add.disabled = isFull(key);
+    add.setAttribute("aria-label", `Add a stream to ${label}`);
+    add.addEventListener("click", () => { addGroup = addGroup === key ? null : key; render(); });
+    h.appendChild(add);
     sec.appendChild(h);
+
+    if (addGroup === key) sec.appendChild(addPanel(key));
 
     if (!items.length) {
       const e = document.createElement("div");
@@ -276,117 +288,163 @@ function render() {
     }
 
     for (const s of items) sec.appendChild(streamRow(s, key));
-
-    sec.appendChild(addRow(key, cap, items.length));
     wrap.appendChild(sec);
   }
 }
 
+function addPanel(group) {
+  const form = document.createElement("form");
+  form.className = "add-panel";
+  const label = document.createElement("label");
+  label.className = "field";
+  const caption = document.createElement("span");
+  caption.textContent = "STREAM";
+  const input = document.createElement("input");
+  input.maxLength = 80;
+  input.required = true;
+  input.autocomplete = "off";
+  input.placeholder = "What are you giving attention to?";
+  label.append(caption, input);
+
+  const actions = document.createElement("div");
+  actions.className = "form-actions";
+  const save = document.createElement("button");
+  save.type = "submit"; save.className = "btn primary"; save.textContent = "ADD";
+  const cancel = document.createElement("button");
+  cancel.type = "button"; cancel.className = "btn"; cancel.textContent = "CANCEL";
+  cancel.addEventListener("click", () => { addGroup = null; render(); });
+  actions.append(save, cancel);
+
+  form.append(label, actions);
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    if (!addStream(group, input.value)) input.focus();
+  });
+  setTimeout(() => input.focus(), 0);
+  return form;
+}
+
 function streamRow(s, group) {
-  const row = document.createElement("div");
-  row.className = "stream" + (group === "focus" ? " hot" : "");
-  row.dataset.id = s.id;
-  row.appendChild(dragHandle(row, s, group));
+  const card = document.createElement("article");
+  card.className = "stream" + (group === "focus" ? " hot" : "");
+  card.dataset.id = s.id;
 
-  const main = document.createElement("div");
-  main.className = "streammain";
-  row.appendChild(main);
-
-  const editing = editingId === s.id;
-
-  if (editing) {
-    const input = document.createElement("input");
-    input.className = "rename";
-    input.value = s.title;
-    input.maxLength = 80;
-    // Escape re-renders to cancel, which removes this (still-focused) input
-    // from the DOM — that alone fires a native blur on it, so the blur
-    // handler needs to know not to treat that as a save.
-    let cancelled = false;
-    const commit = () => { if (!cancelled) renameStream(s.id, input.value); };
-    input.addEventListener("keydown", e => {
-      if (e.key === "Enter") commit();
-      else if (e.key === "Escape") { cancelled = true; editingId = null; render(); }
-    });
-    input.addEventListener("blur", commit);
-    main.appendChild(input);
-    setTimeout(() => { input.focus(); input.select(); }, 0);
-    return row;
+  if (editingId === s.id) {
+    card.appendChild(editForm(s));
+    return card;
   }
 
-  const row1 = document.createElement("div");
-  row1.className = "row1";
+  const clip = document.createElement("div");
+  clip.className = "rowclip";
 
+  const tray = document.createElement("div");
+  tray.className = "tray";
+  const trayDelete = document.createElement("button");
+  trayDelete.type = "button";
+  armDelete(trayDelete, "DELETE", () => removeStream(s.id));
+  tray.appendChild(trayDelete);
+
+  const surface = document.createElement("div");
+  surface.className = "surface";
+  surface.style.transform = `translateX(${revealedId === s.id ? -TRAY_W : 0}px)`;
+
+  const body = document.createElement("div");
+  body.className = "rowbody";
   const title = document.createElement("span");
-  title.className = "title";
+  title.className = "r-title";
   title.textContent = s.title;
-  title.title = "Click to rename";
-  title.addEventListener("click", () => { editingId = s.id; armedId = null; render(); });
-  row1.appendChild(title);
+  body.appendChild(title);
 
-  // Reorder/move/remove stay tucked away by default so a stream is just its
-  // name at a glance — this toggle is the one always-visible way in.
-  const open = openId === s.id;
-  const more = document.createElement("button");
-  more.className = "more" + (open ? " open" : "");
-  more.textContent = "⋯";
-  more.title = "More actions";
-  more.setAttribute("aria-label", `Actions for ${s.title}`);
-  more.setAttribute("aria-expanded", open ? "true" : "false");
-  more.addEventListener("click", () => { openId = open ? null : s.id; armedId = null; render(); });
-  row1.appendChild(more);
+  const chev = document.createElement("div");
+  chev.className = "r-chev";
+  chev.innerHTML = openId === s.id ? "&#9652;" : "&#9662;";
 
-  main.appendChild(row1);
-  if (!open) return row;
+  surface.append(dragHandle(card, s), body, chev);
+  attachSwipe(surface, s);
+  clip.append(tray, surface);
+  card.appendChild(clip);
 
+  if (openId === s.id) card.appendChild(cardBody(s));
+  return card;
+}
+
+function cardBody(s) {
+  const body = document.createElement("div");
+  body.className = "stream-body";
   const acts = document.createElement("div");
   acts.className = "acts";
 
-  // A clickable title is a nice shortcut for mouse/touch, but it isn't
-  // reachable by keyboard alone — this button is the real entry point.
   const edit = document.createElement("button");
-  edit.textContent = "EDIT"; edit.title = "Rename";
-  edit.addEventListener("click", () => { editingId = s.id; armedId = null; render(); });
-  acts.appendChild(edit);
+  edit.type = "button"; edit.className = "abtn"; edit.textContent = "EDIT";
+  edit.addEventListener("click", () => { editingId = s.id; render(); });
 
-  for (const [key, label] of GROUPS) {
-    if (key === group) continue;
-    const b = document.createElement("button");
-    b.textContent = `→ ${label.split(",")[0].split(" ")[0]}`;
-    b.title = `Move to ${label}`;
-    b.disabled = isFull(key);
-    b.addEventListener("click", () => moveStream(s.id, key));
-    acts.appendChild(b);
-  }
+  const del = document.createElement("button");
+  del.type = "button"; del.className = "abtn danger";
+  armDelete(del, "DELETE", () => removeStream(s.id));
 
-  // Delete asks once, on the button itself: the first tap arms it, the second
-  // one does it, and it forgets after four seconds.
-  const rm = document.createElement("button");
-  rm.className = "rm" + (armedId === s.id ? " arm" : "");
-  rm.textContent = armedId === s.id ? "SURE?" : "DELETE";
-  rm.title = armedId === s.id ? "Tap again to remove" : "Remove";
-  rm.addEventListener("click", () => {
-    if (armedId !== s.id) {
-      armedId = s.id;
-      render();
-      clearTimeout(disarmTimer);
-      disarmTimer = setTimeout(() => { if (armedId === s.id) { armedId = null; render(); } }, 4000);
-      return;
-    }
-    clearTimeout(disarmTimer);
-    removeStream(s.id);
-  });
-  acts.appendChild(rm);
-
-  main.appendChild(acts);
-  return row;
+  acts.append(edit, del);
+  body.appendChild(acts);
+  return body;
 }
 
-/* Reordering runs on pointer events rather than HTML5 drag-and-drop, which
-   Safari never fires for touch. A stream can only be dropped inside its own
-   group — moving between groups is what the → buttons are for, and they are
-   the ones that know about the Focus-now cap. */
-function dragHandle(row, s, group) {
+/* Delete asks once, on the button itself: the first tap arms it, the second
+   one within four seconds does it. */
+function armDelete(button, label, action) {
+  let armed = false, timer = null;
+  button.textContent = label;
+  button.addEventListener("click", () => {
+    if (!armed) {
+      armed = true;
+      button.textContent = "SURE?";
+      button.classList.add("armed");
+      timer = setTimeout(() => {
+        armed = false;
+        button.textContent = label;
+        button.classList.remove("armed");
+      }, 4000);
+      return;
+    }
+    clearTimeout(timer);
+    action();
+  });
+}
+
+function editForm(s) {
+  const form = document.createElement("form");
+  form.className = "stream-body";
+  const label = document.createElement("label");
+  label.className = "field";
+  const caption = document.createElement("span");
+  caption.textContent = "STREAM";
+  const input = document.createElement("input");
+  input.value = s.title;
+  input.maxLength = 80;
+  input.required = true;
+  label.append(caption, input);
+
+  const actions = document.createElement("div");
+  actions.className = "form-actions";
+  const save = document.createElement("button");
+  save.type = "submit"; save.className = "btn primary"; save.textContent = "SAVE";
+  const cancel = document.createElement("button");
+  cancel.type = "button"; cancel.className = "btn"; cancel.textContent = "CANCEL";
+  cancel.addEventListener("click", () => { editingId = null; render(); });
+  actions.append(save, cancel);
+
+  form.append(label, actions);
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    renameStream(s.id, input.value);
+  });
+  setTimeout(() => { input.focus(); input.select(); }, 0);
+  return form;
+}
+
+/* ---------- reordering ----------
+   Pointer events rather than HTML5 drag-and-drop, which Safari never fires for
+   touch. Dropping onto another section is how a stream changes section, so the
+   handle also watches which section the finger is over. */
+function dragHandle(card, s) {
   const handle = document.createElement("span");
   handle.className = "handle";
   handle.setAttribute("aria-label", "Drag to reorder");
@@ -395,14 +453,14 @@ function dragHandle(row, s, group) {
     + '<circle cx="5" cy="8" r="1.4" fill="#111"/><circle cx="11" cy="8" r="1.4" fill="#111"/>'
     + '<circle cx="5" cy="13" r="1.4" fill="#111"/><circle cx="11" cy="13" r="1.4" fill="#111"/></svg>';
 
-  let startY = 0, moved = false, targetId = null, before = false;
+  let startY = 0, moved = false, targetId = null, targetGroup = null, before = false;
 
   handle.addEventListener("pointerdown", event => {
     if (event.button) return;
     event.preventDefault();
     event.stopPropagation();
     startY = event.clientY;
-    moved = false; targetId = null;
+    moved = false; targetId = null; targetGroup = null;
     handle.setPointerCapture(event.pointerId);
   });
 
@@ -411,67 +469,141 @@ function dragHandle(row, s, group) {
     const dy = event.clientY - startY;
     if (!moved && Math.abs(dy) < 6) return;
     moved = true;
-    row.classList.add("dragging");
-    row.style.transform = `translateY(${dy}px)`;
+    card.classList.add("dragging");
+    card.style.transform = `translateY(${dy}px)`;
     clearDropMarks();
-    const hit = rowUnder(event.clientY, s.id, group);
-    targetId = hit ? hit.id : null;
-    if (hit) { before = hit.before; hit.el.classList.add(before ? "drop-before" : "drop-after"); }
+
+    const hit = rowUnder(event.clientY, s.id);
+    targetId = null; targetGroup = null;
+    if (hit && allowed(s, hit.group)) {
+      targetId = hit.id; before = hit.before;
+      hit.el.classList.add(before ? "drop-before" : "drop-after");
+      if (hit.group !== s.group) markGroup(hit.group);
+    } else if (!hit) {
+      const sec = groupUnder(event.clientY);
+      if (sec && allowed(s, sec)) { targetGroup = sec; markGroup(sec); }
+    }
   });
 
   const finish = event => {
     event.stopPropagation();
     if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
-    row.classList.remove("dragging");
-    row.style.transform = "";
+    card.classList.remove("dragging");
+    card.style.transform = "";
     clearDropMarks();
-    if (moved && targetId) dropStream(s.id, targetId, before);
-    moved = false; targetId = null;
+    if (moved && (targetId || targetGroup)) dropStream(s.id, targetId, before, targetGroup);
+    moved = false; targetId = null; targetGroup = null;
   };
   handle.addEventListener("pointerup", finish);
   handle.addEventListener("pointercancel", finish);
   return handle;
 }
 
-function rowUnder(clientY, selfId, group) {
-  for (const el of document.querySelectorAll(`.group[data-group="${group}"] .stream`)) {
+const allowed = (s, group) => group === s.group || !isFull(group);
+
+function markGroup(key) {
+  const sec = document.querySelector(`.group[data-group="${key}"]`);
+  if (sec) sec.classList.add("drop-in");
+}
+
+function rowUnder(clientY, selfId) {
+  for (const el of document.querySelectorAll("#groups .stream")) {
     if (el.dataset.id === selfId) continue;
     const rect = el.getBoundingClientRect();
     if (clientY >= rect.top && clientY <= rect.bottom) {
-      return { el, id:el.dataset.id, before: clientY < rect.top + rect.height / 2 };
+      const row = streams.find(x => x.id === el.dataset.id);
+      return { el, id:el.dataset.id, group: row ? row.group : null,
+               before: clientY < rect.top + rect.height / 2 };
     }
   }
   return null;
 }
 
-function clearDropMarks() {
-  document.querySelectorAll(".drop-before,.drop-after")
-    .forEach(el => el.classList.remove("drop-before", "drop-after"));
+function groupUnder(clientY) {
+  for (const sec of document.querySelectorAll("#groups .group")) {
+    const rect = sec.getBoundingClientRect();
+    if (clientY >= rect.top && clientY <= rect.bottom) return sec.dataset.group;
+  }
+  return null;
 }
 
-function addRow(group, cap, count) {
-  const wrap = document.createElement("div");
-  wrap.className = "add-row";
-  const full = cap != null && count >= cap;
+function clearDropMarks() {
+  document.querySelectorAll(".drop-before,.drop-after,.drop-in")
+    .forEach(el => el.classList.remove("drop-before", "drop-after", "drop-in"));
+}
 
-  const input = document.createElement("input");
-  input.type = "text";
-  input.maxLength = 80;
-  input.placeholder = full ? "Focus now is full — move one out first" : "New stream…";
-  input.disabled = full;
+/* ---------- swipe ----------
+   The row tracks the finger with the transition switched off, then snaps open
+   or shut on release. Only while the card is collapsed: once it is open the
+   same Delete sits in the action row. */
+function attachSwipe(surface, s) {
+  let startX = 0, startY = 0, base = 0, dx = 0, axis = null, tracking = false;
 
-  const btn = document.createElement("button");
-  btn.textContent = "ADD";
-  btn.disabled = full;
-
-  const submit = () => {
-    if (addStream(group, input.value)) input.value = "";
+  const settle = offset => {
+    surface.style.transition = "";
+    surface.style.transform = `translateX(${offset}px)`;
   };
-  input.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
-  btn.addEventListener("click", submit);
 
-  wrap.append(input, btn);
-  return wrap;
+  surface.addEventListener("pointerdown", event => {
+    if (event.button) return;
+    tracking = true; axis = null; dx = 0;
+    startX = event.clientX; startY = event.clientY;
+    base = revealedId === s.id ? -TRAY_W : 0;
+  });
+
+  surface.addEventListener("pointermove", event => {
+    if (!tracking || openId === s.id) return;
+    const ax = event.clientX - startX;
+    const ay = event.clientY - startY;
+    if (axis === null) {
+      if (Math.abs(ax) < TAP_SLOP && Math.abs(ay) < TAP_SLOP) return;
+      axis = Math.abs(ax) > Math.abs(ay) ? "x" : "y";
+      if (axis === "x") {
+        surface.style.transition = "none";
+        surface.setPointerCapture(event.pointerId);
+      }
+    }
+    if (axis !== "x") return;
+    dx = Math.max(-TRAY_W, Math.min(0, base + ax));
+    surface.style.transform = `translateX(${dx}px)`;
+  });
+
+  surface.addEventListener("pointerup", () => {
+    if (!tracking) return;
+    tracking = false;
+
+    if (axis === "x") {
+      axis = null;
+      const reveal = dx <= -TRAY_W / 2;
+      if (reveal && revealedId && revealedId !== s.id) resetTray(revealedId);
+      revealedId = reveal ? s.id : null;
+      settle(reveal ? -TRAY_W : 0);
+      return;
+    }
+    axis = null;
+
+    if (openId === s.id) { toggleOpen(s.id); return; }
+    if (revealedId === s.id) { revealedId = null; settle(0); return; }
+    toggleOpen(s.id);
+  });
+
+  surface.addEventListener("pointercancel", () => {
+    tracking = false; axis = null;
+    settle(revealedId === s.id ? -TRAY_W : 0);
+  });
+}
+
+/* Sliding one row open closes whichever other one was open, without a full
+   re-render — the snap has to animate from where the row actually is. */
+function resetTray(id) {
+  const other = document.querySelector(`.stream[data-id="${id}"] .surface`);
+  if (other) { other.style.transition = ""; other.style.transform = "translateX(0px)"; }
+}
+
+function toggleOpen(id) {
+  openId = openId === id ? null : id;
+  revealedId = null;
+  render();
 }
 
 /* ---------- sync ---------- */
@@ -591,14 +723,11 @@ const sync = {
      once at sign-in and never again, so an edit made on another device stays
      invisible here until a reload — and a home-screen app rarely gets one.
 
-     Never mid-rename: pull() calls render(), which would replace the open
-     input and lose what was typed into it. The same applies to the per-group
-     "New stream…" boxes — they're rebuilt by the same render() and have no
-     stable id to check, so they're found by content instead. */
+     Never mid-rename and never with the add panel open: pull() calls render(),
+     which would replace the open input and lose what was typed into it. */
   refresh() {
     if (this.mode !== "signed-in") return;
-    if (editingId !== null) return;
-    if ([...document.querySelectorAll(".add-row input")].some(i => i.value.trim())) return;
+    if (editingId !== null || addGroup !== null) return;
     const now = Date.now();
     if (now - this.lastRefresh < 45000) return;
     this.lastRefresh = now;
