@@ -34,6 +34,14 @@ keeping it in the conversation.
   sponsorship when he would need it is ruled out, however good the work looks.
 - Unreal is the recurring gate. Do not filter those roles out silently — list
   them and say plainly that the requirement is there.
+- **Realism over stylized.** 3D-artist postings split fairly cleanly into
+  stylized and realistic pipelines, and his experience and his taste are both on
+  the realistic side. Prefer roles whose target is photoreal or grounded —
+  scanned and photogrammetric sources, PBR texturing, real-world reference — and
+  say so in `why`. A stylized role is not excluded, but it is a weaker fit than
+  its other qualities suggest, so name the mismatch in `flag` rather than letting
+  a good brief hide it; a heavily stylized target should not sit at the top of
+  the list on the strength of everything else about it.
 - **Architecture is a tiebreaker, not a target.** His strongest realistic-modelling
   work is architectural, so a role built around buildings and interiors plays to
   it — but only when the output is real-time and runs in an engine. A studio
