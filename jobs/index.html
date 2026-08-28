@@ -104,8 +104,12 @@
   .rm{background:var(--paper);border:2px solid var(--ink);font-size:10.5px;
     font-weight:800;padding:5px 9px;letter-spacing:.02em;margin-left:auto;white-space:nowrap}
   .rm.arm{background:var(--pink);color:#fff}
-  .job-h{display:flex;align-items:flex-start;gap:11px;margin-bottom:8px;
+  .job-h{display:flex;align-items:flex-start;gap:11px;
     cursor:pointer;user-select:none}
+  /* The gap under the header belongs to the body, not the header: on a
+     collapsed card the body is display:none, so the padding stays even
+     top and bottom. */
+  .jbody{margin-top:8px}
   .rank{flex:0 0 auto;width:30px;height:30px;background:var(--yellow);
     border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;
     font-size:14px}
