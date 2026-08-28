@@ -94,6 +94,9 @@
     padding:3px 8px}
   .list-head .rule{height:2px;background:var(--on-page-faint);flex:1}
   .list-head .count{font-size:10px;color:var(--on-page);font-weight:800}
+  /* Unread is the one section that should catch the eye from across the page. */
+  .list-head.unread-head .t{background:var(--yellow)}
+  .section-body.unread .job{box-shadow:4px 4px 0 var(--yellow)}
 
   .section-toggle{width:100%;display:flex;align-items:center;gap:9px;background:none;border:0;
     padding:0;margin:26px 0 10px;text-align:left}
@@ -160,6 +163,11 @@
   .titles{flex:1;min-width:0}
   .co{display:block;font-size:16px;letter-spacing:-.01em;line-height:1.15}
   .ro{display:block;font-size:13px;font-weight:700;color:var(--grey);margin-top:3px}
+  /* Where the job is, on the collapsed row. Remote leads; the place follows it
+     when there is one, because "remote, Germany only" is not the same job. */
+  .where{display:block;font-size:11px;font-weight:700;color:var(--grey);margin-top:5px;
+    letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .where b{font-weight:900;color:var(--ink)}
   .meta{font-size:11.5px;font-weight:800;color:var(--grey);letter-spacing:.03em;
     text-transform:uppercase;margin:0 0 9px}
   .pill{display:inline-block;border:2px solid var(--ink);padding:1px 7px;
@@ -284,7 +292,16 @@
       </div>
     </form>
 
-    <div class="list-head first">
+    <!-- Where a research pass drops what it found. Nothing arrives in CURRENT
+         on its own: he reads these and either keeps them or says no. Hidden
+         entirely when empty, which is most of the time. -->
+    <div class="list-head first unread-head hide" id="unreadHead">
+      <span class="t blk">UNREAD</span><span class="rule"></span>
+      <span class="count blk" id="unreadCount">0</span>
+    </div>
+    <div class="section-body unread hide" id="unreadList" data-group="unread"></div>
+
+    <div class="list-head first" id="currentHead">
       <span class="t blk">CURRENT</span><span class="rule"></span>
       <span class="count blk" id="currentCount">0</span>
       <button class="add" type="button" id="addBtn" aria-label="Add a job">+</button>
@@ -392,7 +409,7 @@ const App = {
     delete fields.link;
     await f.setDoc(f.doc(db, "users", this.uid, "jobs", id), {
       ...fields, links, rank: top - 1, live: true, status: "todo",
-      parked: false, focus: false,
+      unread: false, parked: false, focus: false,
       addedBy: "hand",
       createdAt: f.serverTimestamp(), updatedAt: f.serverTimestamp()
     });
@@ -499,12 +516,18 @@ const App = {
     await this.fb.f.deleteDoc(this.ref(id));
   },
 
-  /* Parking a job is the memory: a later research pass reads `parked` and
-     leaves those roles alone instead of finding them again. `parkedAt` is
-     there so the note on the card can say when you decided. */
-  setParked(id, parked) {
+  /* The three sections are two booleans, and this is the only thing that
+     writes them, so a job is never in two places at once. Parking is also the
+     memory: a later research pass reads `parked` and leaves those roles alone
+     instead of finding them again. `parkedAt` is there so the note on the card
+     can say when you decided. */
+  setGroup(id, group) {
     this.open.delete(id);
-    this.patch(id, { parked, parkedAt: parked ? new Date().toISOString().slice(0, 10) : "" });
+    this.patch(id, {
+      unread: group === "unread",
+      parked: group === "parked",
+      parkedAt: group === "parked" ? new Date().toISOString().slice(0, 10) : ""
+    });
   },
 
   /* Reordering runs on pointer events rather than HTML5 drag-and-drop, which
@@ -564,7 +587,7 @@ const App = {
     return handle;
   },
 
-  groupOf(job) { return job.parked ? "parked" : "current"; },
+  groupOf(job) { return job.parked ? "parked" : job.unread ? "unread" : "current"; },
 
   cardUnder(clientY, selfId) {
     for (const el of document.querySelectorAll(".section-body .job")) {
@@ -584,7 +607,8 @@ const App = {
   /* An empty section is a valid drop target too, and so is the header above
      it — otherwise the first job you want to park has nowhere to land. */
   groupUnder(clientY) {
-    for (const [id, group] of [["currentList", "current"], ["parkedList", "parked"]]) {
+    for (const [id, group] of [["unreadList", "unread"], ["currentList", "current"],
+                               ["parkedList", "parked"]]) {
       const body = $(id);
       if (body.classList.contains("hide")) continue;
       const rect = body.getBoundingClientRect();
@@ -615,7 +639,7 @@ const App = {
     if (!group) return;
 
     if (group !== this.groupOf(job)) {
-      this.setParked(id, group === "parked");
+      this.setGroup(id, group);
       if (!target) return;
     }
 
@@ -635,7 +659,7 @@ const App = {
   /* The chips filter by stage and only ever see live jobs — parked ones have
      their own section and stay out of every count. */
   visible() {
-    const live = this.jobs.filter(j => !j.parked);
+    const live = this.jobs.filter(j => this.groupOf(j) === "current");
     if (this.filter === "all") return live;
     if (this.filter === "open") return live.filter(j => !DONE.has(j.status || "todo"));
     if (this.filter === "live") return live.filter(j => j.live !== false && !DONE.has(j.status || "todo"));
@@ -651,8 +675,9 @@ const App = {
       ? { id: active.dataset.notes, start: active.selectionStart, end: active.selectionEnd }
       : null;
 
-    const live = this.jobs.filter(j => !j.parked);
-    const parked = this.jobs.filter(j => j.parked);
+    const unread = this.jobs.filter(j => this.groupOf(j) === "unread");
+    const live = this.jobs.filter(j => this.groupOf(j) === "current");
+    const parked = this.jobs.filter(j => this.groupOf(j) === "parked");
 
     const counts = { all: live.length, open: live.filter(j => !DONE.has(j.status || "todo")).length };
     const chips = [["open", `Open ${counts.open}`], ["live", "Live only"], ["applied", "Applied"],
@@ -665,6 +690,11 @@ const App = {
       b.onclick = () => { this.filter = v; this.render(); };
       $("filters").appendChild(b);
     }
+
+    this.fill("unreadList", "unreadCount", unread, unread.length, "");
+    $("unreadHead").classList.toggle("hide", !unread.length);
+    $("unreadList").classList.toggle("hide", !unread.length);
+    $("currentHead").classList.toggle("first", !unread.length);
 
     this.fill("currentList", "currentCount", this.visible(), live.length,
               this.jobs.length ? "Nothing in this view." : "No opportunities stored yet.");
@@ -716,6 +746,20 @@ const App = {
     const co = document.createElement("span"); co.className = "co blk"; co.textContent = j.company || "";
     const ro = document.createElement("span"); ro.className = "ro"; ro.textContent = j.role || "";
     titles.append(co, ro);
+    /* Remote or not, and where, without opening the card. */
+    const where = document.createElement("span");
+    where.className = "where";
+    if (j.remote) {
+      const tag = document.createElement("b");
+      tag.textContent = "Remote";
+      where.appendChild(tag);
+      // "Fully remote, worldwide" would otherwise read "Remote · Fully remote…"
+      const rest = (j.location || "").replace(/^\s*(fully\s+|100%\s+)?remote\b[\s,:–—-]*/i, "").trim();
+      if (rest) where.appendChild(document.createTextNode(" · " + rest));
+    } else if (j.location) {
+      where.textContent = j.location;
+    }
+    if (where.textContent) titles.appendChild(where);
     const chev = document.createElement("span");
     chev.className = "chev blk"; chev.textContent = isOpen ? "▴" : "▾";
     head.append(titles, chev);
@@ -733,8 +777,6 @@ const App = {
     const meta = document.createElement("div");
     meta.className = "meta";
     const pills = [];
-    if (j.location) pills.push(["", j.location]);
-    if (j.remote) pills.push(["remote", "Remote"]);
     if (j.pay) pills.push(["pay", j.pay]);
     if (j.live === false) pills.push(["dead", "Closed listing"]);
     if (j.parked && j.parkedAt) pills.push(["", `Parked ${j.parkedAt}`]);
@@ -861,11 +903,19 @@ const App = {
       this.render();
     };
 
+    /* An unread job gets the one button it needs: keep it. Saying no is the
+       same NOT RELEVANT button every other card has. */
+    const keep = document.createElement("button");
+    keep.type = "button";
+    keep.className = "abtn keep";
+    keep.textContent = "KEEP";
+    keep.onclick = () => this.setGroup(j.id, "current");
+
     const park = document.createElement("button");
     park.type = "button";
     park.className = "abtn";
     park.textContent = j.parked ? "BRING BACK" : "NOT RELEVANT";
-    park.onclick = () => this.setParked(j.id, !j.parked);
+    park.onclick = () => this.setGroup(j.id, j.parked ? "current" : "parked");
 
     const del = document.createElement("button");
     del.type = "button";
@@ -876,7 +926,8 @@ const App = {
     });
 
     right.append(park, del);
-    row.append(focus, edit, right);
+    if (this.groupOf(j) === "unread") row.append(keep, edit, right);
+    else row.append(focus, edit, right);
     return row;
   },
 
