@@ -33,7 +33,7 @@ See `exercise/README.md` for the exercise schema, schedule, synchronization beha
 
 The Firebase web config in `dailyplan/firebase-config.js` is public project identification, not an Admin credential. Service-account keys bypass rules and must never be committed.
 
-DailyPlan still stores its independent ticks and optional Daily Direction in one
+DailyPlan still stores its independent ticks and optional Priority in one
 `users/{uid}/days/{YYYY-MM-DD}` document per date. Signed out, DailyPlan remains local-first;
 exercise is different and shows no routine or saved results until authentication and a fresh
 server read succeed.

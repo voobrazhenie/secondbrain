@@ -206,7 +206,7 @@ leaving a dead page. `FALLBACK` still matters for a slow `daily.json`, not for o
 use. A service worker precaching the SDK is the fix if that ever bites.
 
 `localStorage` is deliberately **not** cleared on sign-out. Collapsed sections, notes and
-direction drafts are this browser's settings; ticks, XP months and the custom document
+priority drafts are this browser's settings; ticks, XP months and the custom document
 are what make the streak and level survive a reload, and `lifetimeXp()` reads only the
 local months, so wiping them would zero the level. The legacy
 `secondbrain.fitness.tracker.*` keys stop influencing the counter because nothing reads

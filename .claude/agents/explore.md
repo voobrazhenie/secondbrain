@@ -11,7 +11,7 @@ models. Map of the repo so you don't have to rediscover it every time:
 
 - `index.html` (repo root) — home page, progress bar, links to every section below.
 - `dailyplan/index.html` — the separate recurring-task list. Its JS uses `dailyConfig`,
-  recurrence, one-offs, XP, trackers, Daily Direction, and localStorage-first Firestore sync.
+  recurrence, one-offs, XP, trackers, Priority, and localStorage-first Firestore sync.
   `dailyplan/daily.json` is mirrored into its `FALLBACK`.
 - `dailyplan/plan.json` — the exercise-only schema version 2 configuration: weekly policy and
   the seven stable exercises. `dailyplan/daily.json` owns non-exercise checklist content.
@@ -31,7 +31,7 @@ models. Map of the repo so you don't have to rediscover it every time:
   deployment documentation.
 
 Data model, one collection per concern under `users/{uid}/`:
-- `days/{YYYY-MM-DD}` → DailyPlan ticks, item/XP totals, calendar metadata, and optional Daily Direction.
+- `days/{YYYY-MM-DD}` → DailyPlan ticks, item/XP totals, calendar metadata, and optional Priority.
 - `exerciseDays/{YYYY-MM-DD}` → `{ date, planVersion, exercises, workoutCompleted, updatedAt }`.
 - `xp/{YYYY-MM}` → `{ month, total, updatedAt }`, plus a fixed `xp/peak` → `{ peakXp, updatedAt }`.
 - `config/custom`, `config/streams`, `config/ideas` → one whole-document blob each.

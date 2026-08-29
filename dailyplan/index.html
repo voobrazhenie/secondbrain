@@ -166,7 +166,7 @@
      the sync row — which carries the sign-in button — and the footer. */
   #wrap:not([data-auth="in"]) .counter,
   #wrap:not([data-auth="in"]) .daynav,
-  #wrap:not([data-auth="in"]) #direction,
+  #wrap:not([data-auth="in"]) #priority,
   #wrap:not([data-auth="in"]) #level,
   #wrap:not([data-auth="in"]) #list,
   #wrap:not([data-auth="in"]) .actions,
@@ -270,47 +270,47 @@
     border:2px solid var(--paper);box-shadow:none;
   }
 
-  /* ---------- daily direction ---------- */
-  .direction{
-    background:var(--teal);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+  /* ---------- priority ----------
+     The muted tones are the pink's own dark end, picked to sit on it at the
+     same contrast the teal card's darker text used to hold. */
+  .priority{
+    background:var(--pink);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
     padding:13px 14px 14px;margin:0 0 16px;
   }
-  .direction .k{
+  .priority .k{
     font-size:8px;letter-spacing:.1em;font-family:"Arial Black",Impact,sans-serif;
   }
-  .direction .q{font-size:17px;line-height:1.18;font-weight:900;margin:5px 0 12px}
-  .direction .value{
+  .priority .value{
     font-size:20px;line-height:1.12;margin:5px 0 9px;overflow-wrap:anywhere;
     font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
   }
-  .direction .next{
+  .priority .next{
     background:var(--card);border:2px solid var(--ink);padding:8px 10px;
     font-size:12px;font-weight:700;margin:0 0 10px;overflow-wrap:anywhere;
   }
-  .direction .next b{
+  .priority .next b{
     display:block;font-size:8px;letter-spacing:.08em;margin-bottom:2px;
     font-family:"Arial Black",Impact,sans-serif;
   }
-  .direction .hint{font-size:10.5px;font-weight:700;color:#164F52;margin:0 0 10px}
-  .direction .acts{display:flex;gap:9px;flex-wrap:wrap}
-  .direction .acts button{flex:1;min-width:120px;background:var(--card)}
-  .direction .acts button.primary{background:var(--yellow)}
-  .direction label{
+  .priority .hint{font-size:10.5px;font-weight:700;color:#5C0A2E;margin:0 0 10px}
+  .priority .acts{display:flex;gap:9px;flex-wrap:wrap}
+  .priority .acts button{flex:1;min-width:120px;background:var(--card)}
+  .priority .acts button.primary{background:var(--yellow)}
+  /* Nothing stands between the label and the button once the day has no
+     priority on it, so the gap the prompt used to hold is set here instead. */
+  #priorityEmpty .acts{margin-top:10px}
+  .priority label{
     display:block;font-size:9px;letter-spacing:.08em;margin:10px 0 4px;
     font-family:"Arial Black",Impact,sans-serif;
   }
-  .direction textarea,.direction input{
+  /* The first label is the top of the card now, so it sits on the padding. */
+  .priority label:first-child{margin-top:0}
+  .priority textarea,.priority input{
     display:block;width:100%;font:inherit;font-size:16px;font-weight:700;
     padding:9px 10px;background:var(--card);color:var(--ink);border:2px solid var(--ink);
   }
-  .direction textarea{min-height:78px;resize:vertical}
-  .direction .error{min-height:1.2em;margin-top:6px;font-size:11px;font-weight:900;color:#741338}
-  .direction .skipped{
-    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  }
-  .direction .skipped[hidden]{display:none}
-  .direction .skipped .k{flex:1;min-width:190px}
-  .direction .skipped button{padding:6px 9px;font-size:9px;background:var(--card)}
+  .priority textarea{min-height:78px;resize:vertical}
+  .priority .error{min-height:1.2em;margin-top:6px;font-size:11px;font-weight:900;color:#3D0016}
 
   /* ---------- level ---------- */
   .level{
@@ -369,44 +369,37 @@
     <button id="dayNext" title="Next day">›</button>
   </div>
 
-  <section class="direction" id="direction" aria-label="Daily direction" hidden>
-    <div id="directionEmpty" hidden>
-      <div class="k">DAILY DIRECTION</div>
-      <div class="q" id="directionQuestion"></div>
+  <section class="priority" id="priority" aria-label="Priority" hidden>
+    <div id="priorityEmpty" hidden>
+      <div class="k">PRIORITY</div>
       <div class="acts">
-        <button class="primary" id="directionSet">SET DIRECTION</button>
-        <button id="directionSkip">NOT TODAY</button>
+        <button class="primary" id="prioritySet">SET PRIORITY</button>
       </div>
     </div>
 
-    <div id="directionEdit" hidden>
-      <div class="k">DAILY DIRECTION</div>
-      <div class="q" id="directionEditQuestion"></div>
-      <label for="directionText">DIRECTION</label>
-      <textarea id="directionText" maxlength="180" placeholder="What do you want to protect today?"></textarea>
-      <label for="directionNext">NEXT ACTION <span aria-hidden="true">—</span> OPTIONAL</label>
-      <input id="directionNext" type="text" maxlength="140" placeholder="One concrete move">
-      <div class="error" id="directionError" role="status" aria-live="polite"></div>
+    <div id="priorityEdit" hidden>
+      <!-- No card label here: the field's own label already says PRIORITY, and
+           the two sat on top of each other once the prompt between them went. -->
+      <label for="priorityText">PRIORITY</label>
+      <textarea id="priorityText" maxlength="180" placeholder="What matters most today?"></textarea>
+      <label for="priorityNext">NEXT ACTION <span aria-hidden="true">—</span> OPTIONAL</label>
+      <input id="priorityNext" type="text" maxlength="140" placeholder="One concrete move">
+      <div class="error" id="priorityError" role="status" aria-live="polite"></div>
       <div class="acts">
-        <button id="directionCancel">CANCEL</button>
-        <button class="primary" id="directionSave">SAVE</button>
+        <button id="priorityCancel">CANCEL</button>
+        <button class="primary" id="prioritySave">SAVE</button>
       </div>
     </div>
 
-    <div id="directionSaved" hidden>
-      <div class="k">TODAY'S DIRECTION</div>
-      <div class="value" id="directionValue"></div>
-      <div class="next" id="directionNextSaved" hidden>
+    <div id="prioritySaved" hidden>
+      <div class="k">TODAY'S PRIORITY</div>
+      <div class="value" id="priorityValue"></div>
+      <div class="next" id="priorityNextSaved" hidden>
         <b>NEXT ACTION</b>
-        <span id="directionNextValue"></span>
+        <span id="priorityNextValue"></span>
       </div>
-      <div class="hint">Still true? Edit it if not.</div>
-      <div class="acts"><button id="directionEditBtn">EDIT</button></div>
-    </div>
-
-    <div class="skipped" id="directionSkipped" hidden>
-      <div class="k">DAILY DIRECTION — NOT SET TODAY</div>
-      <button id="directionAnyway">SET ANYWAY</button>
+      <div class="hint">Still the one? Edit it if not.</div>
+      <div class="acts"><button id="priorityEditBtn">EDIT</button></div>
     </div>
   </section>
 
@@ -484,18 +477,9 @@ const LS_META    = "secondbrain.dailyplan.meta.v2.";
 const LS_NOTES   = "secondbrain.fitness.notes";
 const LS_CUSTOM  = "secondbrain.dailyplan.custom.v2";
 const LS_COLLAPSED = "secondbrain.fitness.collapsed";
-const LS_DIRECTION = "secondbrain.daily.direction.";
+const LS_PRIORITY  = "secondbrain.daily.priority.";
 const LS_XPMONTH = "secondbrain.fitness.xpmonth.";   // + YYYY-MM
 const LS_XPPEAK  = "secondbrain.fitness.xppeak";
-const DIRECTION_PROMPTS = [
-  { id:"meaningfully-better", text:"What would make today meaningfully better?" },
-  { id:"beyond-urgent", text:"What matters today beyond what feels urgent?" },
-  { id:"one-thing-forward", text:"If you moved one important thing forward today, what should it be?" },
-  { id:"clearest-hour", text:"What deserves your clearest hour today?" },
-  { id:"reduce-stress", text:"What small action would reduce the most background stress?" },
-  { id:"enough", text:"What would “enough” look like today?" }
-];
-
 const CONFIGURED_DAILY_IDS = new Set([
   ...FALLBACK.daily.flatMap(group => group.items || []),
   ...(FALLBACK.oneOffs?.items || [])
@@ -586,130 +570,102 @@ function shiftDate(iso, delta) {
 }
 function todayISO() { return DEV_DATE || localISO(); }
 
-/* ---------- daily direction ----------
-   One date-scoped, user-written orientation. It is intentionally separate from
-   tasks and XP. */
-let directionEditDate = null;
+/* ---------- priority ----------
+   One date-scoped, user-written priority. It is intentionally separate from
+   tasks and XP.
 
-function directionPromptFor(date, record = null) {
-  if (record?.promptId && record?.promptText) {
-    return { id:record.promptId, text:record.promptText };
-  }
-  const offset = daysBetween("2026-01-01", date);
-  return DIRECTION_PROMPTS[((offset % DIRECTION_PROMPTS.length) + DIRECTION_PROMPTS.length) % DIRECTION_PROMPTS.length];
-}
+   `status` is still stored and still read, even though "set" is now the only
+   value it can hold: records written before the card dropped its skip button
+   carry it, and a record is only a priority when it says so. */
+let priorityEditDate = null;
 
-function normaliseDirection(value, date) {
-  if (!value || (value.status !== "set" && value.status !== "skipped")) return null;
-  const prompt = directionPromptFor(date, value);
+function normalisePriority(value) {
+  if (!value || value.status !== "set") return null;
   const text = typeof value.text === "string" ? value.text.trim().slice(0, 180) : "";
-  if (value.status === "set" && !text) return null;
+  if (!text) return null;
   return {
-    status:value.status,
-    promptId:prompt.id,
-    promptText:prompt.text,
+    status:"set",
     text,
     nextAction:typeof value.nextAction === "string" ? value.nextAction.trim().slice(0, 140) : "",
     updatedAt:typeof value.updatedAt === "string" ? value.updatedAt : new Date().toISOString()
   };
 }
 
-function loadDirection(date) {
-  try { return normaliseDirection(JSON.parse(localStorage.getItem(LS_DIRECTION + date) || "null"), date); }
+function loadPriority(date) {
+  try { return normalisePriority(JSON.parse(localStorage.getItem(LS_PRIORITY + date) || "null")); }
   catch { return null; }
 }
 
-function saveDirectionLocal(date, record) {
-  try { localStorage.setItem(LS_DIRECTION + date, JSON.stringify(record)); } catch {}
+function savePriorityLocal(date, record) {
+  try { localStorage.setItem(LS_PRIORITY + date, JSON.stringify(record)); } catch {}
 }
 
-function showDirectionState(id) {
-  for (const state of ["directionEmpty","directionEdit","directionSaved","directionSkipped"]) {
+function showPriorityState(id) {
+  for (const state of ["priorityEmpty","priorityEdit","prioritySaved"]) {
     $(state).hidden = state !== id;
   }
 }
 
-function renderDirection() {
+function renderPriority() {
   if (!plan) return;
   const date = plan.date;
-  const box = $("direction");
-  box.hidden = false;
+  $("priority").hidden = false;
 
-  if (directionEditDate === date) {
-    showDirectionState("directionEdit");
+  if (priorityEditDate === date) {
+    showPriorityState("priorityEdit");
     return;
   }
-  if (directionEditDate && directionEditDate !== date) directionEditDate = null;
+  if (priorityEditDate && priorityEditDate !== date) priorityEditDate = null;
 
-  const record = loadDirection(date);
-  const prompt = directionPromptFor(date, record);
-  $("directionQuestion").textContent = prompt.text;
-
+  const record = loadPriority(date);
   if (!record) {
-    showDirectionState("directionEmpty");
-    return;
-  }
-  if (record.status === "skipped") {
-    showDirectionState("directionSkipped");
+    showPriorityState("priorityEmpty");
     return;
   }
 
-  $("directionValue").textContent = record.text;
-  $("directionNextValue").textContent = record.nextAction;
-  $("directionNextSaved").hidden = !record.nextAction;
-  showDirectionState("directionSaved");
+  $("priorityValue").textContent = record.text;
+  $("priorityNextValue").textContent = record.nextAction;
+  $("priorityNextSaved").hidden = !record.nextAction;
+  showPriorityState("prioritySaved");
 }
 
-function startDirectionEdit() {
+function startPriorityEdit() {
   const date = plan.date;
-  const record = loadDirection(date);
-  const prompt = directionPromptFor(date, record);
-  directionEditDate = date;
-  $("directionEditQuestion").textContent = prompt.text;
-  $("directionText").value = record?.status === "set" ? record.text : "";
-  $("directionNext").value = record?.status === "set" ? record.nextAction : "";
-  $("directionError").textContent = "";
-  showDirectionState("directionEdit");
-  $("directionText").focus();
+  const record = loadPriority(date);
+  priorityEditDate = date;
+  $("priorityText").value = record?.text || "";
+  $("priorityNext").value = record?.nextAction || "";
+  $("priorityError").textContent = "";
+  showPriorityState("priorityEdit");
+  $("priorityText").focus();
 }
 
-function cancelDirectionEdit() {
-  directionEditDate = null;
-  $("directionError").textContent = "";
-  renderDirection();
+function cancelPriorityEdit() {
+  priorityEditDate = null;
+  $("priorityError").textContent = "";
+  renderPriority();
 }
 
-function storeDirection(record) {
+function storePriority(record) {
   const date = plan.date;
-  saveDirectionLocal(date, record);
-  directionEditDate = null;
-  renderDirection();
-  sync.pushDirection(date, record);
+  savePriorityLocal(date, record);
+  priorityEditDate = null;
+  renderPriority();
+  sync.pushPriority(date, record);
 }
 
-function saveDirectionForm() {
-  const text = $("directionText").value.trim();
+function savePriorityForm() {
+  const text = $("priorityText").value.trim();
   if (!text) {
-    $("directionError").textContent = "Write a direction before saving.";
-    $("directionText").focus();
+    $("priorityError").textContent = "Write a priority before saving.";
+    $("priorityText").focus();
     return;
   }
-  const prompt = directionPromptFor(plan.date, loadDirection(plan.date));
-  storeDirection({
+  storePriority({
     status:"set",
-    promptId:prompt.id,
-    promptText:prompt.text,
     text:text.slice(0, 180),
-    nextAction:$("directionNext").value.trim().slice(0, 140),
+    nextAction:$("priorityNext").value.trim().slice(0, 140),
     updatedAt:new Date().toISOString()
-  });
-}
-
-function skipDirection() {
-  const prompt = directionPromptFor(plan.date, loadDirection(plan.date));
-  storeDirection({
-    status:"skipped", promptId:prompt.id, promptText:prompt.text,
-    text:"", nextAction:"", updatedAt:new Date().toISOString()
   });
 }
 
@@ -1193,7 +1149,7 @@ function render() {
   renderCounter();
   renderLevel();
   renderDayNav();
-  renderDirection();
+  renderPriority();
 }
 
 /* ---------- gestures ----------
@@ -1574,7 +1530,7 @@ const sync = {
 
   /* Signing out has to leave nothing of the account behind — not on screen,
      not in memory, and not queued to be written. localStorage is deliberately
-     untouched: collapsed sections, notes and the direction drafts are this
+     untouched: collapsed sections, notes and the priority drafts are this
      browser's own settings rather than account data, and nothing reads them
      while the page is gated. */
   teardown() {
@@ -1595,9 +1551,9 @@ const sync = {
     viewDate = null;
     weedDate = undefined;
     lastRendered = null;
-    directionEditDate = null;
+    priorityEditDate = null;
     $("list").textContent = "";
-    for (const id of ["counter", "level", "direction", "scrim"]) $(id).hidden = true;
+    for (const id of ["counter", "level", "priority", "scrim"]) $(id).hidden = true;
   },
 
   async init() {
@@ -1885,38 +1841,38 @@ const sync = {
     render();
   },
 
-  adoptDirection(value, date) {
-    const record = normaliseDirection(value, date);
+  adoptPriority(value, date) {
+    const record = normalisePriority(value);
     if (!record) return false;
-    saveDirectionLocal(date, record);
-    if (plan && plan.date === date && directionEditDate !== date) renderDirection();
+    savePriorityLocal(date, record);
+    if (plan && plan.date === date && priorityEditDate !== date) renderPriority();
     return true;
   },
 
-  directionFields(date) {
-    const record = loadDirection(date);
+  priorityFields(date) {
+    const record = loadPriority(date);
     if (!record) return {};
-    return { direction:record, directionUpdatedAt:this.fb.f.serverTimestamp() };
+    return { priority:record, priorityUpdatedAt:this.fb.f.serverTimestamp() };
   },
 
-  async pushDirection(date, record = loadDirection(date)) {
+  async pushPriority(date, record = loadPriority(date)) {
     if (this.mode !== "signed-in" || !record) return;
     const { f } = this.fb;
     try {
       await f.setDoc(this.ref(date), {
-        direction:record,
-        directionUpdatedAt:f.serverTimestamp()
+        priority:record,
+        priorityUpdatedAt:f.serverTimestamp()
       }, { merge:true });
     } catch (e) {
-      this.setUI("err", `Couldn't sync the daily direction (${e.code || e.message}). Saved on this device.`,
-        "Retry", () => this.pushDirection(date, record));
+      this.setUI("err", `Couldn't sync the priority (${e.code || e.message}). Saved on this device.`,
+        "Retry", () => this.pushPriority(date, record));
     }
   },
 
-  async reconcileDirection(data, date) {
-    if (this.adoptDirection(data.direction, date)) return;
-    const local = loadDirection(date);
-    if (local) await this.pushDirection(date, local);
+  async reconcilePriority(data, date) {
+    if (this.adoptPriority(data.priority, date)) return;
+    const local = loadPriority(date);
+    if (local) await this.pushPriority(date, local);
   },
 
   async attach() {
@@ -1933,11 +1889,11 @@ const sync = {
         // be undone by the copy we just read back.
         if (!this.writesPending(date)) this.adopt(data.ticks || {}, date);
         await this.ensureMeta(data, date);
-        await this.reconcileDirection(data, date);
+        await this.reconcilePriority(data, date);
       } else {
         await f.setDoc(ref, {
           ticks: loadTicks(date), ...this.meta(),
-          ...this.directionFields(date),
+          ...this.priorityFields(date),
           createdAt: f.serverTimestamp(), updatedAt: f.serverTimestamp()
         });
       }
@@ -1951,7 +1907,7 @@ const sync = {
         if (this.writesPending(date)) return;
         const data = s.exists() ? s.data() : {};
         this.adopt(data.ticks || {}, date);
-        if (data.direction) this.adoptDirection(data.direction, date);
+        if (data.priority) this.adoptPriority(data.priority, date);
       },
       e => this.setUI("err", `Live sync dropped (${e.code || e.message}). Ticks are still saved locally.`,
         "Reconnect", () => { this.onAuth(this.fb.auth.currentUser); })
@@ -2158,7 +2114,7 @@ const sync = {
           const batch = f.writeBatch(db);
           batch.set(this.ref(date), {
             ticks: loadTicks(date), ...this.meta(),
-            ...this.directionFields(date),
+            ...this.priorityFields(date),
             createdAt: f.serverTimestamp(), updatedAt: f.serverTimestamp()
           });
           addTracker(batch);
@@ -2176,7 +2132,7 @@ const sync = {
   },
 
   /* Unused since the Clear button was removed. Kept because it is the only
-     merge-safe way to wipe a day without taking its Daily Direction with it. */
+     merge-safe way to wipe a day without taking its priority with it. */
   async clearDay(date) {
     if (this.mode !== "signed-in") return;
     this.queue.clear();
@@ -2184,7 +2140,7 @@ const sync = {
     const { f } = this.fb;
     try {
       // Merge instead of replacing the day document: clearing ticks must not
-      // erase its Daily Direction or future date-scoped fields.
+      // erase its priority or future date-scoped fields.
       await f.setDoc(this.ref(date),
         { ticks: {}, ...this.meta(), updatedAt: f.serverTimestamp() },
         { merge:true });
@@ -2202,7 +2158,7 @@ const sync = {
       const snap = await f.getDocFromServer(this.ref(plan.date));
       const data = snap.exists() ? snap.data() : {};
       this.adopt(data.ticks || {}, plan.date);
-      if (data.direction) this.adoptDirection(data.direction, plan.date);
+      if (data.priority) this.adoptPriority(data.priority, plan.date);
     } catch { /* offline; the listener catches up on reconnect */ }
   },
 
@@ -2214,7 +2170,7 @@ const sync = {
      was hours or days ago. Returning to the page is exactly when a stale copy
      becomes visible, so that is when to re-read it.
 
-     The heavier reloads are held back while a dialog or a Daily Direction
+     The heavier reloads are held back while a dialog or a priority
      edit is open, since each one ends in a render() that would take the open
      field with it. The day resync still runs: it flushes queued ticks before
      it reads, so it can't read past a tick still on its way up.
@@ -2227,7 +2183,7 @@ const sync = {
   async refreshAll() {
     if (this.mode !== "signed-in") return;
     await this.resync();
-    if (!$("scrim").hidden || directionEditDate) return;
+    if (!$("scrim").hidden || priorityEditDate) return;
     const now = Date.now();
     if (now - this.lastRefresh < 45000) return;
     this.lastRefresh = now;
@@ -2298,13 +2254,11 @@ $("dayPrev").addEventListener("click", () => goToDay(shiftDate(plan.date, -1)));
 $("dayNext").addEventListener("click", () => goToDay(shiftDate(plan.date, 1)));
 $("dayToday").addEventListener("click", () => goToDay(todayISO()));
 
-$("directionSet").addEventListener("click", startDirectionEdit);
-$("directionAnyway").addEventListener("click", startDirectionEdit);
-$("directionEditBtn").addEventListener("click", startDirectionEdit);
-$("directionSkip").addEventListener("click", skipDirection);
-$("directionCancel").addEventListener("click", cancelDirectionEdit);
-$("directionSave").addEventListener("click", saveDirectionForm);
-$("directionText").addEventListener("input", () => { $("directionError").textContent = ""; });
+$("prioritySet").addEventListener("click", startPriorityEdit);
+$("priorityEditBtn").addEventListener("click", startPriorityEdit);
+$("priorityCancel").addEventListener("click", cancelPriorityEdit);
+$("prioritySave").addEventListener("click", savePriorityForm);
+$("priorityText").addEventListener("input", () => { $("priorityError").textContent = ""; });
 
 $("mCancel").addEventListener("click", closeModal);
 $("mSave").addEventListener("click", saveModal);
@@ -2313,7 +2267,7 @@ $("mText").addEventListener("keydown", e => { if (e.key === "Enter") saveModal()
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
   if (!$("scrim").hidden) closeModal();
-  else if (directionEditDate) cancelDirectionEdit();
+  else if (priorityEditDate) cancelPriorityEdit();
 });
 
 loadCustom();
