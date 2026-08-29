@@ -286,6 +286,7 @@
     display:flex;align-items:center;justify-content:flex-end;
     padding-right:16px;font-family:"Arial Black",Impact,sans-serif;
     font-size:11px;letter-spacing:.08em;color:var(--ink);
+    box-shadow:var(--shadow);
   }
   .priority-wrap.armed .swipebg{background:var(--ink);color:var(--paper)}
   .priority-wrap .priority.sliding{transition:none}
@@ -302,20 +303,21 @@
   .priority{
     position:relative;background:var(--pink);
     border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
-    padding:13px 14px 14px;margin:0;touch-action:pan-y;
+    padding:13px 14px 13px;margin:0;touch-action:pan-y;
   }
   .priority .k{
     font-size:8px;letter-spacing:.1em;font-family:"Arial Black",Impact,sans-serif;
   }
   .priority .value{
-    font-size:20px;line-height:1.12;margin:5px 0 0;overflow-wrap:anywhere;
+    font-size:20px;line-height:1.12;margin:3px 0 0;overflow-wrap:anywhere;
     font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
   }
   /* The next action is a second line under the priority, not a panel of its
-     own — it is the smaller half of the pair and should read that way. */
+     own — it is the smaller half of the pair and should read that way. Close
+     enough under it to belong to it rather than to sit on its own. */
   .priority .next{
-    font-size:13px;line-height:1.25;font-weight:900;color:var(--card);
-    margin:5px 0 0;overflow-wrap:anywhere;
+    font-size:13px;line-height:1.25;font-weight:900;color:var(--ink);
+    margin:2px 0 0;overflow-wrap:anywhere;
   }
   .priority .acts{display:flex;gap:9px;flex-wrap:wrap}
   .priority .acts button{flex:1;min-width:120px;background:var(--card)}
@@ -329,11 +331,14 @@
   }
   /* The first label is the top of the card now, so it sits on the padding. */
   .priority label:first-child{margin-top:0}
+  /* One shared line-height so a one-row textarea and the input below it are
+     the same height rather than nearly the same. */
   .priority textarea,.priority input{
-    display:block;width:100%;font:inherit;font-size:16px;font-weight:700;
-    padding:9px 10px;background:var(--card);color:var(--ink);border:2px solid var(--ink);
+    display:block;width:100%;font:inherit;font-size:16px;line-height:1.25;
+    font-weight:700;padding:9px 10px;background:var(--card);color:var(--ink);
+    border:2px solid var(--ink);
   }
-  .priority textarea{min-height:78px;resize:vertical}
+  .priority textarea{min-height:0;resize:vertical}
   .priority .error{min-height:1.2em;margin-top:6px;font-size:11px;font-weight:900;color:#3D0016}
 
   /* ---------- level ---------- */
@@ -407,7 +412,7 @@
         <!-- No card label here: the field's own label already says PRIORITY, and
              the two sat on top of each other once the prompt between them went. -->
         <label for="priorityText">PRIORITY</label>
-        <textarea id="priorityText" maxlength="180" placeholder="What matters most today?"></textarea>
+        <textarea id="priorityText" rows="1" maxlength="180" placeholder="What matters most today?"></textarea>
         <label for="priorityNext">NEXT ACTION <span aria-hidden="true">—</span> OPTIONAL</label>
         <input id="priorityNext" type="text" maxlength="140" placeholder="One concrete move">
         <div class="error" id="priorityError" role="status" aria-live="polite"></div>
