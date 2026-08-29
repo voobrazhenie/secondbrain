@@ -20,6 +20,46 @@ This is the general mechanism for anything that doesn't happen every day (micron
 14 days, watering flowers every 3) — extend it with a new `every`/`anchor` pair in `daily.json`,
 don't hardcode a one-off case in `deriveDay()`.
 
+## Carried tasks — `carry`/`created`/`done`
+
+A task you add is one of two things. `scope: "daily"` is part of the routine and shows every
+day. A carried task instead has `carry: true`, `created` (the day it was added) and `done`
+(the day it was ticked, empty until then), and `showsOn()` is the whole mechanism:
+
+```
+visible on D  ⇔  created <= D  and  (!done or D <= done)
+```
+
+So it appears from the day it was created, keeps appearing while it is open, shows ticked on
+the day it was finished, and is gone after that. Days before it existed never show it. Nothing
+runs overnight — every day is derived from those two dates when the page draws it, which is
+also why a week away from the app loses nothing.
+
+`setTick()` writes `done` onto the task in `custom` (not just the day's tick map), because that
+date is what stops it carrying. Unticking clears it and the task carries again.
+
+The row shows `DAY n` (`carriedDays()`, 1 on the day it was created) while it is still open —
+that badge and the two dates are the procrastination record.
+
+`scope: "YYYY-MM-DD"` is the older shape and means that day only. Legacy tasks keep it
+deliberately: making them carry would resurrect months of forgotten one-offs onto today.
+
+## Inverted items — `invert`
+
+`isTicked(item, ticks)` is the only place that decides whether a row reads as done. An item with
+`invert: true` is ticked when there is **no** stored flag: "Didn't smoke weed" pays its XP by
+default, and unticking it is what writes `ticks["r-smoked-weed"] = true`.
+
+The stored flag keeps its original meaning — it still means *smoked* — so `updateTracker()` and
+the no-weed counter are untouched. Only the checkbox, the section count and `todayXp()` invert.
+
+`todayTicked()` deliberately does **not** invert: it counts real stored ticks, because it decides
+whether a day counts toward the streak, and a day nobody opened has to score zero. Inverting it
+would make the streak permanent and meaningless.
+
+A clean day still stores nothing at all, so `xpEarned` is only banked for days something was
+actually ticked. A day never opened reads as clean when you scroll back but contributes 0 XP.
+
 ## Exercise separation
 
 This page owns only DailyPlan tasks in `users/{uid}/days/{date}`. It does not display workout

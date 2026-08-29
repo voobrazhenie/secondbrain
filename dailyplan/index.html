@@ -141,6 +141,11 @@
   }
   .row.done .pill{background:transparent;border-color:var(--faint);color:var(--faint)}
   .pill.cost{background:var(--ink);color:var(--paper)}
+  /* How long a task has been carried. Sits next to the text, not in the pill
+     column, because it is about the task rather than the day's score. */
+  .carry{display:inline-block;margin-left:7px;font-size:9px;font-weight:900;
+    letter-spacing:.06em;border:2px solid var(--ink);padding:0 4px;vertical-align:2px}
+  .row.done .carry{border-color:var(--faint);color:var(--faint)}
   .row.done .pill.cost{background:transparent;border-color:var(--faint);color:var(--faint)}
 
   /* Owned by another page — it shows state, it doesn't take input. Its note
@@ -453,7 +458,7 @@
       <label for="mScope">HOW OFTEN</label>
       <select id="mScope">
         <option value="daily">Every day</option>
-        <option value="today">Just today</option>
+        <option value="carry">Until it's done</option>
       </select>
     </div>
     <div class="acts">
@@ -471,7 +476,7 @@
 <script>
 "use strict";
 
-const FALLBACK = {"schemaVersion":1,"startDate":"2026-07-29","principles":{"title":"Notes for Radical Living","author":"Tilda Swinton","source":"from her book Ongoing, 2025","list":["Make friends with chaos","Hold a calm mind","Let things shake","Forgive human frailty","Champion second chances","Defy kindness","Reverence fellowship","Listen to the quiet","Respect the young","Seek growth","Trust in change","Treasure learning","Inspire faith in evolution","Reach beyond the binary","Be wary of the doubtless","Honor the bright headed","Grow plants","Attend to the weather","Be electric","Cherish language","Celebrate silence","Dance daily","Bless the handmade","Sing into pain","Challenge assumptions","Follow the wind","Look upwards","Swoon under clouds","Feel your courage","Face forward","Read history","Open your ears","Drop your shoulders","Bend your knees","Raise the roof","Keep breathing","Be trustworthy","Take care of yourself","Believe in goodness","Head for the light"]},"daily":[{"title":"Meds","emoji":"💊","items":[{"id":"m-stimulants","emoji":"💊","text":"Stimulants","detail":"As prescribed.","xp":10},{"id":"m-antidepressants","emoji":"💊","text":"Antidepressants","detail":"As prescribed. Consistent time of day.","xp":10}]},{"title":"Tasks","emoji":"📋","keepEmpty":true,"items":[]},{"title":"Eat","emoji":"🍳","note":"Protein is the non-negotiable — 1.8–2.2 g per kg per day. Four anchors of 35–45 g beats trying to rescue the number at dinner. The failure mode isn't one light day, it's three in a row.","items":[{"id":"e-anchor-1","emoji":"🥣","text":"Breakfast protein anchor","detail":"Greek yoghurt or skyr + eggs, or a shake with milk.","xp":15},{"id":"e-anchor-2","emoji":"🥗","text":"Lunch protein anchor","detail":"Palm-and-a-half of chicken / fish / beef / tofu.","xp":15},{"id":"e-anchor-4","emoji":"🍽️","text":"Dinner protein anchor","detail":"The one that usually rescues the day's total.","xp":15},{"id":"e-water","emoji":"💧","text":"Water through the day","detail":"Pale straw, not clear. Creatine raises water needs slightly.","xp":10},{"id":"e-track","emoji":"🔢","text":"Logged protein today","detail":"Only needed for the first 2–3 weeks, to calibrate. After that you'll know your portions by eye.","xp":15},{"id":"e-creatine","emoji":"⚡","text":"Creatine · 5 g","detail":"Any time of day. No loading phase needed.","xp":10}]},{"title":"Care","emoji":"🧴","note":"Minoxidil every evening, except on microneedling days — the skin needs about a day and a half to close up before anything goes on it again.","items":[{"id":"c-microneedling","emoji":"🪡","text":"Microneedling","detail":"Morning. Every 14 days. No minoxidil this evening — resume tomorrow evening.","xp":25,"every":14,"anchor":"2026-08-05"},{"id":"c-minoxidil","emoji":"💧","text":"Minoxidil","detail":"Evening, on dry scalp. Hides itself automatically on microneedling days.","xp":15,"skipWhen":["c-microneedling"]}]},{"title":"Train","emoji":"🏋️","note":"Ticked for you when you finish a workout on the exercise page — you do not need to tick it by hand.","items":[{"id":"t-workout","emoji":"🏋️","text":"Physical training","detail":"One full equipment-free session, up to three a week. Signed off on the exercise page.","xp":25}]},{"title":"Recover","emoji":"🌙","items":[{"id":"r-sleep","emoji":"😴","text":"7–9 hours, consistent wake time","detail":"Short sleep measurably suppresses muscle gain and raises appetite. Consistent wake time matters more than consistent bedtime.","xp":20},{"id":"r-smoked-weed","emoji":"🌿","text":"Smoked weed","detail":"Tick it on the days you did. Costs XP on purpose — it changes sleep architecture, and sleep is the recovery lever the plan leans on hardest.","xp":-20},{"id":"r-cold-shower","emoji":"🧊","text":"Cold shower","detail":"Not in the hour after training — cold blunts the growth signal.","xp":15},{"id":"r-meditation","emoji":"🧘","text":"Meditation","xp":15}]},{"title":"Home","emoji":"🏠","items":[{"id":"home-water-flowers","emoji":"🪴","text":"Water flowers","detail":"Every three days.","xp":10,"every":3,"anchor":"2026-08-07"}]}],"oneOffs":{"title":"Setup","emoji":"🎯","note":"These disappear for good once ticked.","items":[{"id":"s-measure","emoji":"📏","text":"Weigh + measure waist","detail":"Morning, unflexed, before eating. This is the one thing here that gets worse by waiting — a starting number taken next week isn't a starting number.","xp":35},{"id":"s-supplements","emoji":"🛒","text":"Buy creatine and whey","xp":20}]}};
+const FALLBACK = {"schemaVersion":1,"startDate":"2026-07-29","principles":{"title":"Notes for Radical Living","author":"Tilda Swinton","source":"from her book Ongoing, 2025","list":["Make friends with chaos","Hold a calm mind","Let things shake","Forgive human frailty","Champion second chances","Defy kindness","Reverence fellowship","Listen to the quiet","Respect the young","Seek growth","Trust in change","Treasure learning","Inspire faith in evolution","Reach beyond the binary","Be wary of the doubtless","Honor the bright headed","Grow plants","Attend to the weather","Be electric","Cherish language","Celebrate silence","Dance daily","Bless the handmade","Sing into pain","Challenge assumptions","Follow the wind","Look upwards","Swoon under clouds","Feel your courage","Face forward","Read history","Open your ears","Drop your shoulders","Bend your knees","Raise the roof","Keep breathing","Be trustworthy","Take care of yourself","Believe in goodness","Head for the light"]},"daily":[{"title":"Meds","emoji":"💊","items":[{"id":"m-stimulants","emoji":"💊","text":"Stimulants","detail":"As prescribed.","xp":10},{"id":"m-antidepressants","emoji":"💊","text":"Antidepressants","detail":"As prescribed. Consistent time of day.","xp":10}]},{"title":"Tasks","emoji":"📋","keepEmpty":true,"items":[]},{"title":"Eat","emoji":"🍳","note":"Protein is the non-negotiable — 1.8–2.2 g per kg per day. Four anchors of 35–45 g beats trying to rescue the number at dinner. The failure mode isn't one light day, it's three in a row.","items":[{"id":"e-anchor-1","emoji":"🥣","text":"Breakfast protein anchor","detail":"Greek yoghurt or skyr + eggs, or a shake with milk.","xp":15},{"id":"e-anchor-2","emoji":"🥗","text":"Lunch protein anchor","detail":"Palm-and-a-half of chicken / fish / beef / tofu.","xp":15},{"id":"e-anchor-4","emoji":"🍽️","text":"Dinner protein anchor","detail":"The one that usually rescues the day's total.","xp":15},{"id":"e-water","emoji":"💧","text":"Water through the day","detail":"Pale straw, not clear. Creatine raises water needs slightly.","xp":10},{"id":"e-track","emoji":"🔢","text":"Logged protein today","detail":"Only needed for the first 2–3 weeks, to calibrate. After that you'll know your portions by eye.","xp":15},{"id":"e-creatine","emoji":"⚡","text":"Creatine · 5 g","detail":"Any time of day. No loading phase needed.","xp":10}]},{"title":"Care","emoji":"🧴","note":"Minoxidil every evening, except on microneedling days — the skin needs about a day and a half to close up before anything goes on it again.","items":[{"id":"c-microneedling","emoji":"🪡","text":"Microneedling","detail":"Morning. Every 14 days. No minoxidil this evening — resume tomorrow evening.","xp":25,"every":14,"anchor":"2026-08-05"},{"id":"c-minoxidil","emoji":"💧","text":"Minoxidil","detail":"Evening, on dry scalp. Hides itself automatically on microneedling days.","xp":15,"skipWhen":["c-microneedling"]}]},{"title":"Train","emoji":"🏋️","note":"Ticked for you when you finish a workout on the exercise page — you do not need to tick it by hand.","items":[{"id":"t-workout","emoji":"🏋️","text":"Physical training","detail":"One full equipment-free session, up to three a week. Signed off on the exercise page.","xp":25}]},{"title":"Recover","emoji":"🌙","items":[{"id":"r-sleep","emoji":"😴","text":"7–9 hours, consistent wake time","detail":"Short sleep measurably suppresses muscle gain and raises appetite. Consistent wake time matters more than consistent bedtime.","xp":20},{"id":"r-smoked-weed","emoji":"🌿","text":"Didn't smoke weed","detail":"Ticked for you. Untick it on a day you did smoke — that is the only thing stored, and it costs the 15 XP a clean day pays.","xp":15,"invert":true},{"id":"r-cold-shower","emoji":"🧊","text":"Cold shower","detail":"Not in the hour after training — cold blunts the growth signal.","xp":15},{"id":"r-meditation","emoji":"🧘","text":"Meditation","xp":15}]},{"title":"Home","emoji":"🏠","items":[{"id":"home-water-flowers","emoji":"🪴","text":"Water flowers","detail":"Every three days.","xp":10,"every":3,"anchor":"2026-08-07"}]}],"oneOffs":{"title":"Setup","emoji":"🎯","note":"These disappear for good once ticked.","items":[{"id":"s-measure","emoji":"📏","text":"Weigh + measure waist","detail":"Morning, unflexed, before eating. This is the one thing here that gets worse by waiting — a starting number taken next week isn't a starting number.","xp":35},{"id":"s-supplements","emoji":"🛒","text":"Buy creatine and whey","xp":20}]}};
 
 const SDK        = "https://www.gstatic.com/firebasejs/12.16.0/";
 const LS_PREFIX  = "secondbrain.dailyplan.v2.";
@@ -817,6 +822,31 @@ function saveCustom({ push = true } = {}) {
 const newId = () => "u-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 /* Applies hides and text edits, then folds in anything you added. */
+/* A task you add is either part of the routine ("daily") or a one-off that
+   carries until it is done. A carried task stores the day it was created and
+   the day it was finished, and those two dates are the whole mechanism: it
+   shows from `created` up to and including `done`, and nowhere else. Nothing
+   runs overnight to move it — every day is worked out from the dates when the
+   page draws it.
+
+   `scope` is the older shape: a bare date meant that day only. Those stay as
+   they were rather than being resurrected onto today's list. */
+function showsOn(a, date) {
+  if (a.carry) {
+    if (a.created && date < a.created) return false;
+    if (a.done && date > a.done) return false;
+    return true;
+  }
+  return a.scope === "daily" || a.scope === date;
+}
+
+/* 1 on the day it was created, 2 the next day, and so on — what the row shows
+   as "day 3" while a task drags on. */
+function carriedDays(a, date) {
+  if (!a.carry || !a.created) return 0;
+  return daysBetween(a.created, date) + 1;
+}
+
 function applyCustom(groups, date) {
   const out = [];
   for (const g of groups) {
@@ -830,9 +860,9 @@ function applyCustom(groups, date) {
     const mine = custom.added.filter(a =>
       a.group === g.title &&
       !custom.hidden[a.id] &&
-      (a.scope === "daily" || a.scope === date)
+      showsOn(a, date)
     );
-    items = items.concat(mine.map(a => ({ ...a, custom: true })));
+    items = items.concat(mine.map(a => ({ ...a, custom: true, carriedDays: carriedDays(a, date) })));
 
     // keepEmpty keeps a section on the page with nothing in it, so there is a
     // permanent place to add to — otherwise an emptied group disappears.
@@ -845,9 +875,9 @@ function applyCustom(groups, date) {
   const extra = new Map();
   for (const a of custom.added) {
     if (known.has(a.group) || custom.hidden[a.id]) continue;
-    if (a.scope !== "daily" && a.scope !== date) continue;
+    if (!showsOn(a, date)) continue;
     if (!extra.has(a.group)) extra.set(a.group, []);
-    extra.get(a.group).push({ ...a, custom: true });
+    extra.get(a.group).push({ ...a, custom: true, carriedDays: carriedDays(a, date) });
   }
   for (const [title, items] of extra) {
     out.push({ title, emoji: items[0].groupEmoji || "📌", items });
@@ -894,10 +924,19 @@ function deriveDay(date) {
 /* ---------- scoring ---------- */
 const allItems = () => (plan.groups || []).flatMap(g => g.items || []);
 
+/* An inverted item reads backwards: the stored flag is the exception, and the
+   row is ticked when there is no flag. "Didn't smoke weed" works this way, so
+   a clean day stores nothing at all and a day never opened still reads clean.
+   Only the display and the XP invert — the flag itself keeps its old meaning,
+   which is what the streak and the no-weed counter are still counting. */
+const isTicked = (item, ticks) => item.invert ? !ticks[item.id] : !!ticks[item.id];
+
 function todayXp() {
   const t = loadTicks(plan.date);
-  return allItems().reduce((s, i) => s + (t[i.id] ? (i.xp || 0) : 0), 0);
+  return allItems().reduce((s, i) => s + (isTicked(i, t) ? (i.xp || 0) : 0), 0);
 }
+/* Real ticks only, never the inverted default — this is what decides whether a
+   day counts toward the streak, and an untouched day has to score zero. */
 function todayTicked() {
   const t = loadTicks(plan.date);
   return allItems().filter(i => t[i.id]).length;
@@ -1063,7 +1102,7 @@ function render() {
     rule.className = "r";
     const cnt = document.createElement("span");
     cnt.className = "n";
-    const gd = (g.items || []).filter(i => ticks[i.id]).length;
+    const gd = (g.items || []).filter(i => isTicked(i, ticks)).length;
     cnt.textContent = `${gd}/${(g.items || []).length}`;
     secEls.set(g.title, cnt);
     sec.append(chev, name, rule, cnt);
@@ -1094,14 +1133,14 @@ function render() {
     }
 
     for (const it of g.items || []) {
-      const on = !!ticks[it.id];
+      const on = isTicked(it, ticks);
       const row = document.createElement("label");
       row.className = "row" + (on ? " done" : "");
 
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = on;
-      cb.addEventListener("change", () => setTick(it.id, cb.checked));
+      cb.addEventListener("change", () => setTick(it.id, it.invert ? !cb.checked : cb.checked));
 
       const box = document.createElement("span");
       box.className = "box";
@@ -1114,6 +1153,13 @@ function render() {
       const txt = document.createElement("span");
       txt.className = "txt";
       txt.append(document.createTextNode(it.text));
+      // Only while it is still dragging — the day it gets done it is not late.
+      if (it.carriedDays > 1 && !on) {
+        const age = document.createElement("span");
+        age.className = "carry";
+        age.textContent = `DAY ${it.carriedDays}`;
+        txt.appendChild(age);
+      }
       if (it.detail) {
         const d = document.createElement("span");
         d.className = "detail";
@@ -1264,7 +1310,7 @@ function openEdit(item) {
   // How often only applies to tasks you added — programme items are every day.
   const own = custom.added.find(a => a.id === item.id);
   $("mScopeWrap").style.display = own ? "" : "none";
-  if (own) $("mScope").value = own.scope === "daily" ? "daily" : "today";
+  if (own) $("mScope").value = own.scope === "daily" ? "daily" : "carry";
   $("scrim").hidden = false;
   setTimeout(() => $("mText").focus(), 30);
 }
@@ -1276,14 +1322,29 @@ function saveModal() {
   if (!text) { $("mText").focus(); return; }
   const emoji = $("mEmoji").value.trim() || "✅";
   const xp = Math.max(0, Math.min(99, parseInt($("mXp").value, 10) || 0));
-  const scope = $("mScope").value === "today" ? plan.date : "daily";
+  const carry = $("mScope").value === "carry";
 
   if (editing) {
     const own = custom.added.find(a => a.id === editing.id);
-    if (own) Object.assign(own, { text, emoji, xp, scope });
-    else custom.edits[editing.id] = { text, emoji, xp };
+    if (own) {
+      Object.assign(own, { text, emoji, xp });
+      if (carry) {
+        // Switching a routine item to a carried one starts its clock today.
+        own.carry = true;
+        own.created = own.created || plan.date;
+        delete own.scope;
+      } else {
+        own.scope = "daily";
+        delete own.carry; delete own.created; delete own.done;
+      }
+    } else {
+      custom.edits[editing.id] = { text, emoji, xp };
+    }
+  } else if (carry) {
+    custom.added.push({ id: newId(), text, emoji, xp, group: addGroup,
+                        carry: true, created: plan.date, done: "" });
   } else {
-    custom.added.push({ id: newId(), text, emoji, xp, group: addGroup, scope });
+    custom.added.push({ id: newId(), text, emoji, xp, group: addGroup, scope: "daily" });
   }
   saveCustom();
   closeModal();
@@ -1321,7 +1382,7 @@ function refreshDerived() {
   lastRendered = JSON.stringify(ticks);
   for (const g of plan.groups || []) {
     const cnt = secEls.get(g.title);
-    if (cnt) cnt.textContent = `${(g.items || []).filter(i => ticks[i.id]).length}/${(g.items || []).length}`;
+    if (cnt) cnt.textContent = `${(g.items || []).filter(i => isTicked(i, ticks)).length}/${(g.items || []).length}`;
   }
   renderStreak();
   renderCounter();
@@ -1450,8 +1511,17 @@ function setTick(id, on) {
 
   if (id === WEED_ID) updateTracker(on);
 
+  /* Finishing a carried task is what stops it carrying: the day it was ticked
+     is written on the task itself, so tomorrow simply does not draw it. */
+  const carried = custom.added.find(a => a.id === id && a.carry);
+  if (carried) {
+    if (on) carried.done = plan.date; else delete carried.done;
+    saveCustom();
+  }
+
+  const item = allItems().find(i => i.id === id);
   const row = rowEls.get(id);
-  if (row) row.classList.toggle("done", on);
+  if (row) row.classList.toggle("done", item?.invert ? !on : on);
   // xpEarned is kept locally too, so lifetime XP still adds up signed out.
   saveDayMeta(plan.date, { xpEarned: todayXp() });
   refreshDerived();
