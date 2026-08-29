@@ -657,15 +657,21 @@ let chartRange = "1m";
 function maybeSnapshotNetWorth(net) {
   if (sync.mode !== "signed-in") return;
   const today = localISO();
-  const key = `${today}:${Math.round(net)}`;
+  const rounded = Math.round(net);
+  const key = `${today}:${rounded}`;
   if (key === lastSnapshotKey) return;
   lastSnapshotKey = key;
-  sync.pushNetWorthSnapshot(today, net);
+  sync.pushNetWorthSnapshot(today, rounded);
   const idx = netHistory.findIndex(p => p.date === today);
-  if (idx >= 0) netHistory[idx].net = net; else netHistory.push({ date: today, net });
+  if (idx >= 0) netHistory[idx].net = rounded; else netHistory.push({ date: today, net: rounded });
   renderChart();
 }
 
+// Merges by date rather than overwriting netHistory outright: onAuth fires
+// this alongside pull() (unawaited), and refresh() fires it after any local
+// edit's own snapshot write — a plain overwrite could land after an
+// optimistic push from maybeSnapshotNetWorth and erase today's point until
+// the next render.
 async function loadNetHistory() {
   if (sync.mode !== "signed-in") {
     netHistory = [];
@@ -673,8 +679,14 @@ async function loadNetHistory() {
     return;
   }
   const since = localISO(new Date(Date.now() - 370 * 86400000));
-  try { netHistory = await sync.fetchNetWorthHistory(since); }
-  catch { netHistory = []; }
+  try {
+    const fetched = await sync.fetchNetWorthHistory(since);
+    const byDate = new Map(netHistory.map(p => [p.date, p.net]));
+    fetched.forEach(p => byDate.set(p.date, p.net));
+    netHistory = [...byDate.entries()]
+      .map(([date, net]) => ({ date, net }))
+      .sort((a, b) => (a.date < b.date ? -1 : 1));
+  } catch { /* offline — whatever's already in netHistory stands */ }
   $("chartCard").hidden = false;
   renderChart();
 }
@@ -1271,7 +1283,9 @@ const sync = {
       f.where("date", ">=", sinceISO),
       f.orderBy("date")
     );
-    const snap = await f.getDocs(q);
+    let snap;
+    try { snap = await f.getDocsFromServer(q); }
+    catch { snap = await f.getDocs(q); }
     return snap.docs.map(d => ({ date: d.data().date, net: d.data().net }));
   }
 };
