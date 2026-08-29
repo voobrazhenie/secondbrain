@@ -166,7 +166,7 @@
      the sync row — which carries the sign-in button — and the footer. */
   #wrap:not([data-auth="in"]) .counter,
   #wrap:not([data-auth="in"]) .daynav,
-  #wrap:not([data-auth="in"]) #priority,
+  #wrap:not([data-auth="in"]) #priorityWrap,
   #wrap:not([data-auth="in"]) #level,
   #wrap:not([data-auth="in"]) #list,
   #wrap:not([data-auth="in"]) .actions,
@@ -273,26 +273,50 @@
   /* ---------- priority ----------
      The muted tones are the pink's own dark end, picked to sit on it at the
      same contrast the teal card's darker text used to hold. */
+  /* Same swipe-to-delete and long-press-to-edit as a task row, so the card
+     answers the finger the way everything else on this page does. The backdrop
+     cannot be the rows' pink here — the card sliding over it is pink — so it
+     goes quiet-to-black instead: --sunk while dragging, --ink once the drag has
+     passed the point where letting go deletes. */
+  .priority-wrap{position:relative;margin:0 0 16px}
+  .priority-wrap[hidden]{display:none}
+  .priority-wrap .swipebg{
+    position:absolute;inset:0;background:var(--sunk);
+    border:var(--stroke) solid var(--ink);
+    display:flex;align-items:center;justify-content:flex-end;
+    padding-right:16px;font-family:"Arial Black",Impact,sans-serif;
+    font-size:11px;letter-spacing:.08em;color:var(--ink);
+  }
+  .priority-wrap.armed .swipebg{background:var(--ink);color:var(--paper)}
+  .priority-wrap .priority.sliding{transition:none}
+
+  /* desktop affordance — hidden on touch, where the gestures do the work */
+  .priority-btns{position:absolute;top:9px;right:10px;display:none;gap:5px;z-index:2}
+  @media (hover:hover){ .priority-wrap:hover .priority-btns{display:flex} }
+  .priority-btns button{
+    padding:2px 7px;font-size:11px;background:var(--card);
+    box-shadow:2px 2px 0 var(--ink);
+  }
+  .priority-btns[hidden]{display:none}
+
   .priority{
-    background:var(--pink);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
-    padding:13px 14px 14px;margin:0 0 16px;
+    position:relative;background:var(--pink);
+    border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:13px 14px 14px;margin:0;touch-action:pan-y;
   }
   .priority .k{
     font-size:8px;letter-spacing:.1em;font-family:"Arial Black",Impact,sans-serif;
   }
   .priority .value{
-    font-size:20px;line-height:1.12;margin:5px 0 9px;overflow-wrap:anywhere;
+    font-size:20px;line-height:1.12;margin:5px 0 0;overflow-wrap:anywhere;
     font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
   }
+  /* The next action is a second line under the priority, not a panel of its
+     own — it is the smaller half of the pair and should read that way. */
   .priority .next{
-    background:var(--card);border:2px solid var(--ink);padding:8px 10px;
-    font-size:12px;font-weight:700;margin:0 0 10px;overflow-wrap:anywhere;
+    font-size:13px;line-height:1.25;font-weight:900;color:var(--card);
+    margin:5px 0 0;overflow-wrap:anywhere;
   }
-  .priority .next b{
-    display:block;font-size:8px;letter-spacing:.08em;margin-bottom:2px;
-    font-family:"Arial Black",Impact,sans-serif;
-  }
-  .priority .hint{font-size:10.5px;font-weight:700;color:#5C0A2E;margin:0 0 10px}
   .priority .acts{display:flex;gap:9px;flex-wrap:wrap}
   .priority .acts button{flex:1;min-width:120px;background:var(--card)}
   .priority .acts button.primary{background:var(--yellow)}
@@ -369,39 +393,42 @@
     <button id="dayNext" title="Next day">›</button>
   </div>
 
-  <section class="priority" id="priority" aria-label="Priority" hidden>
-    <div id="priorityEmpty" hidden>
-      <div class="k">PRIORITY</div>
-      <div class="acts">
-        <button class="primary" id="prioritySet">SET PRIORITY</button>
+  <div class="priority-wrap" id="priorityWrap" hidden>
+    <div class="swipebg" aria-hidden="true">DELETE</div>
+    <section class="priority" id="priority" aria-label="Priority">
+      <div id="priorityEmpty" hidden>
+        <div class="k">PRIORITY</div>
+        <div class="acts">
+          <button class="primary" id="prioritySet">SET PRIORITY</button>
+        </div>
       </div>
-    </div>
 
-    <div id="priorityEdit" hidden>
-      <!-- No card label here: the field's own label already says PRIORITY, and
-           the two sat on top of each other once the prompt between them went. -->
-      <label for="priorityText">PRIORITY</label>
-      <textarea id="priorityText" maxlength="180" placeholder="What matters most today?"></textarea>
-      <label for="priorityNext">NEXT ACTION <span aria-hidden="true">—</span> OPTIONAL</label>
-      <input id="priorityNext" type="text" maxlength="140" placeholder="One concrete move">
-      <div class="error" id="priorityError" role="status" aria-live="polite"></div>
-      <div class="acts">
-        <button id="priorityCancel">CANCEL</button>
-        <button class="primary" id="prioritySave">SAVE</button>
+      <div id="priorityEdit" hidden>
+        <!-- No card label here: the field's own label already says PRIORITY, and
+             the two sat on top of each other once the prompt between them went. -->
+        <label for="priorityText">PRIORITY</label>
+        <textarea id="priorityText" maxlength="180" placeholder="What matters most today?"></textarea>
+        <label for="priorityNext">NEXT ACTION <span aria-hidden="true">—</span> OPTIONAL</label>
+        <input id="priorityNext" type="text" maxlength="140" placeholder="One concrete move">
+        <div class="error" id="priorityError" role="status" aria-live="polite"></div>
+        <div class="acts">
+          <button id="priorityCancel">CANCEL</button>
+          <button class="primary" id="prioritySave">SAVE</button>
+        </div>
       </div>
-    </div>
 
-    <div id="prioritySaved" hidden>
-      <div class="k">TODAY'S PRIORITY</div>
-      <div class="value" id="priorityValue"></div>
-      <div class="next" id="priorityNextSaved" hidden>
-        <b>NEXT ACTION</b>
-        <span id="priorityNextValue"></span>
+      <div id="prioritySaved" hidden>
+        <div class="k">TODAY'S PRIORITY</div>
+        <div class="value" id="priorityValue"></div>
+        <div class="next" id="priorityNextSaved" hidden><span id="priorityNextValue"></span></div>
       </div>
-      <div class="hint">Still the one? Edit it if not.</div>
-      <div class="acts"><button id="priorityEditBtn">EDIT</button></div>
+    </section>
+
+    <div class="priority-btns" id="priorityBtns">
+      <button id="priorityEditBtn" title="Edit">✎</button>
+      <button id="priorityDeleteBtn" title="Remove">✕</button>
     </div>
-  </section>
+  </div>
 
   <section class="level" id="level" aria-label="Level" hidden>
     <div class="lv-top">
@@ -574,20 +601,24 @@ function todayISO() { return DEV_DATE || localISO(); }
    One date-scoped, user-written priority. It is intentionally separate from
    tasks and XP.
 
-   `status` is still stored and still read, even though "set" is now the only
-   value it can hold: records written before the card dropped its skip button
-   carry it, and a record is only a priority when it says so. */
+   `status` carries which of two things the day holds: a priority that was
+   written, or a card that was swiped away. "dismissed" is what the swipe
+   stores — the card is gone for that date and comes back tomorrow, which is
+   why it is a record rather than the absence of one. */
 let priorityEditDate = null;
 
 function normalisePriority(value) {
-  if (!value || value.status !== "set") return null;
+  if (!value) return null;
+  const updatedAt = typeof value.updatedAt === "string" ? value.updatedAt : new Date().toISOString();
+  if (value.status === "dismissed") return { status:"dismissed", text:"", nextAction:"", updatedAt };
+  if (value.status !== "set") return null;
   const text = typeof value.text === "string" ? value.text.trim().slice(0, 180) : "";
   if (!text) return null;
   return {
     status:"set",
     text,
     nextAction:typeof value.nextAction === "string" ? value.nextAction.trim().slice(0, 140) : "",
-    updatedAt:typeof value.updatedAt === "string" ? value.updatedAt : new Date().toISOString()
+    updatedAt
   };
 }
 
@@ -604,20 +635,29 @@ function showPriorityState(id) {
   for (const state of ["priorityEmpty","priorityEdit","prioritySaved"]) {
     $(state).hidden = state !== id;
   }
+  // The hover buttons are the desktop stand-in for the two gestures, so they
+  // are only there in the states the gestures are.
+  $("priorityBtns").hidden = id === "priorityEdit";
 }
 
 function renderPriority() {
   if (!plan) return;
   const date = plan.date;
-  $("priority").hidden = false;
+  const wrap = $("priorityWrap");
+  wrap.classList.remove("armed");
+  $("priority").style.transform = "";
 
   if (priorityEditDate === date) {
+    wrap.hidden = false;
     showPriorityState("priorityEdit");
     return;
   }
   if (priorityEditDate && priorityEditDate !== date) priorityEditDate = null;
 
   const record = loadPriority(date);
+  wrap.hidden = record?.status === "dismissed";
+  if (wrap.hidden) return;
+
   if (!record) {
     showPriorityState("priorityEmpty");
     return;
@@ -646,12 +686,35 @@ function cancelPriorityEdit() {
   renderPriority();
 }
 
-function storePriority(record) {
-  const date = plan.date;
+function storePriority(record, date = plan.date) {
   savePriorityLocal(date, record);
   priorityEditDate = null;
   renderPriority();
   sync.pushPriority(date, record);
+}
+
+/* Back to a day that never had one, which is not the same as a dismissal: the
+   stored record has to go rather than be replaced, on the server too. */
+function clearPriority(date) {
+  try { localStorage.removeItem(LS_PRIORITY + date); } catch {}
+  priorityEditDate = null;
+  renderPriority();
+  sync.dropPriority(date);
+}
+
+/* The swipe. It takes the card off the day whether or not something was
+   written on it, and the toast is the way back — after that it returns
+   tomorrow, like every other date-scoped thing here. */
+function deletePriority() {
+  const date = plan.date;
+  const before = loadPriority(date);
+  if (before?.status === "dismissed") return;
+  storePriority({ status:"dismissed", text:"", nextAction:"", updatedAt:new Date().toISOString() });
+  showToast(before ? "Priority removed" : "Priority hidden for today", () => {
+    // The day nav may have moved on while the toast was up, so the undo is
+    // aimed at the date it came from rather than whatever is on screen.
+    if (before) storePriority(before, date); else clearPriority(date);
+  });
 }
 
 function savePriorityForm() {
@@ -1140,7 +1203,10 @@ function render() {
       btns.append(bEdit, bDel);
 
       wrap.append(bg, row, btns);
-      attachGestures(wrap, row, it);
+      attachGestures(wrap, row, {
+        onEdit: () => openEdit(it),
+        onDelete: () => removeItem(it)
+      });
       list.appendChild(wrap);
     }
   }
@@ -1153,14 +1219,19 @@ function render() {
 }
 
 /* ---------- gestures ----------
-   Swipe left to delete: the row tracks the finger 1:1 with no transition, and
-   commits once it has passed a third of the screen. Long press to edit.
+   Swipe left to delete: the element tracks the finger 1:1 with no transition,
+   and commits once it has passed a third of the screen. Long press to edit.
    Vertical scrolling has to keep working, so the first few pixels decide which
-   gesture this is and the other one is then ignored. */
+   gesture this is and the other one is then ignored.
+
+   Task rows and the priority card both use this. `onEdit` and `onDelete` say
+   what those two gestures mean for the caller, and `enabled` lets the priority
+   card switch them off while its own form is open — a swipe or a long press
+   through a field being typed into is never the intent. */
 const DELETE_FRACTION = 0.33;
 const LONG_PRESS_MS = 500;
 
-function attachGestures(wrap, row, item) {
+function attachGestures(wrap, row, { onEdit, onDelete, enabled = () => true }) {
   let x0 = 0, y0 = 0, dx = 0;
   let axis = null;          // null until decided, then "x" or "y"
   let timer = null, suppress = false;
@@ -1173,19 +1244,20 @@ function attachGestures(wrap, row, item) {
   };
 
   row.addEventListener("touchstart", e => {
-    if (e.touches.length !== 1) return;
+    if (e.touches.length !== 1 || !enabled()) return;
     x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
     dx = 0; axis = null; suppress = false;
     timer = setTimeout(() => {
       if (axis === null) {           // still stationary — treat as a long press
         suppress = true;
         if (navigator.vibrate) navigator.vibrate(12);
-        openEdit(item);
+        onEdit();
       }
     }, LONG_PRESS_MS);
   }, { passive: true });
 
   row.addEventListener("touchmove", e => {
+    if (!enabled()) return;
     const ax = e.touches[0].clientX - x0;
     const ay = e.touches[0].clientY - y0;
 
@@ -1209,7 +1281,7 @@ function attachGestures(wrap, row, item) {
     if (axis === "x" && -dx >= threshold()) {
       row.classList.remove("sliding");
       row.style.transform = `translateX(-${window.innerWidth}px)`;
-      setTimeout(() => removeItem(item), 130);
+      setTimeout(onDelete, 130);
     } else {
       reset();
     }
@@ -1223,8 +1295,8 @@ function attachGestures(wrap, row, item) {
     if (suppress) { e.preventDefault(); e.stopPropagation(); suppress = false; }
   }, true);
 
-  row.addEventListener("dblclick", e => { e.preventDefault(); openEdit(item); });
-  row.addEventListener("contextmenu", e => { e.preventDefault(); openEdit(item); });
+  row.addEventListener("dblclick", e => { if (enabled()) { e.preventDefault(); onEdit(); } });
+  row.addEventListener("contextmenu", e => { if (enabled()) { e.preventDefault(); onEdit(); } });
 }
 
 /* ---------- add / edit / remove ---------- */
@@ -1553,7 +1625,7 @@ const sync = {
     lastRendered = null;
     priorityEditDate = null;
     $("list").textContent = "";
-    for (const id of ["counter", "level", "priority", "scrim"]) $(id).hidden = true;
+    for (const id of ["counter", "level", "priorityWrap", "scrim"]) $(id).hidden = true;
   },
 
   async init() {
@@ -1866,6 +1938,23 @@ const sync = {
     } catch (e) {
       this.setUI("err", `Couldn't sync the priority (${e.code || e.message}). Saved on this device.`,
         "Retry", () => this.pushPriority(date, record));
+    }
+  },
+
+  /* The merge-write everywhere else here cannot express "this field is gone",
+     so the delete is explicit. Without it an undone dismissal would be handed
+     straight back by the next read. */
+  async dropPriority(date) {
+    if (this.mode !== "signed-in") return;
+    const { f } = this.fb;
+    try {
+      await f.setDoc(this.ref(date), {
+        priority:f.deleteField(),
+        priorityUpdatedAt:f.serverTimestamp()
+      }, { merge:true });
+    } catch (e) {
+      this.setUI("err", `Couldn't sync the priority (${e.code || e.message}). Saved on this device.`,
+        "Retry", () => this.dropPriority(date));
     }
   },
 
@@ -2256,9 +2345,18 @@ $("dayToday").addEventListener("click", () => goToDay(todayISO()));
 
 $("prioritySet").addEventListener("click", startPriorityEdit);
 $("priorityEditBtn").addEventListener("click", startPriorityEdit);
+$("priorityDeleteBtn").addEventListener("click", deletePriority);
 $("priorityCancel").addEventListener("click", cancelPriorityEdit);
 $("prioritySave").addEventListener("click", savePriorityForm);
 $("priorityText").addEventListener("input", () => { $("priorityError").textContent = ""; });
+
+/* Long press to edit, swipe left to remove — the same gestures as a task row,
+   held off while the form is open. */
+attachGestures($("priorityWrap"), $("priority"), {
+  onEdit: () => { if (plan) startPriorityEdit(); },
+  onDelete: () => { if (plan) deletePriority(); },
+  enabled: () => !!plan && priorityEditDate !== plan.date
+});
 
 $("mCancel").addEventListener("click", closeModal);
 $("mSave").addEventListener("click", saveModal);
