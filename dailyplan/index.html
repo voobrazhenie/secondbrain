@@ -499,7 +499,7 @@ const DIRECTION_PROMPTS = [
 const CONFIGURED_DAILY_IDS = new Set([
   ...FALLBACK.daily.flatMap(group => group.items || []),
   ...(FALLBACK.oneOffs?.items || [])
-].map(item => item.id).concat("x-commit"));
+].map(item => item.id));
 const onlyDailyPlanKeys = value => Object.fromEntries(
   Object.entries(value || {}).filter(([id]) => CONFIGURED_DAILY_IDS.has(id) || id.startsWith("u-"))
 );
@@ -905,15 +905,6 @@ function deriveDay(date) {
 
   const shown = applyCustom(groups, date);
 
-  // Always last, always there — the day's sign-off.
-  shown.push({
-    title: "Commit", emoji: "✍️", fixed: true,
-    items: [{
-      id: "x-commit", emoji: "✍️", text: "I commit", xp: 25, commit: true,
-      detail: "Tick this when the day is done and you stand behind it. It is the only item you cannot delete."
-    }]
-  });
-
   const dayOfPlan = daysBetween(dailyConfig.startDate, date) + 1;
   return {
     date, dayOfPlan, groups: shown,
@@ -1175,12 +1166,6 @@ function render() {
 
       row.append(cb, box, em, txt, pill);
       rowEls.set(it.id, row);
-
-      // The commit row is the day's seal and cannot be edited or swiped away.
-      if (it.commit) {
-        list.appendChild(row);
-        continue;
-      }
 
       const wrap = document.createElement("div");
       wrap.className = "rowwrap";
