@@ -81,6 +81,38 @@
   }
   .ratechip button{padding:3px 8px;font-size:11px;min-height:28px}
 
+  /* ---------- net worth over time ---------- */
+  .chartcard{
+    background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:14px 14px 12px;margin-bottom:14px;
+  }
+  .chartcard .chead{font-size:9px;letter-spacing:.08em;color:var(--faint);
+    font-family:"Arial Black",Impact,sans-serif;margin-bottom:2px}
+  .chartcard .cempty{font-size:12px;color:var(--grey);padding:10px 2px;line-height:1.5}
+  .chart-area{margin:10px -2px 4px}
+  .chart-area svg{display:block;width:100%;height:auto;overflow:visible}
+  .chart-area .gridline{stroke:var(--ink);stroke-opacity:.08;stroke-width:1}
+  .chart-area .baseline{stroke:var(--ink);stroke-opacity:.35;stroke-width:1.5;stroke-dasharray:1 4;stroke-linecap:round}
+  .chart-area .fillarea{fill:var(--teal);fill-opacity:.16}
+  .chart-area .fillarea-neg{fill:var(--pink);fill-opacity:.22}
+  .chart-area .trendline{fill:none;stroke:var(--teal);stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+  .chart-area .trendline.down{stroke:var(--pink)}
+  .chart-area .todaydot{fill:var(--teal);stroke:var(--ink);stroke-width:2}
+  .chart-area .todaydot.down{fill:var(--pink)}
+  .chart-area .zeroline{stroke:var(--ink);stroke-width:2}
+  .chart-area .zerolabel{font:900 10px "Arial Black",Impact,sans-serif;fill:var(--ink)}
+  .chart-area .zerolabel .tag{fill:var(--yellow)}
+  .chart-area .axislabel{font:700 10px "Archivo",Arial,sans-serif;fill:var(--faint)}
+  .chart-area .peaklabel{font:900 10px "Arial Black",Impact,sans-serif;fill:var(--ink)}
+  .rangerow{display:flex;gap:8px;margin-top:8px}
+  .rangerow button{
+    flex:1;font:inherit;cursor:pointer;font-family:"Arial Black",Impact,sans-serif;font-size:12px;
+    padding:7px 0;background:var(--card);color:var(--ink);
+    border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
+  }
+  .rangerow button:active{transform:translate(2px,2px);box-shadow:none}
+  .rangerow button.active{background:var(--ink);color:var(--paper);box-shadow:2px 2px 0 var(--teal)}
+
   /* ---------- gentle staleness nudge ---------- */
   .nudge{
     display:flex;align-items:flex-start;gap:9px;background:var(--card);
@@ -299,6 +331,16 @@
   </div>
 
   <div class="rates" id="rates"></div>
+
+  <div class="chartcard" id="chartCard" hidden>
+    <div class="chead">NET WORTH OVER TIME</div>
+    <div class="chart-area" id="chartArea"></div>
+    <div class="rangerow" id="rangeRow">
+      <button data-range="1m" class="active">1M</button>
+      <button data-range="3m">3M</button>
+      <button data-range="1y">1Y</button>
+    </div>
+  </div>
 
   <div class="nudge" id="nudge" hidden>
     <span class="dot"></span>
@@ -578,6 +620,8 @@ function renderTotals() {
   } else {
     $("nudge").hidden = true;
   }
+
+  maybeSnapshotNetWorth(net);
 }
 
 function renderLists() {
@@ -600,6 +644,118 @@ function render() {
   renderLists();
   renderRates();
 }
+
+/* ---------- net worth history ----------
+   One doc per day at users/UID/netWorthDays/{date}, holding the net worth
+   already converted to EUR at snapshot time — so a later rate edit doesn't
+   silently rewrite past days. Local-only mode has no daily trail (only
+   per-account updatedAt), so the chart only exists once signed in. */
+let netHistory = [];        // [{date:"YYYY-MM-DD", net:number}, …] ascending
+let lastSnapshotKey = null; // dedupes repeated pushes of the same day+value
+let chartRange = "1m";
+
+function maybeSnapshotNetWorth(net) {
+  if (sync.mode !== "signed-in") return;
+  const today = localISO();
+  const key = `${today}:${Math.round(net)}`;
+  if (key === lastSnapshotKey) return;
+  lastSnapshotKey = key;
+  sync.pushNetWorthSnapshot(today, net);
+  const idx = netHistory.findIndex(p => p.date === today);
+  if (idx >= 0) netHistory[idx].net = net; else netHistory.push({ date: today, net });
+  renderChart();
+}
+
+async function loadNetHistory() {
+  if (sync.mode !== "signed-in") {
+    netHistory = [];
+    $("chartCard").hidden = true;
+    return;
+  }
+  const since = localISO(new Date(Date.now() - 370 * 86400000));
+  try { netHistory = await sync.fetchNetWorthHistory(since); }
+  catch { netHistory = []; }
+  $("chartCard").hidden = false;
+  renderChart();
+}
+
+const RANGE_DAYS = { "1m": 30, "3m": 90, "1y": 365 };
+
+function renderChart() {
+  const area = $("chartArea");
+  const days = RANGE_DAYS[chartRange];
+  const since = localISO(new Date(Date.now() - days * 86400000));
+  const series = netHistory.filter(p => p.date >= since).sort((a, b) => a.date < b.date ? -1 : 1);
+
+  if (series.length < 2) {
+    area.innerHTML = `<div class="cempty">Not enough history yet for this range — check back in a few days.</div>`;
+    return;
+  }
+
+  const W = 380, H = 150, padL = 4, padR = 4, padT = 18, padB = 20;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const values = series.map(p => p.net);
+
+  const crossesZero = Math.min(...values) < 0;
+  const rawMin = Math.min(...values), rawMax = Math.max(...values);
+  const min = crossesZero ? rawMin - Math.abs(rawMin) * 0.12 : rawMin;
+  const max = crossesZero ? Math.max(rawMax, rawMax * 0.12) : rawMax;
+  const span = (max - min) || 1;
+  const x = i => padL + (i / (series.length - 1)) * innerW;
+  const y = v => padT + innerH - ((v - min) / span) * innerH;
+
+  const points = values.map((v, i) => [x(i), y(v)]);
+  const linePath = points.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  const floorY = (padT + innerH).toFixed(1);
+  const areaPath = linePath + ` L${points[points.length-1][0].toFixed(1)},${floorY} L${points[0][0].toFixed(1)},${floorY} Z`;
+
+  const first = values[0], last = values[values.length - 1];
+  const cls = last < first ? "down" : "";
+  const belowNow = last < 0;
+
+  const fmtD = iso => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const dateLabels = [fmtD(series[0].date), fmtD(series[Math.floor((series.length - 1) / 2)].date), "Today"];
+  const gridY = [0.25, 0.5, 0.75].map(f => padT + innerH * f);
+
+  let zeroLine = "";
+  if (crossesZero) {
+    const yZero = y(0);
+    const clipId = "zclip" + Math.random().toString(36).slice(2, 9);
+    zeroLine = `
+      <clipPath id="${clipId}">
+        <rect x="${padL}" y="${yZero.toFixed(1)}" width="${innerW}" height="${(padT + innerH - yZero).toFixed(1)}"/>
+      </clipPath>
+      <path class="fillarea-neg" d="${areaPath}" clip-path="url(#${clipId})"/>
+      <line class="zeroline" x1="${padL}" y1="${yZero.toFixed(1)}" x2="${W-padR}" y2="${yZero.toFixed(1)}"/>
+      <g class="zerolabel">
+        <rect class="tag" x="${padL}" y="${(yZero-7).toFixed(1)}" width="20" height="12"/>
+        <text x="${padL+2}" y="${(yZero+2).toFixed(1)}">€0</text>
+      </g>`;
+  }
+
+  area.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      ${gridY.map(gy => `<line class="gridline" x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}"/>`).join("")}
+      <line class="baseline" x1="${padL}" y1="${y(first).toFixed(1)}" x2="${W-padR}" y2="${y(first).toFixed(1)}"/>
+      <path class="fillarea" d="${areaPath}"/>
+      ${zeroLine}
+      <path class="trendline ${cls}" d="${linePath}"/>
+      <circle class="todaydot ${belowNow ? 'down' : cls}" cx="${points[points.length-1][0].toFixed(1)}" cy="${points[points.length-1][1].toFixed(1)}" r="4.5"/>
+      <text class="peaklabel" x="${padL}" y="${(padT-6).toFixed(1)}">${fmtAmt(max, "EUR")}</text>
+      <text class="axislabel" x="${padL}" y="${H-4}">${dateLabels[0]}</text>
+      <text class="axislabel" x="${(W/2).toFixed(1)}" y="${H-4}" text-anchor="middle">${dateLabels[1]}</text>
+      <text class="axislabel" x="${W-padR}" y="${H-4}" text-anchor="end">${dateLabels[2]}</text>
+    </svg>`;
+}
+
+$("rangeRow").querySelectorAll("button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    $("rangeRow").querySelectorAll("button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    chartRange = btn.dataset.range;
+    renderChart();
+  });
+});
 
 function buildRow(a) {
   const settled = a.kind === "debt" && a.amount === 0;
@@ -966,6 +1122,7 @@ const sync = {
       this.uid = null;
       this.setUI("off", "Not syncing — balances stay in this browser.",
         "Sign in with Google", () => this.signIn());
+      loadNetHistory();
       return;
     }
     this.uid = user.uid;
@@ -973,6 +1130,7 @@ const sync = {
     this.setUI("on", `Synced — signed in as ${user.email || "your account"}`,
       "Sign out", () => this.signOut());
     this.pull();
+    loadNetHistory();
   },
 
   async signIn() {
@@ -1045,6 +1203,7 @@ const sync = {
     if (now - this.lastRefresh < 45000) return;
     this.lastRefresh = now;
     this.pull();
+    loadNetHistory();
   },
 
   // patch: {amount, updatedAt} for a balance edit, or a full new-account object.
@@ -1091,6 +1250,29 @@ const sync = {
       }
       this.setUI("err", `Couldn't save (${e.code || e.message}).`, "Retry", () => this.pushRate(ccy, value));
     }
+  },
+
+  // One doc per day, keyed by date. Merge, not append — several edits on the
+  // same day overwrite each other rather than piling up.
+  async pushNetWorthSnapshot(date, net) {
+    if (this.mode !== "signed-in") return;
+    const { f, db } = this.fb;
+    try {
+      await f.setDoc(f.doc(db, "users", this.uid, "netWorthDays", date),
+        { date, net: Math.round(net), updatedAt: f.serverTimestamp() });
+    } catch { /* best-effort — the chart just misses today's point until it retries */ }
+  },
+
+  async fetchNetWorthHistory(sinceISO) {
+    if (this.mode !== "signed-in") return [];
+    const { f, db } = this.fb;
+    const q = f.query(
+      f.collection(db, "users", this.uid, "netWorthDays"),
+      f.where("date", ">=", sinceISO),
+      f.orderBy("date")
+    );
+    const snap = await f.getDocs(q);
+    return snap.docs.map(d => ({ date: d.data().date, net: d.data().net }));
   }
 };
 
