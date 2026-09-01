@@ -114,10 +114,24 @@ printed or committed. Private body measurements and photos also stay outside thi
 ## Validation and deployment
 
 ```bash
-node --test exercise/*.test.mjs        # or: npm test
-node tools/rules-check.mjs             # evaluates firestore.rules against the live API
-node tools/rules-deploy.mjs            # publishes it; --dry-run uploads without releasing
+npm test                    # everything: 36 source tests, 19 in a browser
+npm run test:unit           # exercise/*.test.mjs — fast, no browser
+npm run test:browser        # tests/*.test.mjs — drives the real pages
+node tools/rules-check.mjs  # evaluates firestore.rules against the live API
+node tools/rules-deploy.mjs # publishes it; --dry-run uploads without releasing
 ```
+
+`tests/` opens the actual pages in headless Chromium with the three Firebase SDK imports answered
+from `tests/mocks/` instead of gstatic.com, so a test can say which documents were written and
+under which paths, and what is actually painted. That last part matters: section buttons once
+stayed on screen after being switched off because `hidden` was set correctly and the stylesheet
+painted them anyway, and a test reading the property passed throughout. These read computed style.
+
+They cover what went wrong rather than what is easy to assert: two accounts through one browser
+seeing and writing nothing of each other's, the device left with nothing of the app on it, a
+routine that belongs to the account, the sections and their extra settings, and who may open
+`admin/`. Without a browser they skip rather than fail — `npx playwright install chromium` turns
+them on.
 
 `tools/rules-deploy.mjs` exists because the Firebase CLI needs a browser login that a cloud
 session does not have; it uses the same service-account credentials as everything else here.

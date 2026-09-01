@@ -27,7 +27,7 @@ Exercise work spans `exercise/`, `dailyplan/plan.json`, and `firestore.rules`. U
     - **A refresh is not a sign-in reconciliation.** `loadCustomRemote()` takes `{reconcile}` for exactly this: at sign-in the local copy wins and is pushed back (this device may hold items the server has never seen), but on a refresh the server wins and nothing is pushed. Getting this wrong means one device's focus silently deletes a rename made on another.
     - **Refresh everything the page reads, and throttle where writes can be triggered.** DailyPlan refreshes its day, history, XP, trackers, and custom edits; exercise re-reads only its bounded selected week.
 
-Before marking anything done: verify in a real browser where available, check the console for errors, and run relevant tests.
+Before marking anything done: verify in a real browser where available, check the console for errors, and run `npm test` — it includes browser tests in `tests/` that open the real pages.
 DailyPlan work is `dailyplan/index.html` plus the account's own routine and config documents. Its item IDs remain unique/stable, tick handlers avoid full re-renders, and queued writes are protected from incoming snapshots.
 
 All Firestore paths stay owner-only. Never put body metrics or photos in this public repository. Before shipping, run tests, validate rules, use a real browser including `?date=YYYY-MM-DD`, inspect the console, search for removed legacy behavior, and review the final diff.
