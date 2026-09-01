@@ -140,3 +140,26 @@ test("a task added for today is gone tomorrow; a routine and a carried one are n
   assert.equal(await showing("Call the bank"), true, "a carried task stays until it is done");
   assert.deepEqual(problems, []);
 });
+
+test("the add form says Add task, and drops the XP field when points are off", { skip }, async () => {
+  const withPoints = await openPage(browser, site.origin, "/dailyplan/", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [plan("uidA"), features("uidA", ["dailyplan"])]
+  });
+  await signIn(withPoints.page);
+  await withPoints.page.evaluate(() => openAdd("To do"));
+  assert.equal(await withPoints.page.evaluate(() => document.getElementById("mTitle").textContent), "ADD TASK",
+    "not ADD TO TO DO — the group is whichever plus was tapped");
+  assert.equal(await painted(withPoints.page, "#mXpWrap"), true);
+
+  const without = await openPage(browser, site.origin, "/dailyplan/", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [plan("uidA"),
+      features("uidA", ["dailyplan"], { dailyplan: { xp: false, priority: true, streaks: true } })]
+  });
+  await signIn(without.page);
+  await without.page.evaluate(() => openAdd("To do"));
+  assert.equal(await painted(without.page, "#mXpWrap"), false);
+  assert.equal(await painted(without.page, "#mEmoji"), true, "the icon field stays");
+  assert.deepEqual(without.problems, []);
+});

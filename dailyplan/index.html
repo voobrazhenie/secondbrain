@@ -252,8 +252,12 @@
     width:100%;font:inherit;font-size:16px;font-weight:700;padding:9px 10px;
     background:var(--paper);color:var(--ink);border:2px solid var(--ink);
   }
+  /* Icon and XP hold four characters and two digits. Sized for what goes in
+     them rather than stretched to fill the row, so the form reads the same
+     whether or not the account has points switched on — with XP hidden, the
+     icon field stays put instead of growing across the dialog. */
   .modal .rowpair{display:flex;gap:9px}
-  .modal .rowpair>div{flex:1;min-width:0}
+  .modal .rowpair>div.small{flex:0 0 104px;min-width:0}
   .modal .acts{display:flex;gap:9px;margin-top:16px}
   .modal .acts button{flex:1}
 
@@ -467,11 +471,11 @@
     <label for="mText">TASK</label>
     <input id="mText" type="text" maxlength="70" placeholder="e.g. 10 min walk">
     <div class="rowpair">
-      <div>
+      <div class="small">
         <label for="mEmoji">ICON</label>
         <input id="mEmoji" type="text" maxlength="4" placeholder="✅">
       </div>
-      <div>
+      <div class="small" id="mXpWrap">
         <label for="mXp">XP</label>
         <input id="mXp" type="number" min="0" max="99" step="5" value="10">
       </div>
@@ -1281,8 +1285,11 @@ let undoTimer = null;
 
 function openAdd(group) {
   editing = null; addGroup = group;
-  $("mTitle").textContent = `ADD TO ${group.toUpperCase()}`;
+  $("mTitle").textContent = "ADD TASK";
   $("mText").value = ""; $("mEmoji").value = ""; $("mXp").value = "10";
+  // Points are still counted for an account that has them switched off — there
+  // is just nothing to say about them here.
+  $("mXpWrap").hidden = extras.xp === false;
   $("mScopeWrap").style.display = "";
   $("mScope").value = "today";
   $("scrim").hidden = false;
@@ -1295,6 +1302,7 @@ function openEdit(item) {
   $("mText").value = item.text || "";
   $("mEmoji").value = item.emoji || "";
   $("mXp").value = item.xp ?? 10;
+  $("mXpWrap").hidden = extras.xp === false;
   // How often only applies to tasks you added — programme items are every day.
   const own = custom.added.find(a => a.id === item.id);
   $("mScopeWrap").style.display = own ? "" : "none";
