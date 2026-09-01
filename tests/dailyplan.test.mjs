@@ -163,3 +163,43 @@ test("the add form says Add task, and drops the XP field when points are off", {
   assert.equal(await painted(without.page, "#mEmoji"), true, "the icon field stays");
   assert.deepEqual(without.problems, []);
 });
+
+/* A row is a line on a list, not a button, and Delete lives on a button behind
+   it rather than at the end of a gesture. */
+test("a row does not move when pressed, and swiping reveals a Delete that stays", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [plan("uidA"), features("uidA", ["dailyplan"])]
+  });
+  await signIn(page);
+
+  const first = await page.locator("#list .row").first().boundingBox();
+  const y = first.y + first.height / 2;
+  const shift = () => page.evaluate(() => getComputedStyle(document.querySelector("#list .row")).transform);
+
+  assert.equal(await shift(), "none");
+  await page.mouse.move(first.x + 200, y);
+  await page.mouse.down();
+  await page.waitForTimeout(120);
+  assert.equal(await shift(), "none", "held down, the row stays exactly where it is");
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+
+  const before = await rowCount(page);
+  await page.mouse.move(first.x + 250, y);
+  await page.mouse.down();
+  for (const x of [230, 200, 170, 150]) { await page.mouse.move(x, y); await page.waitForTimeout(25); }
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+
+  assert.equal(await page.evaluate(() => !!document.querySelector(".rowwrap.revealed")), true,
+    "it stays open rather than springing back or deleting on its own");
+  assert.equal(await painted(page, ".rowwrap.revealed .tray button"), true);
+  assert.equal(await rowCount(page), before, "the swipe itself destroys nothing");
+
+  await page.click(".rowwrap.revealed .tray button");
+  await page.waitForTimeout(600);
+  assert.equal(await rowCount(page), before - 1, "the button is what deletes");
+  assert.equal(await page.evaluate(() => !!document.querySelector(".rowwrap.revealed")), false);
+  assert.deepEqual(problems, []);
+});

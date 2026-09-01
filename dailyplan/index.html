@@ -113,10 +113,11 @@
     background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
     padding:0 11px;min-height:44px;
     margin-bottom:9px;cursor:pointer;
-    transition:transform .07s, box-shadow .07s, background .15s;
+    /* No press effect. A row is a line on a list, not a button, and the tick
+       arriving is the answer to a tap. The transition is for the swipe. */
+    transition:transform .16s ease-out, background .15s;
   }
-  .row:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
-  .row.done{background:var(--sunk);box-shadow:2px 2px 0 var(--ink)}
+  .row.done{background:var(--sunk)}
   .row input{position:absolute;opacity:0;pointer-events:none}
   .box{
     flex:0 0 auto;width:20px;height:20px;border:2.5px solid var(--ink);background:var(--card);
@@ -150,8 +151,6 @@
      a checkbox that won't tick. */
   .row.locked .detail{display:block}
   .row.locked{cursor:default;padding-top:9px;padding-bottom:9px}
-  .row.locked:active{transform:none;box-shadow:var(--shadow)}
-  .row.locked.done:active{box-shadow:2px 2px 0 var(--ink)}
   .row.locked .box{border-style:dashed;border-width:2px}
   .row.locked.done .box{border-style:solid}
 
@@ -213,24 +212,31 @@
   }
   .sec .add:active{transform:translate(2px,2px);box-shadow:none}
 
-  /* The row slides over a fixed red backdrop, so the delete intent is visible
-     the whole way rather than only at the end. */
+  /* Swipe left and a Delete button is waiting underneath, the same as
+     Opportunities: the row slides off it and stays there until the button is
+     tapped or the row is tapped shut. Nothing is destroyed by the swipe itself,
+     which is what a swipe that deletes at a threshold gets wrong — the point of
+     no return lands halfway through a gesture rather than on a button.
+
+     The border and shadow move from the row to the clip around it, because the
+     row is the part that slides and they have to stay put. */
   .rowwrap{position:relative;margin-bottom:9px}
-  .rowwrap .swipebg{
-    position:absolute;inset:0;background:var(--pink);
-    border:var(--stroke) solid var(--ink);
-    display:flex;align-items:center;justify-content:flex-end;
-    padding-right:16px;font-family:"Arial Black",Impact,sans-serif;
-    font-size:11px;letter-spacing:.08em;color:var(--ink);
+  .rowclip{position:relative;overflow:hidden;
+    border:var(--stroke) solid var(--ink);box-shadow:var(--shadow)}
+  .rowclip:has(.row.done){box-shadow:2px 2px 0 var(--ink)}
+  .rowclip .row{position:relative;margin-bottom:0;border:0;box-shadow:none;touch-action:pan-y}
+  .tray{position:absolute;top:0;right:0;bottom:0;width:96px;display:flex}
+  .tray button{
+    flex:1;border:0;box-shadow:none;background:var(--pink);color:var(--ink);
+    font-size:10px;font-weight:900;letter-spacing:.03em;
+    font-family:"Arial Black",Impact,sans-serif;cursor:pointer;
   }
-  .rowwrap.armed .swipebg{background:var(--ink);color:var(--paper)}
-  .rowwrap .row{position:relative;margin-bottom:0;touch-action:pan-y}
-  .rowwrap .row.sliding{transition:none}
+  .tray button:active{transform:none;box-shadow:none}
 
   /* desktop affordance — hidden on touch, where the gestures do the work */
   .rowbtns{position:absolute;top:50%;right:8px;transform:translateY(-50%);
     display:none;gap:5px;z-index:2}
-  @media (hover:hover){ .rowwrap:hover .rowbtns{display:flex} }
+  @media (hover:hover){ .rowwrap:not(.revealed):hover .rowbtns{display:flex} }
   .rowbtns button{padding:2px 7px;font-size:11px;box-shadow:2px 2px 0 var(--ink)}
 
   /* ---------- modal ---------- */
@@ -282,25 +288,18 @@
      same contrast the teal card's darker text used to hold. */
   /* Same swipe-to-delete and long-press-to-edit as a task row, so the card
      answers the finger the way everything else on this page does. The backdrop
-     cannot be the rows' pink here — the card sliding over it is pink — so it
-     goes quiet-to-black instead: --sunk while dragging, --ink once the drag has
-     passed the point where letting go deletes. */
+     cannot be the rows' pink here — the card sliding off it is pink — so its
+     Delete goes black instead. */
   .priority-wrap{position:relative;margin:0 0 16px}
   .priority-wrap[hidden]{display:none}
-  .priority-wrap .swipebg{
-    position:absolute;inset:0;background:var(--sunk);
-    border:var(--stroke) solid var(--ink);
-    display:flex;align-items:center;justify-content:flex-end;
-    padding-right:16px;font-family:"Arial Black",Impact,sans-serif;
-    font-size:11px;letter-spacing:.08em;color:var(--ink);
-    box-shadow:var(--shadow);
-  }
-  .priority-wrap.armed .swipebg{background:var(--ink);color:var(--paper)}
-  .priority-wrap .priority.sliding{transition:none}
+  /* The card is pink, so its Delete cannot be — it goes black instead, which is
+     the same treatment Opportunities gives its second tray button. */
+  .priority-wrap .tray button{background:var(--ink);color:var(--paper)}
+  .priority-wrap .priority{border:0;box-shadow:none}
 
   /* desktop affordance — hidden on touch, where the gestures do the work */
   .priority-btns{position:absolute;top:9px;right:10px;display:none;gap:5px;z-index:2}
-  @media (hover:hover){ .priority-wrap:hover .priority-btns{display:flex} }
+  @media (hover:hover){ .priority-wrap:not(.revealed):hover .priority-btns{display:flex} }
   .priority-btns button{
     padding:2px 7px;font-size:11px;background:var(--card);
     box-shadow:2px 2px 0 var(--ink);
@@ -311,6 +310,7 @@
     position:relative;background:var(--pink);
     border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
     padding:13px 14px 13px;margin:0;touch-action:pan-y;
+    transition:transform .16s ease-out;
   }
   .priority .k{
     font-size:8px;letter-spacing:.1em;font-family:"Arial Black",Impact,sans-serif;
@@ -410,7 +410,8 @@
   </div>
 
   <div class="priority-wrap" id="priorityWrap" hidden>
-    <div class="swipebg" aria-hidden="true">DELETE</div>
+    <div class="rowclip">
+      <div class="tray"><button type="button" id="prioritySwipeDelete">DELETE</button></div>
     <section class="priority" id="priority" aria-label="Priority">
       <div id="priorityEmpty" hidden>
         <div class="k">PRIORITY</div>
@@ -439,6 +440,7 @@
         <div class="next" id="priorityNextSaved" hidden><span id="priorityNextValue"></span></div>
       </div>
     </section>
+    </div>
 
     <div class="priority-btns" id="priorityBtns">
       <button id="priorityEditBtn" title="Edit">✎</button>
@@ -650,7 +652,9 @@ function renderPriority() {
   if (!plan) return;
   const date = plan.date;
   const wrap = $("priorityWrap");
-  wrap.classList.remove("armed");
+  // Redrawing the card puts its Delete away.
+  if (revealed && revealed.id === "priority") revealed = null;
+  wrap.classList.remove("revealed");
   $("priority").style.transform = "";
 
   if (priorityEditDate === date) {
@@ -1167,9 +1171,19 @@ function render() {
 
       const wrap = document.createElement("div");
       wrap.className = "rowwrap";
-      const bg = document.createElement("div");
-      bg.className = "swipebg";
-      bg.textContent = "DELETE";
+      const clip = document.createElement("div");
+      clip.className = "rowclip";
+      const tray = document.createElement("div");
+      tray.className = "tray";
+      const trayDelete = document.createElement("button");
+      trayDelete.type = "button";
+      trayDelete.textContent = "DELETE";
+      trayDelete.addEventListener("click", e => {
+        e.preventDefault(); e.stopPropagation();
+        closeRevealed();
+        removeItem(it);
+      });
+      tray.append(trayDelete);
 
       const btns = document.createElement("div");
       btns.className = "rowbtns";
@@ -1181,15 +1195,15 @@ function render() {
       bDel.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); removeItem(it); });
       btns.append(bEdit, bDel);
 
-      wrap.append(bg, row, btns);
-      attachGestures(wrap, row, {
-        onEdit: () => openEdit(it),
-        onDelete: () => removeItem(it)
-      });
+      clip.append(tray, row);
+      wrap.append(clip, btns);
+      attachGestures(wrap, row, { id: it.id, onEdit: () => openEdit(it) });
       list.appendChild(wrap);
     }
   }
 
+  // Every row was just rebuilt, so whichever had its Delete showing is gone.
+  revealed = null;
   renderStreak();
   renderCounter();
   renderLevel();
@@ -1207,75 +1221,105 @@ function render() {
    what those two gestures mean for the caller, and `enabled` lets the priority
    card switch them off while its own form is open — a swipe or a long press
    through a field being typed into is never the intent. */
-const DELETE_FRACTION = 0.33;
+const TRAY_W = 96;        // px — matches .tray width
+const TAP_SLOP = 8;       // shorter than this is a tap, not a swipe
 const LONG_PRESS_MS = 500;
 
-function attachGestures(wrap, row, { onEdit, onDelete, enabled = () => true }) {
-  let x0 = 0, y0 = 0, dx = 0;
+/* Only one card shows its Delete at a time, so opening one closes the last. */
+let revealed = null;      // { id, close }
+function closeRevealed() {
+  if (!revealed) return;
+  const { close } = revealed;
+  revealed = null;
+  close();
+}
+
+/* Swipe left to reveal Delete, long press to edit, tap to tick — the same
+   gesture set Opportunities has, and deliberately the same shape of code.
+   Nothing is destroyed by the swipe itself: it moves the card off a button, and
+   the button is what deletes.
+
+   Pointer events rather than touch events, so a mouse drag works too and the
+   browser keeps its own scrolling (`touch-action: pan-y` on the card says
+   vertical belongs to the page and horizontal to us). */
+function attachGestures(wrap, card, { id, onEdit, enabled = () => true }) {
+  let x0 = 0, y0 = 0, dx = 0, base = 0;
   let axis = null;          // null until decided, then "x" or "y"
-  let timer = null, suppress = false;
+  let tracking = false, timer = null, suppress = false;
 
-  const threshold = () => window.innerWidth * DELETE_FRACTION;
-  const reset = () => {
-    row.classList.remove("sliding");
-    row.style.transform = "";
-    wrap.classList.remove("armed");
+  const settle = offset => {
+    card.style.transition = "";
+    card.style.transform = offset ? `translateX(${offset}px)` : "";
+    wrap.classList.toggle("revealed", offset !== 0);
   };
+  const close = () => settle(0);
+  const isOpen = () => !!revealed && revealed.id === id;
 
-  row.addEventListener("touchstart", e => {
-    if (e.touches.length !== 1 || !enabled()) return;
-    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
-    dx = 0; axis = null; suppress = false;
+  card.addEventListener("pointerdown", e => {
+    if (e.button || !enabled()) return;
+    tracking = true; axis = null; dx = 0; suppress = false;
+    x0 = e.clientX; y0 = e.clientY;
+    base = isOpen() ? -TRAY_W : 0;
     timer = setTimeout(() => {
-      if (axis === null) {           // still stationary — treat as a long press
-        suppress = true;
-        if (navigator.vibrate) navigator.vibrate(12);
-        onEdit();
-      }
+      if (axis !== null) return;      // it moved — a swipe, not a press
+      suppress = true;
+      if (navigator.vibrate) navigator.vibrate(12);
+      onEdit();
     }, LONG_PRESS_MS);
-  }, { passive: true });
+  });
 
-  row.addEventListener("touchmove", e => {
-    if (!enabled()) return;
-    const ax = e.touches[0].clientX - x0;
-    const ay = e.touches[0].clientY - y0;
-
+  card.addEventListener("pointermove", e => {
+    if (!tracking) return;
+    const ax = e.clientX - x0;
+    const ay = e.clientY - y0;
     if (axis === null) {
-      if (Math.abs(ax) < 8 && Math.abs(ay) < 8) return;
+      if (Math.abs(ax) < TAP_SLOP && Math.abs(ay) < TAP_SLOP) return;
       axis = Math.abs(ax) > Math.abs(ay) ? "x" : "y";
       clearTimeout(timer);
-      if (axis === "x") row.classList.add("sliding");
+      if (axis === "x") {
+        card.style.transition = "none";
+        card.setPointerCapture(e.pointerId);
+      }
     }
     if (axis !== "x") return;
-
-    e.preventDefault();               // stop the page scrolling under the drag
-    dx = Math.min(0, ax);             // left only
-    suppress = true;
-    row.style.transform = `translateX(${dx}px)`;
-    wrap.classList.toggle("armed", -dx >= threshold());
-  }, { passive: false });
+    suppress = true;                  // a drag must not also tick the row
+    dx = Math.max(-TRAY_W, Math.min(0, base + ax));
+    card.style.transform = `translateX(${dx}px)`;
+  });
 
   const end = () => {
     clearTimeout(timer);
-    if (axis === "x" && -dx >= threshold()) {
-      row.classList.remove("sliding");
-      row.style.transform = `translateX(-${window.innerWidth}px)`;
-      setTimeout(onDelete, 130);
-    } else {
-      reset();
+    if (!tracking) return;
+    tracking = false;
+
+    if (axis === "x") {
+      axis = null;
+      // Past the halfway mark it opens, otherwise it falls back shut.
+      const open = dx <= -TRAY_W / 2;
+      if (open && revealed && revealed.id !== id) closeRevealed();
+      settle(open ? -TRAY_W : 0);
+      revealed = open ? { id, close } : null;
+      return;
     }
     axis = null;
+
+    // A tap on a card with its Delete showing puts it away instead of ticking.
+    if (isOpen()) { suppress = true; closeRevealed(); }
   };
-  row.addEventListener("touchend", end);
-  row.addEventListener("touchcancel", () => { clearTimeout(timer); reset(); axis = null; });
+  card.addEventListener("pointerup", end);
+  card.addEventListener("pointercancel", () => {
+    clearTimeout(timer);
+    tracking = false; axis = null;
+    settle(isOpen() ? -TRAY_W : 0);
+  });
 
   // A drag or long press must not also toggle the checkbox.
-  row.addEventListener("click", e => {
+  card.addEventListener("click", e => {
     if (suppress) { e.preventDefault(); e.stopPropagation(); suppress = false; }
   }, true);
 
-  row.addEventListener("dblclick", e => { if (enabled()) { e.preventDefault(); onEdit(); } });
-  row.addEventListener("contextmenu", e => { if (enabled()) { e.preventDefault(); onEdit(); } });
+  card.addEventListener("dblclick", e => { if (enabled()) { e.preventDefault(); onEdit(); } });
+  card.addEventListener("contextmenu", e => { if (enabled()) { e.preventDefault(); onEdit(); } });
 }
 
 /* ---------- add / edit / remove ---------- */
@@ -2422,9 +2466,14 @@ $("priorityText").addEventListener("input", () => { $("priorityError").textConte
 /* Long press to edit, swipe left to remove — the same gestures as a task row,
    held off while the form is open. */
 attachGestures($("priorityWrap"), $("priority"), {
+  id: "priority",
   onEdit: () => { if (plan) startPriorityEdit(); },
-  onDelete: () => { if (plan) deletePriority(); },
   enabled: () => !!plan && priorityEditDate !== plan.date
+});
+$("prioritySwipeDelete").addEventListener("click", e => {
+  e.preventDefault(); e.stopPropagation();
+  closeRevealed();
+  if (plan) deletePriority();
 });
 
 $("mCancel").addEventListener("click", closeModal);
