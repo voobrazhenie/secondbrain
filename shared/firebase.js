@@ -95,8 +95,31 @@ export function signInMessage(e) {
   return `Sign-in failed (${e.code || e.message}).`;
 }
 
-/* Throws on failure. The page catches it, because what a half-finished sign-out
- * should say depends on what that page was showing. */
+/* Sign out and leave nothing of the account on the device.
+ *
+ * Signing out on its own does not clear Firebase's offline cache. That cache is
+ * filed under the document path, so it can never be shown to another account —
+ * but it is still one person's data sitting in a browser other people may use,
+ * and the rule for this app is that a signed-out device holds nothing.
+ *
+ * Clearing it needs the connection closed first, and nothing may touch `fb`
+ * afterwards, so the page is reloaded into its signed-out state rather than
+ * carrying on with a terminated database.
+ *
+ * Two things this gives up, both on purpose. A write the SDK had accepted but
+ * not yet sent — possible only offline, and only in the moment between a tap and
+ * signing out — goes with the cache instead of being retried later. And the
+ * clear is best-effort: another tab holding the same database makes it
+ * impossible, and by then the sign-out itself has already happened, which is the
+ * part that matters.
+ *
+ * Throws only if the sign-out itself failed. The page catches that, because what
+ * a half-finished sign-out should say depends on what that page was showing. */
 export async function signOut(fb) {
   await fb.a.signOut(fb.auth);
+  try {
+    await fb.f.terminate(fb.db);
+    await fb.f.clearIndexedDbPersistence(fb.db);
+  } catch { /* another tab has the database open, or the browser refused */ }
+  location.reload();
 }

@@ -503,62 +503,31 @@
 
 const FALLBACK = {"schemaVersion":1,"startDate":"2026-07-29","principles":{"title":"Notes for Radical Living","author":"Tilda Swinton","source":"from her book Ongoing, 2025","list":["Make friends with chaos","Hold a calm mind","Let things shake","Forgive human frailty","Champion second chances","Defy kindness","Reverence fellowship","Listen to the quiet","Respect the young","Seek growth","Trust in change","Treasure learning","Inspire faith in evolution","Reach beyond the binary","Be wary of the doubtless","Honor the bright headed","Grow plants","Attend to the weather","Be electric","Cherish language","Celebrate silence","Dance daily","Bless the handmade","Sing into pain","Challenge assumptions","Follow the wind","Look upwards","Swoon under clouds","Feel your courage","Face forward","Read history","Open your ears","Drop your shoulders","Bend your knees","Raise the roof","Keep breathing","Be trustworthy","Take care of yourself","Believe in goodness","Head for the light"]},"daily":[{"title":"Meds","emoji":"💊","items":[{"id":"m-stimulants","emoji":"💊","text":"Stimulants","detail":"As prescribed.","xp":10},{"id":"m-antidepressants","emoji":"💊","text":"Antidepressants","detail":"As prescribed. Consistent time of day.","xp":10}]},{"title":"Tasks","emoji":"📋","keepEmpty":true,"items":[]},{"title":"Eat","emoji":"🍳","note":"Protein is the non-negotiable — 1.8–2.2 g per kg per day. Four anchors of 35–45 g beats trying to rescue the number at dinner. The failure mode isn't one light day, it's three in a row.","items":[{"id":"e-anchor-1","emoji":"🥣","text":"Breakfast protein anchor","detail":"Greek yoghurt or skyr + eggs, or a shake with milk.","xp":15},{"id":"e-anchor-2","emoji":"🥗","text":"Lunch protein anchor","detail":"Palm-and-a-half of chicken / fish / beef / tofu.","xp":15},{"id":"e-anchor-4","emoji":"🍽️","text":"Dinner protein anchor","detail":"The one that usually rescues the day's total.","xp":15},{"id":"e-water","emoji":"💧","text":"Water through the day","detail":"Pale straw, not clear. Creatine raises water needs slightly.","xp":10},{"id":"e-track","emoji":"🔢","text":"Logged protein today","detail":"Only needed for the first 2–3 weeks, to calibrate. After that you'll know your portions by eye.","xp":15},{"id":"e-creatine","emoji":"⚡","text":"Creatine · 5 g","detail":"Any time of day. No loading phase needed.","xp":10}]},{"title":"Care","emoji":"🧴","note":"Minoxidil every evening, except on microneedling days — the skin needs about a day and a half to close up before anything goes on it again.","items":[{"id":"c-microneedling","emoji":"🪡","text":"Microneedling","detail":"Morning. Every 14 days. No minoxidil this evening — resume tomorrow evening.","xp":25,"every":14,"anchor":"2026-08-05"},{"id":"c-minoxidil","emoji":"💧","text":"Minoxidil","detail":"Evening, on dry scalp. Hides itself automatically on microneedling days.","xp":15,"skipWhen":["c-microneedling"]}]},{"title":"Train","emoji":"🏋️","note":"Ticked for you when you finish a workout on the exercise page — you do not need to tick it by hand.","items":[{"id":"t-workout","emoji":"🏋️","text":"Physical training","detail":"One full equipment-free session, up to three a week. Signed off on the exercise page.","xp":25}]},{"title":"Recover","emoji":"🌙","items":[{"id":"r-sleep","emoji":"😴","text":"7–9 hours, consistent wake time","detail":"Short sleep measurably suppresses muscle gain and raises appetite. Consistent wake time matters more than consistent bedtime.","xp":20},{"id":"r-smoked-weed","emoji":"🌿","text":"Didn't smoke weed","detail":"Ticked for you. Untick it on a day you did smoke — that is the only thing stored, and it costs the 15 XP a clean day pays.","xp":15,"invert":true},{"id":"r-cold-shower","emoji":"🧊","text":"Cold shower","detail":"Not in the hour after training — cold blunts the growth signal.","xp":15},{"id":"r-meditation","emoji":"🧘","text":"Meditation","xp":15}]},{"title":"Home","emoji":"🏠","items":[{"id":"home-water-flowers","emoji":"🪴","text":"Water flowers","detail":"Every three days.","xp":10,"every":3,"anchor":"2026-08-07"}]}],"oneOffs":{"title":"Setup","emoji":"🎯","note":"These disappear for good once ticked.","items":[{"id":"s-measure","emoji":"📏","text":"Weigh + measure waist","detail":"Morning, unflexed, before eating. This is the one thing here that gets worse by waiting — a starting number taken next week isn't a starting number.","xp":35},{"id":"s-supplements","emoji":"🛒","text":"Buy creatine and whey","xp":20}]}};
 
-const LS_PREFIX  = "secondbrain.dailyplan.v2.";
-const LS_META    = "secondbrain.dailyplan.meta.v2.";
-const LS_NOTES   = "secondbrain.fitness.notes";
-const LS_CUSTOM  = "secondbrain.dailyplan.custom.v2";
-const LS_COLLAPSED = "secondbrain.fitness.collapsed";
-const LS_PRIORITY  = "secondbrain.daily.priority.";
-const LS_XPMONTH = "secondbrain.fitness.xpmonth.";   // + YYYY-MM
-const LS_XPPEAK  = "secondbrain.fitness.xppeak";
-const CONFIGURED_DAILY_IDS = new Set([
-  ...FALLBACK.daily.flatMap(group => group.items || []),
-  ...(FALLBACK.oneOffs?.items || [])
-].map(item => item.id));
-const onlyDailyPlanKeys = value => Object.fromEntries(
-  Object.entries(value || {}).filter(([id]) => CONFIGURED_DAILY_IDS.has(id) || id.startsWith("u-"))
-);
-const cleanCustomData = value => ({
-  added: value?.added || [],
-  hidden: onlyDailyPlanKeys(value?.hidden),
-  doneOnce: onlyDailyPlanKeys(value?.doneOnce),
-  edits: onlyDailyPlanKeys(value?.edits)
-});
-
-/* Preserve only DailyPlan state while separating it from the former shared
-   fitness keys. Exercise history is intentionally not migrated. */
-(function migrateStorage() {
+/* Keys this page used to write. Nothing reads them any more — they are listed
+   so a device that ran the old version can be cleaned of them once. */
+const LEGACY_KEYS = [
+  "secondbrain.dailyplan.",         // ticks, day meta, the migration flag
+  "secondbrain.daily.priority.",
+  "secondbrain.fitness.notes",
+  "secondbrain.fitness.collapsed",
+  "secondbrain.fitness.xpmonth.",
+  "secondbrain.fitness.xppeak",
+  "secondbrain.fitness.custom",
+  "secondbrain.fitness.v1.",
+  "secondbrain.fitness.meta.",
+  "lifeinterface.fitness."
+];
+/* Nothing about a day, a task or an account is kept on the device any more —
+   see the note on `mem` below. This clears what earlier versions left behind,
+   because it is exactly the data that was showing up under the wrong account. */
+(function wipeLegacyStorage() {
   try {
-    if (localStorage.getItem(LS_PREFIX + "migrated")) return;
-    for (const prefix of ["secondbrain.fitness.v1.", "lifeinterface.fitness.v1."]) {
-      const keys = [];
-      for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
-      for (const key of keys) {
-        if (!key?.startsWith(prefix)) continue;
-        const date = key.slice(prefix.length);
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || localStorage.getItem(LS_PREFIX + date) !== null) continue;
-        localStorage.setItem(LS_PREFIX + date, JSON.stringify(onlyDailyPlanKeys(JSON.parse(localStorage.getItem(key) || "{}"))));
-      }
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+    for (const key of keys) {
+      if (key && LEGACY_KEYS.some(prefix => key.startsWith(prefix))) localStorage.removeItem(key);
     }
-
-    for (const prefix of ["secondbrain.fitness.meta.", "lifeinterface.fitness.meta."]) {
-      const keys = [];
-      for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
-      for (const key of keys) {
-        if (!key?.startsWith(prefix)) continue;
-        const date = key.slice(prefix.length);
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || localStorage.getItem(LS_META + date) !== null) continue;
-        const old = JSON.parse(localStorage.getItem(key) || "{}");
-        localStorage.setItem(LS_META + date, JSON.stringify({ xpEarned: Number(old.xpEarned) || 0 }));
-      }
-    }
-
-    const oldCustom = localStorage.getItem("secondbrain.fitness.custom") || localStorage.getItem("lifeinterface.fitness.custom");
-    if (oldCustom && localStorage.getItem(LS_CUSTOM) === null) {
-      localStorage.setItem(LS_CUSTOM, JSON.stringify(cleanCustomData(JSON.parse(oldCustom))));
-    }
-    localStorage.setItem(LS_PREFIX + "migrated", "1");
-  } catch {}
+  } catch { /* storage disabled — there is nothing to clear */ }
 })();
 const HISTORY_DAYS = 90;
 const RING_C     = 2 * Math.PI * 33;   // matches r=33 in the svg
@@ -570,6 +539,24 @@ const DEV_DATE = new URLSearchParams(location.search).get("date");
 let viewDate = null;  // the day being looked at; null means today
 let dailyConfig = null; // daily.json; workout configuration is separate
 let plan    = null;   // today, derived from it
+/* ---------- what this page knows, while it is open ----------
+   Everything below used to be mirrored into localStorage, and that is what let
+   one account's day, XP and task list show up — and then upload themselves —
+   under the next account to sign in on the same browser. There is no second
+   copy now: Firestore holds it, this holds it while the page is open, and
+   teardown() empties it on sign-out.
+
+   Working offline still works. Firebase keeps its own cache on the device, and
+   that one is filed under the document path, so it can never be handed to
+   another account. */
+const mem = {
+  ticks: new Map(),     // YYYY-MM-DD -> { itemId: true }
+  meta: new Map(),      // YYYY-MM-DD -> { xpEarned }
+  priority: new Map(),  // YYYY-MM-DD -> priority record
+  xpMonth: new Map(),   // YYYY-MM -> total
+  peak: 0
+};
+
 /* date -> { xpEarned, ticked } for days other than today. Today is always
    computed live from the current tick state instead. */
 const history = new Map();
@@ -627,12 +614,11 @@ function normalisePriority(value) {
 }
 
 function loadPriority(date) {
-  try { return normalisePriority(JSON.parse(localStorage.getItem(LS_PRIORITY + date) || "null")); }
-  catch { return null; }
+  return normalisePriority(mem.priority.get(date) ?? null);
 }
 
 function savePriorityLocal(date, record) {
-  try { localStorage.setItem(LS_PRIORITY + date, JSON.stringify(record)); } catch {}
+  mem.priority.set(date, record);
 }
 
 function showPriorityState(id) {
@@ -700,7 +686,7 @@ function storePriority(record, date = plan.date) {
 /* Back to a day that never had one, which is not the same as a dismissal: the
    stored record has to go rather than be replaced, on the server too. */
 function clearPriority(date) {
-  try { localStorage.removeItem(LS_PRIORITY + date); } catch {}
+  mem.priority.delete(date);
   priorityEditDate = null;
   renderPriority();
   sync.dropPriority(date);
@@ -738,33 +724,24 @@ function savePriorityForm() {
 
 /* ---------- tick storage ---------- */
 function loadTicks(date) {
-  try { return JSON.parse(localStorage.getItem(LS_PREFIX + date) || "{}"); }
-  catch { return {}; }
+  return mem.ticks.get(date) || {};
 }
 function saveTicks(date, ticks) {
-  try { localStorage.setItem(LS_PREFIX + date, JSON.stringify(ticks)); } catch {}
+  mem.ticks.set(date, ticks);
 }
+/* The days this page is holding — in practice the one in view, since the rest
+   come back from Firestore as `history`. Both are still scanned wherever a
+   question spans days, because the day being ticked right now is only here. */
 function storedDates() {
-  const out = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith(LS_PREFIX)) {
-      const date = k.slice(LS_PREFIX.length);
-      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) out.push(date);
-    }
-  }
-  return out.sort();
+  return [...mem.ticks.keys()].sort();
 }
 
 function loadDayMeta(date) {
-  try {
-    const value = JSON.parse(localStorage.getItem(LS_META + date) || "null");
-    return value ? { xpEarned: Number(value.xpEarned) || 0 } : null;
-  }
-  catch { return null; }
+  const value = mem.meta.get(date);
+  return value ? { xpEarned: Number(value.xpEarned) || 0 } : null;
 }
 function saveDayMeta(date, m) {
-  try { localStorage.setItem(LS_META + date, JSON.stringify({ xpEarned: Number(m?.xpEarned) || 0 })); } catch {}
+  mem.meta.set(date, { xpEarned: Number(m?.xpEarned) || 0 });
 }
 
 /* ---------- derivation ---------- */
@@ -828,18 +805,11 @@ function everTicked(id, exceptDate) {
 /* ---------- your changes on top of the daily configuration ----------
    daily.json is shared configuration and the page can't write to it, so anything
    you add, edit or delete lives here instead and is layered over the derived day.
-   Kept in localStorage and mirrored to Firestore so it follows you between
-   devices like the ticks do. */
+   Kept in users/{uid}/config/custom so it follows you between devices like the
+   ticks do. */
 let custom = { added: [], hidden: {}, doneOnce: {}, edits: {} };
 
-function loadCustom() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(LS_CUSTOM) || "null");
-    if (raw) custom = cleanCustomData(raw);
-  } catch { /* keep the empty default */ }
-}
 function saveCustom({ push = true } = {}) {
-  try { localStorage.setItem(LS_CUSTOM, JSON.stringify(custom)); } catch {}
   if (push) sync.pushCustom();
 }
 const newId = () => "u-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -917,9 +887,9 @@ function deriveDay(date) {
   }
 
   /* custom.doneOnce is the durable record — it rides in the synced custom
-     document, so a completed one-off stays gone even on a browser whose
-     localStorage never saw the tick. everTicked() stays as the fallback, which
-     is what keeps one-offs finished before this existed still hidden. */
+     document, so a completed one-off stays gone on every device rather than
+     only the one it was ticked on. everTicked() stays as the fallback, which is
+     what keeps one-offs finished before this existed still hidden. */
   const pending = (dailyConfig.oneOffs?.items || []).filter(i =>
     !(custom.doneOnce && custom.doneOnce[i.id]) && !everTicked(i.id, date));
   if (pending.length) {
@@ -987,15 +957,15 @@ function totalXp() {
 
    1. History is a bounded 90-day query, and signed out it is empty altogether,
       so summing it would make the level stall and then run backwards. Instead a
-      total per month is kept (users/{uid}/xp/{YYYY-MM}, mirrored locally) and
-      lifetime is the sum of those — a dozen small numbers a year. Each month is
+      total per month is kept (users/{uid}/xp/{YYYY-MM}) and lifetime is the sum
+      of those — a dozen small numbers a year. Each month is
       recomputed wholesale from the day records rather than incremented, so a
       wrong total repairs itself on the next tick instead of drifting forever.
 
    2. Items can cost XP as well as pay it, so a total can shrink. The level and
       bar used to be read off `peakXp` — a high-water mark — so they could never
       go backwards. That made the bar sit still for days after a negative tick,
-      and freeze outright whenever the stored peak was above what localStorage
+      and freeze outright whenever the stored peak was above what the page
       could see, which defeated the point of having it. Both now read live
       lifetime XP, so every tick moves the bar, and a negative item moves it
       back. `peakXp` is still recorded (see bumpPeak) but no longer drawn. */
@@ -1034,15 +1004,10 @@ function monthTotal(key) {
 }
 
 function storedMonths() {
-  const out = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith(LS_XPMONTH)) out.push(k.slice(LS_XPMONTH.length));
-  }
-  return out;
+  return [...mem.xpMonth.keys()];
 }
 function loadMonthXp(key) {
-  const v = parseInt(localStorage.getItem(LS_XPMONTH + key) || "0", 10);
+  const v = mem.xpMonth.get(key);
   return Number.isFinite(v) ? v : 0;
 }
 function lifetimeXp() {
@@ -1051,8 +1016,7 @@ function lifetimeXp() {
   return sum;
 }
 function loadPeak() {
-  const v = parseInt(localStorage.getItem(LS_XPPEAK) || "0", 10);
-  return Number.isFinite(v) ? v : 0;
+  return Number.isFinite(mem.peak) ? mem.peak : 0;
 }
 
 /* Recompute the month being looked at, roll it into lifetime, and raise the peak
@@ -1062,10 +1026,10 @@ function bumpPeak() {
   if (!plan) return loadPeak();
   const key = monthKey(plan.date);
   const total = monthTotal(key);
-  try { localStorage.setItem(LS_XPMONTH + key, String(total)); } catch {}
+  mem.xpMonth.set(key, total);
 
   const peak = Math.max(loadPeak(), lifetimeXp());
-  try { localStorage.setItem(LS_XPPEAK, String(peak)); } catch {}
+  mem.peak = peak;
 
   sync.queueXp(key, total, peak);
   return peak;
@@ -1075,17 +1039,21 @@ function bumpPeak() {
    Display-only: never filters plan.groups itself, so counts, XP, streak and
    sync all keep computing from the full data regardless of what's collapsed. */
 let collapsedGroups = new Set();
-function loadCollapsed() {
-  try { collapsedGroups = new Set(JSON.parse(localStorage.getItem(LS_COLLAPSED) || "[]")); }
-  catch { collapsedGroups = new Set(); }
-}
-function saveCollapsed() {
-  try { localStorage.setItem(LS_COLLAPSED, JSON.stringify([...collapsedGroups])); } catch {}
-}
 function toggleGroup(title) {
   if (collapsedGroups.has(title)) collapsedGroups.delete(title); else collapsedGroups.add(title);
-  saveCollapsed();
+  sync.pushPrefs();
   render();
+}
+
+/* Which sections are folded up, and whether the detail notes are showing, are
+   settings about a person's own list rather than about this browser — the next
+   account to sign in here has different sections entirely. So they live with
+   the account, which also means they follow him to his phone. */
+let notesOn = false;
+function setNotes(on) {
+  notesOn = !!on;
+  document.body.classList.toggle("notes", notesOn);
+  $("notesBtn").classList.toggle("on", notesOn);
 }
 
 /* ---------- render ---------- */
@@ -1590,6 +1558,7 @@ const sync = {
   flushDate: null,        // a flush past its queue but not yet handed to Firestore
   xpTimer: null,
   xpPending: null,
+  prefsTimer: null,
   trackerUnsub: null,
   trackerPending: null,   // { set } or { recoverBefore }, resolved in flush()
   lastRefresh: 0,         // throttles refreshAll(), see there
@@ -1607,14 +1576,13 @@ const sync = {
      Firebase has said who is looking. */
   setAuthState(state) { $("wrap").dataset.auth = state; },
 
-  /* Signing out has to leave nothing of the account behind — not on screen,
-     not in memory, and not queued to be written. localStorage is deliberately
-     untouched: collapsed sections, notes and the priority drafts are this
-     browser's own settings rather than account data, and nothing reads them
-     while the page is gated. */
+  /* Signing out has to leave nothing of the account behind — not on screen, not
+     in memory, and not queued to be written. There is no longer a localStorage
+     copy to worry about: emptying `mem` is the whole of it. */
   teardown() {
     clearTimeout(this.timer);
     clearTimeout(this.xpTimer);
+    clearTimeout(this.prefsTimer);
     this.queue.clear();
     this.queueDate = null;
     this.flushDate = null;
@@ -1625,6 +1593,13 @@ const sync = {
     history.clear();
     rowEls.clear();
     secEls.clear();
+    mem.ticks.clear();
+    mem.meta.clear();
+    mem.priority.clear();
+    mem.xpMonth.clear();
+    mem.peak = 0;
+    collapsedGroups = new Set();
+    setNotes(false);
     custom = { added: [], hidden: {}, doneOnce: {}, edits: {} };
     plan = null;
     viewDate = null;
@@ -1674,17 +1649,17 @@ const sync = {
     // Anything still queued from a token refresh goes up FIRST, so the
     // read-back below can't overwrite it with an older server copy.
     this.flush();
-    if (this.customPending) this.pushCustom();
+    if (this.customPending) await this.pushCustom();
     // The day is built here rather than at boot: everything below reads
-    // plan.date, and until an account is known there is no day to build.
-    // teardown() blanked custom without touching its localStorage copy, so a
-    // sign-out and back in re-reads it instead of rendering the bare list.
-    loadCustom();
+    // plan.date, and until an account is known there is no day to build. The
+    // added tasks and the folded sections belong to the account rather than to
+    // this device, so both are fetched before the first paint instead of being
+    // corrected after it.
+    await Promise.all([this.loadPrefs(), this.loadCustomRemote({ reconcile: false })]);
     await rebuild();
     this.setAuthState("in");
     this.attach();
     this.loadHistory();
-    this.loadCustomRemote();
     this.loadXp();
     this.attachTrackers();
     this.loadWeed();
@@ -1734,11 +1709,9 @@ const sync = {
         if (!/^\d{4}-\d{2}$/.test(d.id)) return;
         // The month in view is authoritative locally — it is being edited now.
         if (plan && d.id === monthKey(plan.date)) return;
-        try { localStorage.setItem(LS_XPMONTH + d.id, String(v.total || 0)); } catch {}
+        mem.xpMonth.set(d.id, Number(v.total) || 0);
       });
-      if (remotePeak > loadPeak()) {
-        try { localStorage.setItem(LS_XPPEAK, String(remotePeak)); } catch {}
-      }
+      if (remotePeak > loadPeak()) mem.peak = remotePeak;
       renderLevel();
     } catch (e) {
       console.warn("XP totals unavailable:", e);
@@ -1993,9 +1966,10 @@ const sync = {
     return f.doc(db, "users", this.uid, "config", "custom");
   },
 
-  /* Signed out this is remembered rather than dropped, and sent from onAuth().
-     Losing it here is what let removed tasks come back: the removal lived only
-     in localStorage, and the next sign-in overwrote it with the older remote copy. */
+  /* An edit made before onAuthStateChanged has answered is remembered rather
+     than dropped, and sent from onAuth(). Losing it is what let removed tasks
+     come back: the removal had reached nothing yet, and the sign-in read put
+     the older remote copy back on top of it. */
   customPending: false,
 
   async pushCustom() {
@@ -2063,6 +2037,53 @@ const sync = {
       rebuild();
       await this.pushCustom();
     } catch { /* offline — the local copy stands */ }
+  },
+
+  /* ---------- page preferences ----------
+     One small document holding the sections folded up and whether the detail
+     notes are showing. Written whole rather than merged: both fields are read
+     back off what is on screen, so there is nothing another device could be
+     holding that a whole-value write would lose. */
+  prefsRef() {
+    const { f, db } = this.fb;
+    return f.doc(db, "users", this.uid, "config", "prefs");
+  },
+
+  async loadPrefs() {
+    const { f } = this.fb;
+    try {
+      // Server first, cache second — the same shape attach() uses, so the
+      // sections don't unfold a moment after the list appears.
+      let snap;
+      try { snap = await f.getDocFromServer(this.prefsRef()); }
+      catch { snap = await f.getDoc(this.prefsRef()); }
+      const v = snap.exists() ? snap.data() : {};
+      collapsedGroups = new Set((Array.isArray(v.collapsed) ? v.collapsed : [])
+        .filter(title => typeof title === "string"));
+      setNotes(v.notes === true);
+    } catch (e) {
+      console.warn("Preferences unavailable:", e.code || e.message);
+    }
+  },
+
+  /* Folding four sections one after another is four taps and one write. */
+  pushPrefs() {
+    if (this.mode !== "signed-in") return;
+    clearTimeout(this.prefsTimer);
+    this.prefsTimer = setTimeout(() => this.flushPrefs(), 600);
+  },
+
+  async flushPrefs() {
+    clearTimeout(this.prefsTimer);
+    if (this.mode !== "signed-in") return;
+    const { f } = this.fb;
+    try {
+      await f.setDoc(this.prefsRef(), {
+        collapsed: [...collapsedGroups],
+        notes: notesOn,
+        updatedAt: f.serverTimestamp()
+      });
+    } catch { /* offline — the next toggle sends both fields again */ }
   },
 
   /* One bounded query per page load rather than a growing scan. */
@@ -2316,10 +2337,9 @@ async function applyOverride() {
   } catch { /* absent or unparseable — the derived day stands */ }
 }
 
-$("notesBtn").addEventListener("click", e => {
-  const on = document.body.classList.toggle("notes");
-  e.currentTarget.classList.toggle("on", on);
-  try { localStorage.setItem(LS_NOTES, on ? "1" : "0"); } catch {}
+$("notesBtn").addEventListener("click", () => {
+  setNotes(!notesOn);
+  sync.pushPrefs();
 });
 
 $("dayPrev").addEventListener("click", () => goToDay(shiftDate(plan.date, -1)));
@@ -2350,14 +2370,6 @@ document.addEventListener("keydown", e => {
   if (!$("scrim").hidden) closeModal();
   else if (priorityEditDate) cancelPriorityEdit();
 });
-
-loadCustom();
-loadCollapsed();
-
-if (localStorage.getItem(LS_NOTES) === "1") {
-  document.body.classList.add("notes");
-  $("notesBtn").classList.add("on");
-}
 
 loadDailyConfig().then(() => sync.init()).then(() => sync.watchLifecycle());
 </script>

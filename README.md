@@ -34,10 +34,23 @@ See `exercise/README.md` for the exercise schema, schedule, synchronization beha
 
 The Firebase web config in `shared/firebase-config.js` is public project identification, not an Admin credential. Service-account keys bypass rules and must never be committed. `dailyplan/firebase-config.js` re-exports it for the sections that still import the config through that path.
 
-DailyPlan still stores its independent ticks and optional Priority in one
-`users/{uid}/days/{YYYY-MM-DD}` document per date. Signed out, DailyPlan remains local-first;
-exercise is different and shows no routine or saved results until authentication and a fresh
-server read succeed.
+DailyPlan stores its independent ticks and optional Priority in one
+`users/{uid}/days/{YYYY-MM-DD}` document per date, its added and hidden tasks in
+`users/{uid}/config/custom`, and which sections are folded up plus the detail-notes toggle in
+`users/{uid}/config/prefs`. Like exercise, it shows nothing until someone is signed in.
+
+**Nothing about a day, a task or an account is kept in the browser.** DailyPlan used to mirror
+all of the above into `localStorage`, filed by date with no account in the key, which meant the
+next person to sign in on the same browser was shown the previous one's day — and, where their
+own account had no document yet, uploaded it into theirs. Everything now lives in memory while
+the page is open and in Firestore between visits. Firebase's own offline cache still keeps a
+copy on the device, which is what makes the page work with no signal; that cache is filed under
+the document path, so it can never be handed to another account, and `shared/firebase.js`
+clears it on sign-out. The page also wipes the old `localStorage` keys once, on load.
+
+Ideas, Streams and Finance still keep a browser copy and still work signed out. The same
+treatment is worth giving them, but some of what is in those pages may exist only in a browser
+and has to reach Firestore before the local copy is removed.
 
 ## Firebase setup and security
 
