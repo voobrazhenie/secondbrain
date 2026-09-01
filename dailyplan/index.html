@@ -503,7 +503,6 @@
 
 const FALLBACK = {"schemaVersion":1,"startDate":"2026-07-29","principles":{"title":"Notes for Radical Living","author":"Tilda Swinton","source":"from her book Ongoing, 2025","list":["Make friends with chaos","Hold a calm mind","Let things shake","Forgive human frailty","Champion second chances","Defy kindness","Reverence fellowship","Listen to the quiet","Respect the young","Seek growth","Trust in change","Treasure learning","Inspire faith in evolution","Reach beyond the binary","Be wary of the doubtless","Honor the bright headed","Grow plants","Attend to the weather","Be electric","Cherish language","Celebrate silence","Dance daily","Bless the handmade","Sing into pain","Challenge assumptions","Follow the wind","Look upwards","Swoon under clouds","Feel your courage","Face forward","Read history","Open your ears","Drop your shoulders","Bend your knees","Raise the roof","Keep breathing","Be trustworthy","Take care of yourself","Believe in goodness","Head for the light"]},"daily":[{"title":"Meds","emoji":"💊","items":[{"id":"m-stimulants","emoji":"💊","text":"Stimulants","detail":"As prescribed.","xp":10},{"id":"m-antidepressants","emoji":"💊","text":"Antidepressants","detail":"As prescribed. Consistent time of day.","xp":10}]},{"title":"Tasks","emoji":"📋","keepEmpty":true,"items":[]},{"title":"Eat","emoji":"🍳","note":"Protein is the non-negotiable — 1.8–2.2 g per kg per day. Four anchors of 35–45 g beats trying to rescue the number at dinner. The failure mode isn't one light day, it's three in a row.","items":[{"id":"e-anchor-1","emoji":"🥣","text":"Breakfast protein anchor","detail":"Greek yoghurt or skyr + eggs, or a shake with milk.","xp":15},{"id":"e-anchor-2","emoji":"🥗","text":"Lunch protein anchor","detail":"Palm-and-a-half of chicken / fish / beef / tofu.","xp":15},{"id":"e-anchor-4","emoji":"🍽️","text":"Dinner protein anchor","detail":"The one that usually rescues the day's total.","xp":15},{"id":"e-water","emoji":"💧","text":"Water through the day","detail":"Pale straw, not clear. Creatine raises water needs slightly.","xp":10},{"id":"e-track","emoji":"🔢","text":"Logged protein today","detail":"Only needed for the first 2–3 weeks, to calibrate. After that you'll know your portions by eye.","xp":15},{"id":"e-creatine","emoji":"⚡","text":"Creatine · 5 g","detail":"Any time of day. No loading phase needed.","xp":10}]},{"title":"Care","emoji":"🧴","note":"Minoxidil every evening, except on microneedling days — the skin needs about a day and a half to close up before anything goes on it again.","items":[{"id":"c-microneedling","emoji":"🪡","text":"Microneedling","detail":"Morning. Every 14 days. No minoxidil this evening — resume tomorrow evening.","xp":25,"every":14,"anchor":"2026-08-05"},{"id":"c-minoxidil","emoji":"💧","text":"Minoxidil","detail":"Evening, on dry scalp. Hides itself automatically on microneedling days.","xp":15,"skipWhen":["c-microneedling"]}]},{"title":"Train","emoji":"🏋️","note":"Ticked for you when you finish a workout on the exercise page — you do not need to tick it by hand.","items":[{"id":"t-workout","emoji":"🏋️","text":"Physical training","detail":"One full equipment-free session, up to three a week. Signed off on the exercise page.","xp":25}]},{"title":"Recover","emoji":"🌙","items":[{"id":"r-sleep","emoji":"😴","text":"7–9 hours, consistent wake time","detail":"Short sleep measurably suppresses muscle gain and raises appetite. Consistent wake time matters more than consistent bedtime.","xp":20},{"id":"r-smoked-weed","emoji":"🌿","text":"Didn't smoke weed","detail":"Ticked for you. Untick it on a day you did smoke — that is the only thing stored, and it costs the 15 XP a clean day pays.","xp":15,"invert":true},{"id":"r-cold-shower","emoji":"🧊","text":"Cold shower","detail":"Not in the hour after training — cold blunts the growth signal.","xp":15},{"id":"r-meditation","emoji":"🧘","text":"Meditation","xp":15}]},{"title":"Home","emoji":"🏠","items":[{"id":"home-water-flowers","emoji":"🪴","text":"Water flowers","detail":"Every three days.","xp":10,"every":3,"anchor":"2026-08-07"}]}],"oneOffs":{"title":"Setup","emoji":"🎯","note":"These disappear for good once ticked.","items":[{"id":"s-measure","emoji":"📏","text":"Weigh + measure waist","detail":"Morning, unflexed, before eating. This is the one thing here that gets worse by waiting — a starting number taken next week isn't a starting number.","xp":35},{"id":"s-supplements","emoji":"🛒","text":"Buy creatine and whey","xp":20}]}};
 
-const SDK        = "https://www.gstatic.com/firebasejs/12.16.0/";
 const LS_PREFIX  = "secondbrain.dailyplan.v2.";
 const LS_META    = "secondbrain.dailyplan.meta.v2.";
 const LS_NOTES   = "secondbrain.fitness.notes";
@@ -1573,6 +1572,9 @@ function updateTracker(on) {
   renderCounter();
 }
 
+/* shared/firebase.js, once init() has pulled it in. */
+let fbLib = null;
+
 /* ================= sync layer =================
    Firebase decides what this page shows. Without a signed-in account there is
    no day, no counter and no list — see setAuthState(). Nothing here may throw
@@ -1633,36 +1635,27 @@ const sync = {
     for (const id of ["counter", "level", "priorityWrap", "scrim"]) $(id).hidden = true;
   },
 
+  /* Connecting, and knowing who is signed in, is shared/firebase.js's job now.
+     What a failure says, and the gate it leaves the page in, stays here — the
+     other sections word both differently on purpose. */
   async init() {
-    let config = null;
-    try { ({ firebaseConfig: config } = await import("./firebase-config.js")); }
-    catch { /* file:// origin, or the file is missing — stay local */ }
-    if (!config || !config.projectId) {
+    try {
+      fbLib = await import("../shared/firebase.js");
+      this.fb = await fbLib.connect();
+    } catch (e) {
       this.setAuthState("err");
-      this.setUI("err", "Sync isn't configured, so there's nothing to show here.",
-        "Reload", () => location.reload());
+      if (e && e.code === "no-config") {
+        this.setUI("err", "Sync isn't configured, so there's nothing to show here.",
+          "Reload", () => location.reload());
+      } else {
+        console.warn("Firebase unavailable:", e);
+        this.setUI("err", "Couldn't reach Firebase, so there's nothing to show here.",
+          "Reload", () => location.reload());
+      }
       return;
     }
-    try {
-      const [{ initializeApp }, authMod, fsMod] = await Promise.all([
-        import(SDK + "firebase-app.js"),
-        import(SDK + "firebase-auth.js"),
-        import(SDK + "firebase-firestore.js")
-      ]);
-      const app = initializeApp(config);
-      const db = fsMod.initializeFirestore(app, {
-        localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() })
-      });
-      this.fb = { auth: authMod.getAuth(app), db, a: authMod, f: fsMod };
-      this.mode = "signed-out";
-      authMod.getRedirectResult(this.fb.auth).catch(() => {});
-      authMod.onAuthStateChanged(this.fb.auth, u => this.onAuth(u));
-    } catch (e) {
-      console.warn("Firebase unavailable:", e);
-      this.setAuthState("err");
-      this.setUI("err", "Couldn't reach Firebase, so there's nothing to show here.",
-        "Reload", () => location.reload());
-    }
+    this.mode = "signed-out";
+    fbLib.watchAuth(this.fb, u => this.onAuth(u));
   },
 
   async onAuth(user) {
@@ -1841,30 +1834,15 @@ const sync = {
       e => console.warn("Tracker sync dropped:", e.code || e.message));
   },
 
+  /* The popup, its redirect fallback and the wording of a failed sign-in are
+     shared/firebase.js's. Where any of it appears is this page's status line. */
   async signIn() {
-    const { a, auth } = this.fb;
-    try {
-      this.setUI("off", "Opening Google sign-in…");
-      await a.signInWithPopup(auth, new a.GoogleAuthProvider());
-    } catch (e) {
-      const code = e && e.code || "";
-      if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
-        try {
-          this.setUI("off", "Redirecting to Google…");
-          await a.signInWithRedirect(auth, new a.GoogleAuthProvider());
-          return;
-        } catch (e2) { e = e2; }
-      }
-      const msg =
-        code === "auth/unauthorized-domain" ? "This domain isn't authorised in Firebase Auth settings yet."
-      : code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" ? "Sign-in was cancelled."
-      : `Sign-in failed (${e.code || e.message}).`;
-      this.setUI("err", msg, "Try again", () => this.signIn());
-    }
+    const msg = await fbLib.signIn(this.fb, text => this.setUI("off", text));
+    if (msg) this.setUI("err", msg, "Try again", () => this.signIn());
   },
 
   async signOut() {
-    try { await this.fb.a.signOut(this.fb.auth); }
+    try { await fbLib.signOut(this.fb); }
     catch (e) { this.setUI("err", `Couldn't sign out (${e.message}).`, "Try again", () => this.signOut()); }
   },
 
