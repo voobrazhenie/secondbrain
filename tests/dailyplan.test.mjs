@@ -100,3 +100,43 @@ test("folded sections come back from the account, not from the device", { skip }
   await signIn(page);
   assert.deepEqual(await page.evaluate(() => [...collapsedGroups]), ["Recover"]);
 });
+
+/* Three kinds of added task, and the one that matters most is the default: a
+   list that carries everything forward stops being a list of today. */
+test("a task added for today is gone tomorrow; a routine and a carried one are not", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [plan("uidA"), features("uidA", ["dailyplan"])]
+  });
+  await signIn(page);
+
+  const addTo = async (group, text, how) => {
+    await page.evaluate(g => openAdd(g), group);
+    if (how !== undefined) await page.selectOption("#mScope", how);
+    await page.fill("#mText", text);
+    await page.click("#mSave");
+    await page.waitForTimeout(500);
+  };
+  const rows = () => page.evaluate(() =>
+    [...document.querySelectorAll("#list .row .t, #list .row .txt, #list .row")].map(e => e.textContent.trim()));
+  const showing = async text => (await rows()).some(t => t.includes(text));
+
+  await page.evaluate(() => openAdd("To do"));
+  assert.equal(await page.evaluate(() => document.getElementById("mScope").value), "today",
+    "Just today is what the form opens on");
+  await page.click("#mCancel");
+
+  await addTo("To do", "Buy milk");                 // default: just today
+  await addTo("To do", "Stretch", "daily");
+  await addTo("To do", "Call the bank", "carry");
+  assert.equal(await showing("Buy milk"), true);
+  assert.equal(await showing("Stretch"), true);
+  assert.equal(await showing("Call the bank"), true);
+
+  await page.click("#dayNext");
+  await page.waitForTimeout(900);
+  assert.equal(await showing("Buy milk"), false, "gone tomorrow, ticked or not");
+  assert.equal(await showing("Stretch"), true, "a routine task is on every day");
+  assert.equal(await showing("Call the bank"), true, "a carried task stays until it is done");
+  assert.deepEqual(problems, []);
+});

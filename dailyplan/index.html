@@ -479,7 +479,8 @@
     <div id="mScopeWrap">
       <label for="mScope">HOW OFTEN</label>
       <select id="mScope">
-        <option value="daily">Every day</option>
+        <option value="today">Just today</option>
+        <option value="daily">Routine — every day</option>
         <option value="carry">Until it's done</option>
       </select>
     </div>
@@ -826,15 +827,19 @@ function saveCustom({ push = true } = {}) {
 const newId = () => "u-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 /* Applies hides and text edits, then folds in anything you added. */
-/* A task you add is either part of the routine ("daily") or a one-off that
-   carries until it is done. A carried task stores the day it was created and
-   the day it was finished, and those two dates are the whole mechanism: it
-   shows from `created` up to and including `done`, and nowhere else. Nothing
-   runs overnight to move it — every day is worked out from the dates when the
-   page draws it.
+/* A task you add is one of three things.
 
-   `scope` is the older shape: a bare date meant that day only. Those stay as
-   they were rather than being resurrected onto today's list. */
+   Just today — `scope` is that one date. It is the default, and it is gone
+   tomorrow whether or not it was ever ticked, which is the point of it: a list
+   that carries everything forward stops being a list of today.
+
+   Routine, every day — `scope` is "daily", so it is on every day's list.
+
+   Until it's done — `carry`, which stores the day it was created and the day it
+   was finished. Those two dates are the whole mechanism: it shows from
+   `created` up to and including `done`, and nowhere else. Nothing runs
+   overnight to move it; every day is worked out from the dates when the page
+   draws it. */
 function showsOn(a, date) {
   if (a.carry) {
     if (a.created && date < a.created) return false;
@@ -1279,7 +1284,7 @@ function openAdd(group) {
   $("mTitle").textContent = `ADD TO ${group.toUpperCase()}`;
   $("mText").value = ""; $("mEmoji").value = ""; $("mXp").value = "10";
   $("mScopeWrap").style.display = "";
-  $("mScope").value = "daily";
+  $("mScope").value = "today";
   $("scrim").hidden = false;
   setTimeout(() => $("mText").focus(), 30);
 }
@@ -1293,7 +1298,7 @@ function openEdit(item) {
   // How often only applies to tasks you added — programme items are every day.
   const own = custom.added.find(a => a.id === item.id);
   $("mScopeWrap").style.display = own ? "" : "none";
-  if (own) $("mScope").value = own.scope === "daily" ? "daily" : "carry";
+  if (own) $("mScope").value = own.carry ? "carry" : own.scope === "daily" ? "daily" : "today";
   $("scrim").hidden = false;
   setTimeout(() => $("mText").focus(), 30);
 }
@@ -1305,29 +1310,30 @@ function saveModal() {
   if (!text) { $("mText").focus(); return; }
   const emoji = $("mEmoji").value.trim() || "✅";
   const xp = Math.max(0, Math.min(99, parseInt($("mXp").value, 10) || 0));
-  const carry = $("mScope").value === "carry";
+  const how = $("mScope").value;
 
   if (editing) {
     const own = custom.added.find(a => a.id === editing.id);
     if (own) {
       Object.assign(own, { text, emoji, xp });
-      if (carry) {
-        // Switching a routine item to a carried one starts its clock today.
+      if (how === "carry") {
+        // Switching a task to a carried one starts its clock on the day in view.
         own.carry = true;
         own.created = own.created || plan.date;
         delete own.scope;
       } else {
-        own.scope = "daily";
+        own.scope = how === "daily" ? "daily" : plan.date;
         delete own.carry; delete own.created; delete own.done;
       }
     } else {
       custom.edits[editing.id] = { text, emoji, xp };
     }
-  } else if (carry) {
+  } else if (how === "carry") {
     custom.added.push({ id: newId(), text, emoji, xp, group: addGroup,
                         carry: true, created: plan.date, done: "" });
   } else {
-    custom.added.push({ id: newId(), text, emoji, xp, group: addGroup, scope: "daily" });
+    custom.added.push({ id: newId(), text, emoji, xp, group: addGroup,
+                        scope: how === "daily" ? "daily" : plan.date });
   }
   saveCustom();
   closeModal();
