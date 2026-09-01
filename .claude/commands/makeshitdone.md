@@ -22,7 +22,7 @@ resolving, search Trello boards for "Second Brain" as a fallback).
       — see `.claude/agents/code-reviewer.md` and
       `.claude/agents/fullstack-developer.md` for the checklist (Firestore
       exercise writes use nested FieldPath updates, exercise reads are
-      server-only, `daily.json` → `index.html` FALLBACK mirroring is current,
+      server-only, DailyPlan's routine stays account data rather than a file,
       no full DailyPlan `render()` mid-interaction, and item ids stay stable).
       For anything UI-facing in `dailyplan/index.html`, test it for real —
       serve it locally and drive it with headless Chromium — don't just

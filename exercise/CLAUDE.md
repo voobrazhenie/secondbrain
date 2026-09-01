@@ -24,11 +24,12 @@ DailyPlan never reads or writes this collection. There is no compatibility layer
 exercise schema.
 
 The link runs one way only: signing off a workout also ticks `t-workout` (**Physical training**) in
-`users/{uid}/days/{date}`, which DailyPlan owns. Only the tick is written — this page has no copy of
-`daily.json` and cannot compute the day's XP, which DailyPlan recomputes from its own ticks on its
+`users/{uid}/days/{date}`, which DailyPlan owns. Only the tick is written — this page does not know
+the person's routine and cannot compute the day's XP, which DailyPlan recomputes from its own ticks on its
 next render, so the stored `xpEarned` lags until then. A failed tick must never fail the workout:
-the session is already signed off by that point. The id is duplicated as `DAILY_TICK_ID` in `app.js`
-and as an item in `dailyplan/daily.json`; `app.test.mjs` fails if one is renamed without the other.
+the session is already signed off by that point. The id lives as `DAILY_TICK_ID` in `app.js` and has to
+match the Physical training item in the person's own routine, which is account data now — so
+nothing checks it. A tick written for a routine without that item is harmless and unrendered.
 
 ## Auth and server reads
 

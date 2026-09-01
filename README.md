@@ -7,18 +7,12 @@ Live site: **https://voobrazhenie.github.io/secondbrain/**
 ## Pages and configuration
 
 - `exercise/` is the authenticated workout-session page. Its plan is `dailyplan/plan.json`; scheduling code and tests live in `exercise/schedule.mjs` and `exercise/schedule.test.mjs`.
-- `dailyplan/` is the separate recurring-task checklist. Its non-exercise configuration is `dailyplan/daily.json`.
+- `dailyplan/` is the separate recurring-task checklist. Its routine — the categories, their items, and the date day one is counted from — belongs to whoever is signed in, in `users/{uid}/config/plan`. There is no routine in this repository: a new account opens with an empty list and fills it in.
 - `jobs/`, `streams/`, `ideas/`, `finance/`, and `cleaning/` are unrelated features and retain their existing data models. `jobs/` splits its list into UNREAD, CURRENT and NOT RELEVANT: `unread: true` is where a research pass puts everything it finds, so nothing joins the working list until he has read it; `parked: true` on a job doc is Nikita saying no to it, and `.claude/agents/job-scout.md` treats that as permanent so a later research pass never offers the same role twice. `focus: true` is his own highlight, and shows as a pink drag handle.
 - `opportunities/` is the private grants / residencies / exhibitions tracker. It is signed-in only — signed-out visitors see a sign-in prompt and no data — and stores one document per entry in `users/{uid}/opportunities/{id}`.
 - `firestore.rules` applies strict schema validation to exercise documents while preserving owner-only access for other user data.
 - `shared/` holds what every synced section needs rather than one of them: `shared/firebase-config.js` is the single copy of the public Firebase config, and `shared/firebase.js` is the sign-in plumbing — connecting, reporting who is signed in, and running sign-in and sign-out. It deliberately owns nothing visible. Each page keeps its own wording, its own status line, and its own decision about what a signed-out visitor sees, because the sections do not agree about that and moving the plumbing must not quietly make them agree. `dailyplan/` reads it; the other sections still carry their own copy and move over one at a time.
 - `theme.css` at the repo root is the shared design system: colours, stroke width, shadow, the `.handle` drag grip, the `.crumbs` breadcrumb header, and `--page-width`, the one column width every section uses. Every page links it. `cleaning/` links it for the width, breadcrumb and handle but still overrides the colour tokens with its own `:root` until it is redesigned. The stylesheet also carries the house rules for glyphs — no new emoji, no directional arrows, and ▾/▴ on cards is the deliberate exception.
-
-DailyPlan keeps an embedded copy of `daily.json` for `file://` use. After changing `daily.json`, run:
-
-```bash
-node tools/embed-daily-config.mjs
-```
 
 The exercise page deliberately has no embedded signed-out routine. Firebase authentication must resolve and a fresh server read must succeed before exercises render.
 
@@ -34,10 +28,18 @@ See `exercise/README.md` for the exercise schema, schedule, synchronization beha
 
 The Firebase web config in `shared/firebase-config.js` is public project identification, not an Admin credential. Service-account keys bypass rules and must never be committed. `dailyplan/firebase-config.js` re-exports it for the sections that still import the config through that path.
 
-DailyPlan stores its independent ticks and optional Priority in one
-`users/{uid}/days/{YYYY-MM-DD}` document per date, its added and hidden tasks in
-`users/{uid}/config/custom`, and which sections are folded up plus the detail-notes toggle in
+DailyPlan stores its routine — the categories, their items, and the start date day one is
+counted from — in `users/{uid}/config/plan`; its ticks and optional Priority in one
+`users/{uid}/days/{YYYY-MM-DD}` document per date; its added and hidden tasks in
+`users/{uid}/config/custom`; and which sections are folded up plus the detail-notes toggle in
 `users/{uid}/config/prefs`. Like exercise, it shows nothing until someone is signed in.
+
+**The routine belongs to the account, not to this repository.** It used to be `dailyplan/daily.json`,
+mirrored into `index.html` as a `FALLBACK` constant, which meant any account signing in was shown
+Nikita's medication and his weed tracker — and that the same list sat in a public repository. Both
+files are gone. An account with no routine gets an empty one written for it, dated the day it first
+signs in: no categories, no items, day one today, and the add button to fill it in. Removing the
+file does not remove it from this repository's history.
 
 **Nothing about a day, a task or an account is kept in the browser.** DailyPlan used to mirror
 all of the above into `localStorage`, filed by date with no account in the key, which meant the

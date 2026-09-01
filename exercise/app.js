@@ -9,7 +9,8 @@ const PLAN_VERSION = 2;
 const ROUTINE_SIZE = 8;
 
 /* The DailyPlan item this page ticks on sign-off. DailyPlan owns the id; it
-   lives in dailyplan/daily.json and must not be renamed on one side only. */
+   is the id DailyPlan's own routine uses for it. An account whose routine has
+   no such item still gets the tick written; nothing renders it. */
 const DAILY_TICK_ID = "t-workout";
 
 /* Rest between sets, and the longer break when an exercise is finished. Device
@@ -853,7 +854,7 @@ async function completeWorkout() {
 }
 
 /* Ticks Physical training on the DailyPlan day. Only the tick is written: this
-   page has no copy of daily.json and so cannot compute the day's XP, which
+   page does not know the person's routine and so cannot compute the day's XP, which
    DailyPlan recomputes from its own ticks the next time it renders. A failure
    here must not fail the workout — the session is already signed off. */
 async function tickDailyPlan(uid) {

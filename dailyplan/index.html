@@ -501,8 +501,6 @@
 <script>
 "use strict";
 
-const FALLBACK = {"schemaVersion":1,"startDate":"2026-07-29","principles":{"title":"Notes for Radical Living","author":"Tilda Swinton","source":"from her book Ongoing, 2025","list":["Make friends with chaos","Hold a calm mind","Let things shake","Forgive human frailty","Champion second chances","Defy kindness","Reverence fellowship","Listen to the quiet","Respect the young","Seek growth","Trust in change","Treasure learning","Inspire faith in evolution","Reach beyond the binary","Be wary of the doubtless","Honor the bright headed","Grow plants","Attend to the weather","Be electric","Cherish language","Celebrate silence","Dance daily","Bless the handmade","Sing into pain","Challenge assumptions","Follow the wind","Look upwards","Swoon under clouds","Feel your courage","Face forward","Read history","Open your ears","Drop your shoulders","Bend your knees","Raise the roof","Keep breathing","Be trustworthy","Take care of yourself","Believe in goodness","Head for the light"]},"daily":[{"title":"Meds","emoji":"💊","items":[{"id":"m-stimulants","emoji":"💊","text":"Stimulants","detail":"As prescribed.","xp":10},{"id":"m-antidepressants","emoji":"💊","text":"Antidepressants","detail":"As prescribed. Consistent time of day.","xp":10}]},{"title":"Tasks","emoji":"📋","keepEmpty":true,"items":[]},{"title":"Eat","emoji":"🍳","note":"Protein is the non-negotiable — 1.8–2.2 g per kg per day. Four anchors of 35–45 g beats trying to rescue the number at dinner. The failure mode isn't one light day, it's three in a row.","items":[{"id":"e-anchor-1","emoji":"🥣","text":"Breakfast protein anchor","detail":"Greek yoghurt or skyr + eggs, or a shake with milk.","xp":15},{"id":"e-anchor-2","emoji":"🥗","text":"Lunch protein anchor","detail":"Palm-and-a-half of chicken / fish / beef / tofu.","xp":15},{"id":"e-anchor-4","emoji":"🍽️","text":"Dinner protein anchor","detail":"The one that usually rescues the day's total.","xp":15},{"id":"e-water","emoji":"💧","text":"Water through the day","detail":"Pale straw, not clear. Creatine raises water needs slightly.","xp":10},{"id":"e-track","emoji":"🔢","text":"Logged protein today","detail":"Only needed for the first 2–3 weeks, to calibrate. After that you'll know your portions by eye.","xp":15},{"id":"e-creatine","emoji":"⚡","text":"Creatine · 5 g","detail":"Any time of day. No loading phase needed.","xp":10}]},{"title":"Care","emoji":"🧴","note":"Minoxidil every evening, except on microneedling days — the skin needs about a day and a half to close up before anything goes on it again.","items":[{"id":"c-microneedling","emoji":"🪡","text":"Microneedling","detail":"Morning. Every 14 days. No minoxidil this evening — resume tomorrow evening.","xp":25,"every":14,"anchor":"2026-08-05"},{"id":"c-minoxidil","emoji":"💧","text":"Minoxidil","detail":"Evening, on dry scalp. Hides itself automatically on microneedling days.","xp":15,"skipWhen":["c-microneedling"]}]},{"title":"Train","emoji":"🏋️","note":"Ticked for you when you finish a workout on the exercise page — you do not need to tick it by hand.","items":[{"id":"t-workout","emoji":"🏋️","text":"Physical training","detail":"One full equipment-free session, up to three a week. Signed off on the exercise page.","xp":25}]},{"title":"Recover","emoji":"🌙","items":[{"id":"r-sleep","emoji":"😴","text":"7–9 hours, consistent wake time","detail":"Short sleep measurably suppresses muscle gain and raises appetite. Consistent wake time matters more than consistent bedtime.","xp":20},{"id":"r-smoked-weed","emoji":"🌿","text":"Didn't smoke weed","detail":"Ticked for you. Untick it on a day you did smoke — that is the only thing stored, and it costs the 15 XP a clean day pays.","xp":15,"invert":true},{"id":"r-cold-shower","emoji":"🧊","text":"Cold shower","detail":"Not in the hour after training — cold blunts the growth signal.","xp":15},{"id":"r-meditation","emoji":"🧘","text":"Meditation","xp":15}]},{"title":"Home","emoji":"🏠","items":[{"id":"home-water-flowers","emoji":"🪴","text":"Water flowers","detail":"Every three days.","xp":10,"every":3,"anchor":"2026-08-07"}]}],"oneOffs":{"title":"Setup","emoji":"🎯","note":"These disappear for good once ticked.","items":[{"id":"s-measure","emoji":"📏","text":"Weigh + measure waist","detail":"Morning, unflexed, before eating. This is the one thing here that gets worse by waiting — a starting number taken next week isn't a starting number.","xp":35},{"id":"s-supplements","emoji":"🛒","text":"Buy creatine and whey","xp":20}]}};
-
 /* Keys this page used to write. Nothing reads them any more — they are listed
    so a device that ran the old version can be cleaned of them once. */
 const LEGACY_KEYS = [
@@ -537,7 +535,11 @@ const $ = id => document.getElementById(id);
 const DEV_DATE = new URLSearchParams(location.search).get("date");
 
 let viewDate = null;  // the day being looked at; null means today
-let dailyConfig = null; // daily.json; workout configuration is separate
+/* The routine, once the account has been read. Until then, and for an account
+   that has not written one yet, it is empty: this page shows what its owner put
+   in it and nothing else. Workout configuration is separate. */
+const emptyPlan = () => ({ schemaVersion: 1, startDate: todayISO(), principles: null, daily: [], oneOffs: null });
+let dailyConfig = emptyPlan();
 let plan    = null;   // today, derived from it
 /* ---------- what this page knows, while it is open ----------
    Everything below used to be mirrored into localStorage, and that is what let
@@ -803,10 +805,10 @@ function everTicked(id, exceptDate) {
 }
 
 /* ---------- your changes on top of the daily configuration ----------
-   daily.json is shared configuration and the page can't write to it, so anything
-   you add, edit or delete lives here instead and is layered over the derived day.
-   Kept in users/{uid}/config/custom so it follows you between devices like the
-   ticks do. */
+   The routine in users/{uid}/config/plan is the shape of the day, and this page
+   has no editor for it, so anything you add, edit or delete lives here instead
+   and is layered over the derived day. Kept in users/{uid}/config/custom so it
+   follows you between devices like the ticks do. */
 let custom = { added: [], hidden: {}, doneOnce: {}, edits: {} };
 
 function saveCustom({ push = true } = {}) {
@@ -881,7 +883,7 @@ function applyCustom(groups, date) {
 function deriveDay(date) {
   const groups = [];
 
-  for (const g of dailyConfig.daily) {
+  for (const g of dailyConfig.daily || []) {
     const items = scheduleFilter(g.items, date).map(i => ({ ...i, text: itemText(i) }));
     if (items.length || g.keepEmpty) groups.push({ ...g, items });
   }
@@ -1598,6 +1600,7 @@ const sync = {
     mem.priority.clear();
     mem.xpMonth.clear();
     mem.peak = 0;
+    dailyConfig = emptyPlan();
     collapsedGroups = new Set();
     setNotes(false);
     custom = { added: [], hidden: {}, doneOnce: {}, edits: {} };
@@ -1655,6 +1658,8 @@ const sync = {
     // added tasks and the folded sections belong to the account rather than to
     // this device, so both are fetched before the first paint instead of being
     // corrected after it.
+    // The routine first: everything below derives a day from it.
+    await this.loadPlan();
     await Promise.all([this.loadPrefs(), this.loadCustomRemote({ reconcile: false })]);
     await rebuild();
     this.setAuthState("in");
@@ -2039,6 +2044,48 @@ const sync = {
     } catch { /* offline — the local copy stands */ }
   },
 
+  /* ---------- the routine ----------
+     What the day is made of: the categories, their items, and the date day one
+     is counted from. This used to be daily.json, a file in the repository, which
+     meant every account that signed in was shown Nikita's medication and his
+     weed tracker. It is one person's routine, so it lives with the person.
+
+     An account without one gets an empty routine written for it, dated today.
+     That is what a new person should open: nothing on the list, day one today,
+     and the add button to fill it in. */
+  planRef() {
+    const { f, db } = this.fb;
+    return f.doc(db, "users", this.uid, "config", "plan");
+  },
+
+  async loadPlan() {
+    const { f } = this.fb;
+    let v = null;
+    try {
+      // Server first, cache second — the same shape attach() uses.
+      let snap;
+      try { snap = await f.getDocFromServer(this.planRef()); }
+      catch { snap = await f.getDoc(this.planRef()); }
+      if (snap.exists()) v = snap.data();
+    } catch (e) {
+      // Leave whatever is already loaded rather than blanking a working page.
+      console.warn("Routine unavailable:", e.code || e.message);
+      return;
+    }
+    if (!v) {
+      v = emptyPlan();
+      try { await f.setDoc(this.planRef(), { ...v, updatedAt: f.serverTimestamp() }); }
+      catch { /* offline — written on the next sign-in, and empty until then */ }
+    }
+    dailyConfig = {
+      schemaVersion: v.schemaVersion || 1,
+      startDate: isISODate(v.startDate) ? v.startDate : todayISO(),
+      principles: v.principles || null,
+      daily: Array.isArray(v.daily) ? v.daily : [],
+      oneOffs: v.oneOffs || null
+    };
+  },
+
   /* ---------- page preferences ----------
      One small document holding the sections folded up and whether the detail
      notes are showing. Written whole rather than merged: both fields are read
@@ -2280,6 +2327,7 @@ const sync = {
     const now = Date.now();
     if (now - this.lastRefresh < 45000) return;
     this.lastRefresh = now;
+    await this.loadPlan();
     await this.loadHistory();
     await this.loadCustomRemote({ reconcile: false });
     await this.loadXp();
@@ -2306,19 +2354,10 @@ const sync = {
 };
 
 /* ---------- load ----------
-   The page derives the day itself, so it can no longer go stale waiting for
-   someone to publish a new list. An override file is the rare escape hatch for
-   a day that needs something the rules can't express. */
-async function loadDailyConfig() {
-  let fetched = null;
-  try {
-    const res = await fetch(`daily.json?t=${Date.now()}`, { cache:"no-store" });
-    if (res.ok) fetched = await res.json();
-  } catch { /* file:// or offline — the embedded copy below covers it */ }
-
-  dailyConfig = fetched || FALLBACK;
-}
-
+   The routine comes from the account, in sync.loadPlan(). The page derives the
+   day from it, so it can no longer go stale waiting for someone to publish a
+   new list. An override file is the rare escape hatch for a day that needs
+   something the rules can't express. */
 async function rebuild() {
   const prevDate = plan && plan.date;
   plan = deriveDay(viewDate || todayISO());
@@ -2371,7 +2410,7 @@ document.addEventListener("keydown", e => {
   else if (priorityEditDate) cancelPriorityEdit();
 });
 
-loadDailyConfig().then(() => sync.init()).then(() => sync.watchLifecycle());
+sync.init().then(() => sync.watchLifecycle());
 </script>
 </body>
 </html>

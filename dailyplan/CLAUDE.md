@@ -17,8 +17,8 @@ Due-ness is measured from when the item was **actually last ticked** (`lastTicke
 not from the calendar — miss a day and it stays due, carrying forward, until it's done. The
 next cycle then counts `every` days from that real completion, not from the original anchor.
 This is the general mechanism for anything that doesn't happen every day (microneedling every
-14 days, watering flowers every 3) — extend it with a new `every`/`anchor` pair in `daily.json`,
-don't hardcode a one-off case in `deriveDay()`.
+14 days, watering flowers every 3) — extend it with a new `every`/`anchor` pair on the item in
+the account's routine, don't hardcode a one-off case in `deriveDay()`.
 
 ## Carried tasks — `carry`/`created`/`done`
 
@@ -66,15 +66,16 @@ This page owns only DailyPlan tasks in `users/{uid}/days/{date}`. It does not di
 rows, select workout sessions, or read/write `exerciseDays`.
 
 The separation is no longer total, and the exception runs one way. The exercise page writes one
-tick into this page's own collection — `ticks['t-workout']`, the **Physical training** item in
-`daily.json` — when a workout is signed off. Nothing here reaches back the other way.
+tick into this page's own collection — `ticks['t-workout']`, the id the **Physical training** item
+carries in a routine — when a workout is signed off. Nothing here reaches back the other way.
 
 Two consequences to know before touching either side:
 
-- **`t-workout` is a shared id.** It is written by `exercise/app.js` (as `DAILY_TICK_ID`) and
-  defined in `daily.json`. Renaming or removing the item silently breaks the tick;
-  `exercise/app.test.mjs` fails if the two drift apart.
-- **The exercise page cannot compute XP.** It has no copy of `daily.json`, so it writes the tick
+- **`t-workout` is a shared id.** It is written by `exercise/app.js` (as `DAILY_TICK_ID`) and has to
+  be the id of the Physical training item in the routine for the tick to show. Nothing can check
+  that any more — routines belong to accounts, not to this repository — so an account whose routine
+  has no such item simply carries an unrendered tick on the day.
+- **The exercise page cannot compute XP.** It does not know the person's routine, so it writes the tick
   and nothing else. `xpEarned` on that day's document stays stale until this page next renders and
   recomputes it from its own ticks — which is why `xpEarned` is recomputed wholesale rather than
   incremented.
@@ -181,8 +182,8 @@ The top-bar pill is a *different* count (days anything was ticked) and is labell
 SHOWING UP for that reason — two unlabelled day counts side by side read as the same
 number.
 
-`dailyConfig.principles` is still in `daily.json` but nothing renders it. It remains part of the
-embedded fallback so removing it is a separate content decision.
+`dailyConfig.principles` is carried in the routine document but nothing renders it. It is read and
+kept so a routine round-trips unchanged; removing it is a separate content decision.
 
 ## The auth gate
 
@@ -202,8 +203,8 @@ branch, and it is what actually stops the pre-auth paint. Everything after it re
 The cost is real and was accepted deliberately: **this page no longer works signed out,
 offline on a cold cache, or from `file://`.** If the three `gstatic.com` module imports
 fail there is nothing to show, so both `init()` failure paths offer a Reload rather than
-leaving a dead page. `FALLBACK` still matters for a slow `daily.json`, not for offline
-use. A service worker precaching the SDK is the fix if that ever bites.
+leaving a dead page. There is no embedded routine any more, so a cold cache means a sign-in
+prompt and nothing else. A service worker precaching the SDK is the fix if that ever bites.
 
 `localStorage` is deliberately **not** cleared on sign-out. Collapsed sections, notes and
 priority drafts are this browser's settings; ticks, XP months and the custom document
@@ -242,8 +243,13 @@ is what keeps one-offs finished before this existed hidden, but it is only a fal
 scans day records, which depend on this browser's localStorage or the 90-day Firestore window,
 so it cannot be the durable answer on its own.
 
-## `daily.json` / `FALLBACK`
+## The routine
 
-`daily.json` is mirrored inline into `index.html` as the `FALLBACK` constant for `file://` use.
-After every edit run `node tools/embed-daily-config.mjs`. Exercise `plan.json` is separate and is
-never embedded into DailyPlan.
+The routine lives in `users/{uid}/config/plan` — `{ schemaVersion, startDate, principles, daily,
+oneOffs }`, the shape the old `daily.json` had. `sync.loadPlan()` reads it at sign-in and again on
+returning to the page; an account without one gets an empty routine written for it, dated that day.
+
+It used to be `dailyplan/daily.json`, mirrored into `index.html` as a `FALLBACK` constant by
+`tools/embed-daily-config.mjs`. Both are gone, and neither should come back: a routine in this
+repository is shown to every account that signs in, and this one is public. Exercise `plan.json` is
+separate and is genuinely shared configuration — it is the same eight movements for anyone.

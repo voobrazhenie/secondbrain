@@ -11,10 +11,10 @@ models. Map of the repo so you don't have to rediscover it every time:
 
 - `index.html` (repo root) — home page, progress bar, links to every section below.
 - `dailyplan/index.html` — the separate recurring-task list. Its JS uses `dailyConfig`,
-  recurrence, one-offs, XP, trackers, Priority, and localStorage-first Firestore sync.
-  `dailyplan/daily.json` is mirrored into its `FALLBACK`.
+  recurrence, one-offs, XP, trackers, Priority, and Firestore-only sync — nothing of the
+  account is kept in the browser. Its routine is `users/{uid}/config/plan`.
 - `dailyplan/plan.json` — the exercise-only schema version 2 configuration: weekly policy and
-  the seven stable exercises. `dailyplan/daily.json` owns non-exercise checklist content.
+  the seven stable exercises. Non-exercise checklist content belongs to each account.
 - `exercise/index.html` and `exercise/app.js` — authenticated set/repetition tracking, date
   navigation, catch-up/rest scheduling, and server-only Firestore reads. See `exercise/CLAUDE.md`.
 - `streams/index.html` — the "what's actually moving" tracker (push/maintain/parked streams).
@@ -41,7 +41,7 @@ When asked to find something, search first, don't guess from this map alone — 
 - `exercise/index.html` and `exercise/app.js` implement the authenticated workout UI and Firestore synchronization.
 - `exercise/schedule.mjs` is the pure Europe/Berlin, Monday–Sunday scheduling module; `exercise/*.test.mjs` holds focused tests.
 - `dailyplan/plan.json` is the exercise-only schema version 2 configuration.
-- `dailyplan/daily.json` contains non-exercise DailyPlan configuration; it is embedded into `dailyplan/index.html` for file/offline fallback.
+- DailyPlan's non-exercise checklist content is account data in `users/{uid}/config/plan`, not a file.
 - `dailyplan/index.html` is the separate recurring-task checklist.
 - `index.html` is the home page and reads only the current exercise week from the server when authenticated.
 - `firestore.rules` validates `users/{uid}/exerciseDays/{YYYY-MM-DD}` and preserves owner-only access for unrelated user collections.

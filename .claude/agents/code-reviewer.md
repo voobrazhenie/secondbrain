@@ -13,7 +13,7 @@ Exercise checks:
   `exerciseDays` is intentionally different: exercise values are targeted nested updates so one
   exercise cannot erase another.
 - **Item ids contain hyphens** (`c-microneedling`, `e-anchor-1`) — illegal in dotted Firestore field-path strings. Per-item updates must use `FieldPath` objects, not `"ticks.c-microneedling"` string paths.
-- **`dailyplan/daily.json` is mirrored into `dailyplan/index.html` as `FALLBACK`** for `file://` use. Any edit to one without the other is a bug; run `node tools/embed-daily-config.mjs`.
+- **DailyPlan's routine is account data** in `users/{uid}/config/plan`. Putting a routine back into this repository is a bug: every account signing in is shown it, and this repository is public.
 - **Full-page `render()` calls mid-interaction break rapid taps.** Tick handlers must go through the `rowEls`/`secEls` map + `refreshDerived()` path, not a full re-render, or fast taps register as one.
 - **`dailyplan/`'s snapshot listener must not fight local edits** — `sync` ignores incoming snapshots while a local write is queued/pending (see `queueTick`/`flush`). Check that any new sync path on that page preserves this. `jobs/`'s snapshot listener currently has no equivalent guard (its handler re-renders on every snapshot unconditionally) — don't assume it's protected just because it also uses `onSnapshot`.
 - **Item ids must stay unique and stable** across the whole file — tick history and one-off suppression are keyed on them. A duplicate id silently corrupts history.
@@ -32,7 +32,7 @@ Exercise checks:
 
 DailyPlan checks:
 
-- `dailyplan/daily.json` is mirrored into the `FALLBACK` in `dailyplan/index.html` with `node tools/embed-daily-config.mjs`.
+- DailyPlan reads its routine from `users/{uid}/config/plan`; there is no routine file and no embedded fallback.
 - Daily tick IDs remain unique and stable. Rapid tick handlers must not force a full render mid-interaction.
 - DailyPlan remains separate from workout completion and never writes exercise fields.
 

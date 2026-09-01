@@ -4,7 +4,6 @@ import { readFile } from "node:fs/promises";
 
 const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
 const html = await readFile(new URL("./index.html", import.meta.url), "utf8");
-const daily = JSON.parse(await readFile(new URL("../dailyplan/daily.json", import.meta.url), "utf8"));
 
 test("exercise synchronization is server-only and has no live listener or browser fallback", () => {
   assert.match(app, /getDocsFromServer/);
@@ -121,11 +120,13 @@ test("signing off ticks Physical training on the DailyPlan day", () => {
   assert.match(app, /async function tickDailyPlan\(uid\)/);
   assert.match(app, /"users", uid, "days", selectedDate/);
   assert.match(app, /ticks: \{ \[DAILY_TICK_ID\]: true \}/);
-
-  const ids = daily.daily.flatMap(group => group.items.map(item => item.id));
-  assert.ok(ids.includes("t-workout"),
-    "t-workout is written by the exercise page but does not exist in dailyplan/daily.json");
 });
+
+/* This used to also assert that "t-workout" existed in dailyplan/daily.json.
+   The routine is no longer a file in this repository — it belongs to each
+   account, in users/{uid}/config/plan — so there is nothing here to check it
+   against. Writing the tick for an account whose routine has no such item is
+   harmless: the day document carries it and nothing renders it. */
 
 /* The routine is still being shaped, so a session that stopped early is still
    a session. Nothing about the tally may gate the sign-off. */
