@@ -122,10 +122,16 @@
 
   footer{margin-top:30px;padding-top:14px;border-top:2px solid var(--ink);
     font-size:11px;font-weight:700;color:var(--grey);line-height:1.6}
+
+  /* Streams are the account's, so nothing shows until Firebase has said who is
+     looking. This page used to work signed out, keeping a copy in the browser —
+     which is how one account's data ended up under another's on DailyPlan. */
+  #wrap:not([data-auth="in"]) #groups,
+  #wrap:not([data-auth="in"]) #foot{ display:none }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="wrap" data-auth="checking">
 
   <nav class="crumbs">
     <a class="crumb" href="../">SECOND BRAIN</a>
@@ -140,14 +146,18 @@
     <button class="btn" id="authBtn" hidden></button>
   </div>
 
-  <footer id="foot">Drag a stream by its handle — inside a section to reorder, into another to move it. Hold a stream to rename it, swipe it left to delete. Signed out, streams stay in this browser. Signed in, they sync to your own account — readable only by you.</footer>
+  <footer id="foot">Drag a stream by its handle — inside a section to reorder, into another to move it. Hold a stream to rename it, swipe it left to delete.</footer>
 </div>
 
 <script type="module">
 "use strict";
 
-const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
-const LS_STREAMS = "secondbrain.streams.v1";
+/* Nothing about the account stays on the device. This clears what the previous
+   version left behind, once, on load. */
+try { localStorage.removeItem("secondbrain.streams.v1"); } catch {}
+
+/* shared/firebase.js, once init() has pulled it in. */
+let fbLib = null;
 const $ = id => document.getElementById(id);
 const newId = () => "s-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -165,15 +175,11 @@ let addGroup = null;   // group whose add panel is open
 const TRAY_W = 92;     // px — matches .tray width
 const TAP_SLOP = 8;    // shorter than this is a tap, not a swipe
 
-function loadLocal() {
-  try { streams = JSON.parse(localStorage.getItem(LS_STREAMS) || "[]"); }
-  catch { streams = []; }
-}
-/* Written whole, no merge — same contract as dailyplan's `custom` doc. push
-   defaults on; sync.pull() passes push:false so a pull doesn't immediately
-   write the same data straight back. */
+/* Written whole, no merge — same contract as dailyplan's `custom` doc. The list
+   lives in memory while the page is open and in Firestore between visits, so
+   "save" means "send it up". push defaults on; sync.pull() passes push:false so
+   a pull doesn't immediately write the same data straight back. */
 function saveLocal({ push = true } = {}) {
-  try { localStorage.setItem(LS_STREAMS, JSON.stringify(streams)); } catch {}
   if (push) sync.push();
 }
 
@@ -606,40 +612,39 @@ const sync = {
     else { btn.hidden = true; btn.onclick = null; }
   },
 
+  /* Connecting and knowing who is signed in is shared/firebase.js's job; the
+     wording and the gate stay here. */
+  setAuthState(state) { $("wrap").dataset.auth = state; },
+
   async init() {
-    let config = null;
-    try { ({ firebaseConfig: config } = await import("./firebase-config.js")); }
-    catch { /* file:// origin, or the file is missing — stay local */ }
-    if (!config || !config.projectId) {
-      this.mode = "local";
-      this.setUI("off", "Local only — no Firebase config.");
+    try {
+      fbLib = await import("../shared/firebase.js");
+      this.fb = await fbLib.connect();
+    } catch (e) {
+      this.setAuthState("err");
+      if (e && e.code === "no-config") {
+        this.setUI("err", "Sync isn't configured, so there's nothing to show here.",
+          "Reload", () => location.reload());
+      } else {
+        console.warn("Firebase unavailable:", e);
+        this.setUI("err", "Couldn't reach Firebase, so there's nothing to show here.",
+          "Reload", () => location.reload());
+      }
       return;
     }
-    try {
-      const [{ initializeApp }, authMod, fsMod] = await Promise.all([
-        import(SDK + "firebase-app.js"),
-        import(SDK + "firebase-auth.js"),
-        import(SDK + "firebase-firestore.js")
-      ]);
-      const app = initializeApp(config);
-      const db = fsMod.initializeFirestore(app, {
-        localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() })
-      });
-      this.fb = { auth: authMod.getAuth(app), db, a: authMod, f: fsMod };
-      this.mode = "signed-out";
-      authMod.getRedirectResult(this.fb.auth).catch(() => {});
-      authMod.onAuthStateChanged(this.fb.auth, u => this.onAuth(u));
-    } catch (e) {
-      console.warn("Firebase unavailable, staying local:", e);
-      this.setUI("err", "Couldn't reach Firebase. Local only.", "Retry", () => location.reload());
-    }
+    this.mode = "signed-out";
+    fbLib.watchAuth(this.fb, u => this.onAuth(u));
   },
 
-  onAuth(user) {
+  async onAuth(user) {
     if (!user) {
       this.mode = "signed-out";
       this.uid = null;
-      this.setUI("off", "Not syncing — streams stay in this browser.",
+      streams = [];
+      editingId = null; revealedId = null; addGroup = null;
+      render();
+      this.setAuthState("out");
+      this.setUI("off", "Sign in to see your streams.",
         "Sign in with Google", () => this.signIn());
       return;
     }
@@ -647,30 +652,17 @@ const sync = {
     this.mode = "signed-in";
     this.setUI("on", `Synced — signed in as ${user.email || "your account"}`,
       "Sign out", () => this.signOut());
-    this.pull();
+    await this.pull();
+    this.setAuthState("in");
   },
 
   async signIn() {
-    const { a, auth } = this.fb;
-    try {
-      this.setUI("off", "Opening Google sign-in…");
-      await a.signInWithPopup(auth, new a.GoogleAuthProvider());
-    } catch (e) {
-      const code = (e && e.code) || "";
-      if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
-        try { await a.signInWithRedirect(auth, new a.GoogleAuthProvider()); return; }
-        catch (e2) { e = e2; }
-      }
-      const msg =
-        code === "auth/unauthorized-domain" ? "This domain isn't authorised in Firebase Auth yet."
-      : code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" ? "Sign-in was cancelled."
-      : `Sign-in failed (${e.code || e.message}).`;
-      this.setUI("err", msg, "Try again", () => this.signIn());
-    }
+    const msg = await fbLib.signIn(this.fb, text => this.setUI("off", text));
+    if (msg) this.setUI("err", msg, "Try again", () => this.signIn());
   },
 
   async signOut() {
-    try { await this.fb.a.signOut(this.fb.auth); }
+    try { await fbLib.signOut(this.fb); }
     catch (e) { this.setUI("err", `Couldn't sign out (${e.message}).`, "Try again", () => this.signOut()); }
   },
 
@@ -696,13 +688,10 @@ const sync = {
       let snap;
       try { snap = await f.getDocFromServer(this.ref()); }
       catch { snap = await f.getDoc(this.ref()); }
-      if (snap.exists()) {
-        streams = snap.data().streams || [];
-        saveLocal({ push: false });
-        render();
-      } else if (streams.length) {
-        await this.push();   // first sign-in with streams already added locally
-      }
+      streams = snap.exists() ? (snap.data().streams || []) : [];
+      render();
+      /* No "else push what this device is holding". That branch is what seeded a
+         fresh account with the previous one's list. */
     } catch { /* offline — the local copy stands */ }
   },
 
@@ -722,7 +711,6 @@ const sync = {
   }
 };
 
-loadLocal();
 render();
 sync.init();
 document.addEventListener("visibilitychange", () => {

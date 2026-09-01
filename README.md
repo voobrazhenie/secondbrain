@@ -21,7 +21,9 @@ Live site: **https://voobrazhenie.github.io/secondbrain/**
   **Extra settings** bar — DailyPlan has three: the points on each task and the level bar, the
   priority card, and the streaks. It only draws itself for an account listed in `admins/{uid}`;
   what actually stops anyone else is `firestore.rules`.
-- `shared/` holds what every synced section needs rather than one of them: `shared/firebase-config.js` is the single copy of the public Firebase config, and `shared/firebase.js` is the sign-in plumbing — connecting, reporting who is signed in, and running sign-in and sign-out. It deliberately owns nothing visible. Each page keeps its own wording, its own status line, and its own decision about what a signed-out visitor sees, because the sections do not agree about that and moving the plumbing must not quietly make them agree. `dailyplan/` reads it; the other sections still carry their own copy and move over one at a time.
+- `shared/` holds what every synced section needs rather than one of them: `shared/firebase-config.js` is the single copy of the public Firebase config, and `shared/firebase.js` is the sign-in plumbing — connecting, reporting who is signed in, and running sign-in and sign-out. It deliberately owns nothing visible. Each page keeps its own wording, its own status line, and its own decision about what a signed-out visitor sees, because the sections do not agree about that and moving the plumbing must not quietly make them agree. DailyPlan, Ideas, Streams, the home page and `admin/` read it; Jobs, Opportunities and Exercise
+  still carry their own copy of the sign-in code, which is why signing in on one of those three does
+  not record a profile card.
 - `theme.css` at the repo root is the shared design system: colours, stroke width, shadow, the `.handle` drag grip, the `.crumbs` breadcrumb header, and `--page-width`, the one column width every section uses. Every page links it. `cleaning/` links it for the width, breadcrumb and handle but still overrides the colour tokens with its own `:root` until it is redesigned. The stylesheet also carries the house rules for glyphs — no new emoji, no directional arrows, and ▾/▴ on cards is the deliberate exception.
 
 The exercise page deliberately has no embedded signed-out routine. Firebase authentication must resolve and a fresh server read must succeed before exercises render.
@@ -61,9 +63,11 @@ copy on the device, which is what makes the page work with no signal; that cache
 the document path, so it can never be handed to another account, and `shared/firebase.js`
 clears it on sign-out. The page also wipes the old `localStorage` keys once, on load.
 
-Ideas, Streams and Finance still keep a browser copy and still work signed out. The same
-treatment is worth giving them, but some of what is in those pages may exist only in a browser
-and has to reach Firestore before the local copy is removed.
+Ideas, Streams and Finance had the same shape and now have the same treatment: signed-in only,
+nothing on the device, and no "push whatever this browser is holding" when an account turns out to
+have no document yet — that branch is what seeded a fresh account with the previous one's list.
+Each clears its old `localStorage` key once, on load. Jobs, Opportunities and Exercise were already
+signed-in only and never kept a copy.
 
 ### Accounts, admins and features
 
