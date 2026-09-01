@@ -21,6 +21,16 @@
 }
 .handle svg{width:13px;height:13px}
 
+/* The `hidden` attribute means hidden. The browser's own rule for it is
+   `display:none` at the weakest possible strength, so any page rule that sets a
+   display — `.card{display:flex}`, `.crumb{display:inline-block}` — silently
+   beats it, and an element the script has hidden stays on screen. That is what
+   let the home page keep painting every section button after they had been
+   switched off, and kept the ADMIN chip visible to accounts that are not
+   admins. Pages had been patching it one selector at a time
+   (`.scrim[hidden]`, `.toast[hidden]`, …); this settles it for all of them. */
+[hidden]{display:none!important}
+
 /* One page width for the whole system. The phone is the target — an iPhone 15
    Pro is 393px across, so this only shows up on a desktop window, where every
    section should still read as the same column. Pages that had their own
