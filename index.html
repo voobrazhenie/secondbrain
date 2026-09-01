@@ -325,9 +325,8 @@
     uid = user.uid; mode = "signed-in";
     setUI("on", `Signed in as ${user.email || "your account"}`, "Sign out", signOut);
 
-    // Not awaited: the admin pages want to know this account exists, but
-    // nothing on screen depends on it.
-    account.recordProfile(fb, user);
+    // The profile card is written by watchAuth, on the one path every signed-in
+    // page goes through — see shared/firebase.js.
     // A way in for whoever runs the place. Everyone else never learns it is
     // there — and firestore.rules is what stops them if they guess the URL.
     account.isAdmin(fb, uid).then(yes => { $("adminLink").hidden = !yes; });

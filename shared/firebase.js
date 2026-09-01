@@ -16,6 +16,8 @@
  *   { auth, db, a, f } — a is the auth module, f the firestore module.
  */
 
+import { recordProfile } from "./account.js";
+
 const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
 
 /* Connect, or throw. Two failures are worth telling apart, because the pages
@@ -53,9 +55,20 @@ export async function connect() {
 }
 
 /* Calls back with the signed-in user, or null. Fires once on load with the
- * answer, and again on every sign-in and sign-out. Returns the unsubscribe. */
+ * answer, and again on every sign-in and sign-out. Returns the unsubscribe.
+ *
+ * Recording the profile card happens here rather than in each page. There is no
+ * directory of accounts a browser can read, so profiles/{uid} is the only way
+ * the admin pages know anybody exists — and a page that forgets to write one
+ * makes a person invisible to them. Putting it on the one path every signed-in
+ * page already goes through is what stops that being a per-page mistake.
+ *
+ * Not awaited, and never allowed to throw: nothing anyone sees depends on it. */
 export function watchAuth(fb, onUser) {
-  return fb.a.onAuthStateChanged(fb.auth, onUser);
+  return fb.a.onAuthStateChanged(fb.auth, user => {
+    if (user) recordProfile(fb, user);
+    onUser(user);
+  });
 }
 
 /* Google sign-in. Returns null once the popup has succeeded or the redirect is
