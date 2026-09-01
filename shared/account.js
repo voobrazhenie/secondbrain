@@ -10,7 +10,7 @@
  * sections on.
  */
 
-import { SECTIONS, noSections } from "./sections.js";
+import { SECTIONS, noSections, allExtras } from "./sections.js";
 
 /* Called on every sign-in. This is the only reason the admin pages can list
  * anyone: it is written from what Google already returned, so signing in asks
@@ -31,10 +31,12 @@ export async function recordProfile(fb, user) {
   }
 }
 
-/* The sections this person may see. Returns null when the answer could not be
- * read at all, which is not the same as "none of them" — the caller has to tell
- * an empty account apart from a failed read, because hiding everything is the
- * right answer to one and the wrong answer to the other. */
+/* What this person may see: `sections`, which the home page turns into buttons,
+ * and `extras`, the switches inside a section — DailyPlan's points, priority
+ * card and streaks. Returns null when the answer could not be read at all,
+ * which is not the same as "none of them": the caller has to tell an empty
+ * account apart from a failed read, because hiding everything is the right
+ * answer to one and the wrong answer to the other. */
 export async function loadFeatures(fb, uid) {
   const { f, db } = fb;
   const ref = f.doc(db, "features", uid);
@@ -46,12 +48,24 @@ export async function loadFeatures(fb, uid) {
     console.warn("Features unavailable:", e.code || e.message);
     return null;
   }
-  const stored = snap.exists() ? (snap.data().sections || {}) : {};
+  const data = snap.exists() ? snap.data() : {};
+  const storedSections = data.sections || {};
+  const storedExtras = data.extras || {};
+
   // Only keys this build knows about, so a section removed from the list stops
   // being honoured and one added later starts off.
-  const out = noSections();
-  for (const s of SECTIONS) out[s.key] = stored[s.key] === true;
-  return out;
+  const sections = noSections();
+  for (const s of SECTIONS) sections[s.key] = storedSections[s.key] === true;
+
+  // `!== false` rather than `=== true`: an extra nobody has touched is on.
+  const extras = allExtras();
+  for (const s of SECTIONS) {
+    if (!s.extras) continue;
+    for (const e of s.extras) {
+      extras[s.key][e.key] = (storedExtras[s.key] || {})[e.key] !== false;
+    }
+  }
+  return { sections, extras };
 }
 
 /* Admins are a document, not a claim on the token, so this is a plain read.

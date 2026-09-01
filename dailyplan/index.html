@@ -173,6 +173,19 @@
   #wrap:not([data-auth="in"]) #streak{ display:none }
 
   /* ---------- sync + actions ---------- */
+  /* Which of these a person gets is set per account in admin/. Display only:
+     the points are still counted and the streak still recorded, they are just
+     not drawn — so switching one back on shows the real number rather than
+     starting again from zero. */
+  body.no-xp .pill,
+  body.no-xp .level{ display:none!important }
+  body.no-priority .priority-wrap{ display:none!important }
+  /* Both of them: the block of counters, and the days-in-a-row chip in the top
+     bar. A switch called Streaks that leaves a streak on screen is worse than
+     either answer on its own. */
+  body.no-streaks .streaks,
+  body.no-streaks .streak{ display:none!important }
+
   .sync{
     display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:16px 0;
     padding:9px 11px;background:var(--card);
@@ -385,11 +398,15 @@
     <span class="streak" id="streak"><b id="streakN">0</b><span id="streakLbl">days</span></span>
   </div>
 
-  <div class="counter" id="counter" hidden>
-    <span class="sq" id="counterN">0</span>
-    <span class="unit">DAYS</span>
-    <span class="nm">No weed</span>
-  </div>
+  <!-- One streak today, more later, so the block is named for the idea rather
+       than for the habit that happens to be in it. -->
+  <section class="streaks" id="streaks" aria-label="Streaks">
+    <div class="counter" id="counter" hidden>
+      <span class="sq" id="counterN">0</span>
+      <span class="unit">DAYS</span>
+      <span class="nm">No weed</span>
+    </div>
+  </section>
 
   <div class="daynav">
     <button id="dayPrev" title="Previous day">‹</button>
@@ -1542,8 +1559,18 @@ function updateTracker(on) {
   renderCounter();
 }
 
-/* shared/firebase.js, once init() has pulled it in. */
-let fbLib = null;
+/* shared/firebase.js and shared/account.js, once init() has pulled them in. */
+let fbLib = null, accountLib = null;
+
+/* The parts of this page the account is allowed to see. Everything on until
+   the answer arrives, which is what an account nobody has been through the
+   extra settings for gets anyway. */
+let extras = { xp: true, priority: true, streaks: true };
+function applyExtras() {
+  document.body.classList.toggle("no-xp", extras.xp === false);
+  document.body.classList.toggle("no-priority", extras.priority === false);
+  document.body.classList.toggle("no-streaks", extras.streaks === false);
+}
 
 /* ================= sync layer =================
    Firebase decides what this page shows. Without a signed-in account there is
@@ -1601,6 +1628,8 @@ const sync = {
     mem.xpMonth.clear();
     mem.peak = 0;
     dailyConfig = emptyPlan();
+    extras = { xp: true, priority: true, streaks: true };
+    applyExtras();
     collapsedGroups = new Set();
     setNotes(false);
     custom = { added: [], hidden: {}, doneOnce: {}, edits: {} };
@@ -1618,7 +1647,10 @@ const sync = {
      other sections word both differently on purpose. */
   async init() {
     try {
-      fbLib = await import("../shared/firebase.js");
+      [fbLib, accountLib] = await Promise.all([
+        import("../shared/firebase.js"),
+        import("../shared/account.js")
+      ]);
       this.fb = await fbLib.connect();
     } catch (e) {
       this.setAuthState("err");
@@ -1659,7 +1691,7 @@ const sync = {
     // this device, so both are fetched before the first paint instead of being
     // corrected after it.
     // The routine first: everything below derives a day from it.
-    await this.loadPlan();
+    await Promise.all([this.loadPlan(), this.loadExtras()]);
     await Promise.all([this.loadPrefs(), this.loadCustomRemote({ reconcile: false })]);
     await rebuild();
     this.setAuthState("in");
@@ -2044,6 +2076,16 @@ const sync = {
     } catch { /* offline — the local copy stands */ }
   },
 
+  /* ---------- the switches inside this section ----------
+     Set in admin/, read here. Nothing about the day depends on them, so a
+     failed read leaves the page as it is rather than blanking half of it. */
+  async loadExtras() {
+    const features = await accountLib.loadFeatures(this.fb, this.uid);
+    if (!features) return;
+    extras = features.extras.dailyplan || extras;
+    applyExtras();
+  },
+
   /* ---------- the routine ----------
      What the day is made of: the categories, their items, and the date day one
      is counted from. This used to be daily.json, a file in the repository, which
@@ -2327,6 +2369,7 @@ const sync = {
     const now = Date.now();
     if (now - this.lastRefresh < 45000) return;
     this.lastRefresh = now;
+    await this.loadExtras();
     await this.loadPlan();
     await this.loadHistory();
     await this.loadCustomRemote({ reconcile: false });

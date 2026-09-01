@@ -71,6 +71,22 @@
   .row .name{flex:1;min-width:0;font-size:14px}
   .row .path{font-size:11px;color:var(--faint)}
 
+  /* Deliberately thin: the extra settings are a second thought about a section,
+     not a second section, and a full-height card would read as one. */
+  .extras-bar{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
+    padding:5px 8px;margin:0;background:var(--sunk);color:var(--ink);
+    border:0;border-bottom:2px solid var(--ink);box-shadow:none;
+    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
+    font-size:9px;letter-spacing:.12em;cursor:pointer;text-align:left;
+  }
+  .extras-bar:active{transform:none;box-shadow:none}
+  .extras{border-bottom:2px solid var(--ink);padding:2px 0 2px 22px;background:var(--card)}
+  .extras .row{border-bottom:0;padding:9px 2px}
+  .extras .row input{width:18px;height:18px}
+  .extras .row .name{font-size:13px}
+  .extras .row .path{font-size:10px;max-width:46%;text-align:right}
+
   .note{font-size:12px;font-weight:700;margin-top:14px;min-height:1.4em;color:var(--grey)}
   .note.err{color:var(--pink)}
 
@@ -181,34 +197,84 @@
 
   /* ---------- the sections ---------- */
 
+  function checkboxRow(checked, label, aside, dataset) {
+    const row = document.createElement("label");
+    row.className = "row";
+
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = checked;
+    Object.assign(box.dataset, dataset);
+    box.addEventListener("change", queueSave);
+
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = label;
+
+    const note = document.createElement("span");
+    note.className = "path";
+    note.textContent = aside;
+
+    row.append(box, name, note);
+    return row;
+  }
+
   function drawRows(features) {
     const rows = $("rows");
     rows.textContent = "";
     for (const section of sections.SECTIONS) {
-      const row = document.createElement("label");
-      row.className = "row";
-
-      const box = document.createElement("input");
-      box.type = "checkbox";
-      box.checked = features[section.key] === true;
-      box.dataset.key = section.key;
-      box.addEventListener("change", queueSave);
-
-      const name = document.createElement("span");
-      name.className = "name";
-      name.textContent = section.label;
-
-      const path = document.createElement("span");
-      path.className = "path";
-      path.textContent = section.path;
-
-      row.append(box, name, path);
-      rows.append(row);
+      rows.append(checkboxRow(
+        features.sections[section.key] === true,
+        section.label, section.path, { key: section.key }));
+      if (section.extras) rows.append(...extrasFor(section, features));
     }
   }
 
-  const readRows = () => Object.fromEntries(
-    [...$("rows").querySelectorAll("input")].map(b => [b.dataset.key, b.checked]));
+  /* Folded away by default. Whether a section is on at all is the decision that
+     gets made every time; what is inside it is the one made once. */
+  function extrasFor(section, features) {
+    const bar = document.createElement("button");
+    bar.type = "button";
+    bar.className = "extras-bar";
+    bar.setAttribute("aria-expanded", "false");
+    bar.append(document.createTextNode("EXTRA SETTINGS"));
+    const caret = document.createElement("span");
+    caret.textContent = "\u25be";
+    bar.append(caret);
+
+    const panel = document.createElement("div");
+    panel.className = "extras";
+    panel.hidden = true;
+    const on = features.extras[section.key] || {};
+    for (const extra of section.extras) {
+      panel.append(checkboxRow(
+        on[extra.key] !== false, extra.label, extra.hint,
+        { key: extra.key, section: section.key }));
+    }
+
+    bar.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      bar.setAttribute("aria-expanded", String(!panel.hidden));
+      caret.textContent = panel.hidden ? "\u25be" : "\u25b4";
+    });
+    return [bar, panel];
+  }
+
+  /* Read back off the screen rather than tracked in a variable, so what gets
+     saved is exactly what is ticked. */
+  function readRows() {
+    const boxes = [...$("rows").querySelectorAll("input")];
+    const sectionsOn = {};
+    const extras = {};
+    for (const box of boxes) {
+      if (box.dataset.section) {
+        (extras[box.dataset.section] ||= {})[box.dataset.key] = box.checked;
+      } else {
+        sectionsOn[box.dataset.key] = box.checked;
+      }
+    }
+    return { sections: sectionsOn, extras };
+  }
 
   async function selectPerson(personUid) {
     current = personUid || null;
@@ -234,10 +300,11 @@
   async function save() {
     if (!current) return;
     const { f, db } = fb;
-    const sectionsOn = readRows();
+    const { sections: sectionsOn, extras } = readRows();
     try {
       await f.setDoc(f.doc(db, "features", current), {
         sections: sectionsOn,
+        extras,
         updatedAt: f.serverTimestamp()
       });
       const on = Object.values(sectionsOn).filter(Boolean).length;

@@ -17,8 +17,10 @@ Live site: **https://voobrazhenie.github.io/secondbrain/**
   `users/{uid}/config/home`.
 - `admin/` is the admin front end — black, otherwise the same neo-brutalist system as the app.
   Version 0.1.1 has one section, **Features for users**: pick anyone who has signed in and tick
-  the sections they get. It only draws itself for an account listed in `admins/{uid}`; what
-  actually stops anyone else is `firestore.rules`.
+  the sections they get. A section can carry its own switches, folded away behind a thin
+  **Extra settings** bar — DailyPlan has three: the points on each task and the level bar, the
+  priority card, and the streaks. It only draws itself for an account listed in `admins/{uid}`;
+  what actually stops anyone else is `firestore.rules`.
 - `shared/` holds what every synced section needs rather than one of them: `shared/firebase-config.js` is the single copy of the public Firebase config, and `shared/firebase.js` is the sign-in plumbing — connecting, reporting who is signed in, and running sign-in and sign-out. It deliberately owns nothing visible. Each page keeps its own wording, its own status line, and its own decision about what a signed-out visitor sees, because the sections do not agree about that and moving the plumbing must not quietly make them agree. `dailyplan/` reads it; the other sections still carry their own copy and move over one at a time.
 - `theme.css` at the repo root is the shared design system: colours, stroke width, shadow, the `.handle` drag grip, the `.crumbs` breadcrumb header, and `--page-width`, the one column width every section uses. Every page links it. `cleaning/` links it for the width, breadcrumb and handle but still overrides the colour tokens with its own `:root` until it is redesigned. The stylesheet also carries the house rules for glyphs — no new emoji, no directional arrows, and ▾/▴ on cards is the deliberate exception.
 
@@ -69,16 +71,21 @@ Three small collections sit outside `users/{uid}/`:
 ```text
 admins/{uid}     marker document — who may use admin/
 profiles/{uid}   { email, name, lastSeen } — written by that person's own page
-features/{uid}   { sections: { key: bool } } — written by an admin only
+features/{uid}   { sections: { key: bool }, extras: { section: { key: bool } } } — admin only
 ```
 
 `profiles/` is what lets the admin pages list anybody at all. Each page writes its own on
 sign-in, from what Google already returned, so signing in asks for nothing it did not ask for
 before. `features/` is deliberately **not** under `users/{uid}/config/`: the owner-writes-anything
 rule there would let a person switch their own sections back on. An account with no `features/`
-document sees no sections — an invitation is a decision, not a default. The section list itself is
-`shared/sections.js`, read by both the home page and the admin pages; a `key` there is what gets
-stored, so it must not change once a section has been switched on for somebody.
+document sees no sections — an invitation is a decision, not a default. `extras` default the other
+way, to on: a missing section means "not invited yet", but a missing extra just means nobody has
+been through the extra settings, and the answer to that is the page as it has always looked.
+DailyPlan reads its own three and hides the points, the priority card or the streaks accordingly —
+display only, so the points are still counted and the streak still recorded, and switching one back
+on shows the real number rather than starting again from zero. The list of sections and their extras
+is `shared/sections.js`, read by both the home page and the admin pages; a `key` there is what gets
+stored, so it must not change once something has been switched on for somebody.
 
 Admins are added by hand — `firestore.rules` refuses every write to `admins/`, including from an
 admin, so the only routes in are the Firebase console and `tools/firebase-admin.mjs`.
