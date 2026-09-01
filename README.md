@@ -11,6 +11,14 @@ Live site: **https://voobrazhenie.github.io/secondbrain/**
 - `jobs/`, `streams/`, `ideas/`, `finance/`, and `cleaning/` are unrelated features and retain their existing data models. `jobs/` splits its list into UNREAD, CURRENT and NOT RELEVANT: `unread: true` is where a research pass puts everything it finds, so nothing joins the working list until he has read it; `parked: true` on a job doc is Nikita saying no to it, and `.claude/agents/job-scout.md` treats that as permanent so a later research pass never offers the same role twice. `focus: true` is his own highlight, and shows as a pink drag handle.
 - `opportunities/` is the private grants / residencies / exhibitions tracker. It is signed-in only — signed-out visitors see a sign-in prompt and no data — and stores one document per entry in `users/{uid}/opportunities/{id}`.
 - `firestore.rules` applies strict schema validation to exercise documents while preserving owner-only access for other user data.
+- `index.html` is the home page. It is signed-in only: the deck of section buttons is itself a
+  statement of what somebody has, so nothing shows until Firebase says who is looking, and then
+  only the sections switched on for them in `features/{uid}`. Card order is an account setting in
+  `users/{uid}/config/home`.
+- `admin/` is the admin front end — black, otherwise the same neo-brutalist system as the app.
+  Version 0.1.1 has one section, **Features for users**: pick anyone who has signed in and tick
+  the sections they get. It only draws itself for an account listed in `admins/{uid}`; what
+  actually stops anyone else is `firestore.rules`.
 - `shared/` holds what every synced section needs rather than one of them: `shared/firebase-config.js` is the single copy of the public Firebase config, and `shared/firebase.js` is the sign-in plumbing — connecting, reporting who is signed in, and running sign-in and sign-out. It deliberately owns nothing visible. Each page keeps its own wording, its own status line, and its own decision about what a signed-out visitor sees, because the sections do not agree about that and moving the plumbing must not quietly make them agree. `dailyplan/` reads it; the other sections still carry their own copy and move over one at a time.
 - `theme.css` at the repo root is the shared design system: colours, stroke width, shadow, the `.handle` drag grip, the `.crumbs` breadcrumb header, and `--page-width`, the one column width every section uses. Every page links it. `cleaning/` links it for the width, breadcrumb and handle but still overrides the colour tokens with its own `:root` until it is redesigned. The stylesheet also carries the house rules for glyphs — no new emoji, no directional arrows, and ▾/▴ on cards is the deliberate exception.
 
@@ -54,6 +62,27 @@ Ideas, Streams and Finance still keep a browser copy and still work signed out. 
 treatment is worth giving them, but some of what is in those pages may exist only in a browser
 and has to reach Firestore before the local copy is removed.
 
+### Accounts, admins and features
+
+Three small collections sit outside `users/{uid}/`:
+
+```text
+admins/{uid}     marker document — who may use admin/
+profiles/{uid}   { email, name, lastSeen } — written by that person's own page
+features/{uid}   { sections: { key: bool } } — written by an admin only
+```
+
+`profiles/` is what lets the admin pages list anybody at all. Each page writes its own on
+sign-in, from what Google already returned, so signing in asks for nothing it did not ask for
+before. `features/` is deliberately **not** under `users/{uid}/config/`: the owner-writes-anything
+rule there would let a person switch their own sections back on. An account with no `features/`
+document sees no sections — an invitation is a decision, not a default. The section list itself is
+`shared/sections.js`, read by both the home page and the admin pages; a `key` there is what gets
+stored, so it must not change once a section has been switched on for somebody.
+
+Admins are added by hand — `firestore.rules` refuses every write to `admins/`, including from an
+admin, so the only routes in are the Firebase console and `tools/firebase-admin.mjs`.
+
 ## Firebase setup and security
 
 The one manual prerequisite is the browser-based Firebase CLI login:
@@ -73,8 +102,14 @@ printed or committed. Private body measurements and photos also stay outside thi
 ## Validation and deployment
 
 ```bash
-node --test exercise/*.test.mjs
-firebase deploy --only firestore:rules --project claudecode-3bb06
+node --test exercise/*.test.mjs        # or: npm test
+node tools/rules-check.mjs             # evaluates firestore.rules against the live API
+node tools/rules-deploy.mjs            # publishes it; --dry-run uploads without releasing
 ```
+
+`tools/rules-deploy.mjs` exists because the Firebase CLI needs a browser login that a cloud
+session does not have; it uses the same service-account credentials as everything else here.
+`firebase deploy --only firestore:rules --project claudecode-3bb06` does the same thing locally.
+Run the check first — a bad ruleset is live the moment it is released.
 
 The frontend is deployed by the repository's existing GitHub Pages workflow: commit and push the intended static files to GitHub. There is no Firebase Hosting configuration and no Cloud Function.

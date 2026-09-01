@@ -31,6 +31,7 @@ const UID = "Ecg4WsCTG0QDwvcCkzx3144Avps2";
 const DATE = "2026-08-24";
 const NOW = "2026-08-24T12:00:00Z";
 const pathFor = uid => `/databases/(default)/documents/users/${uid}/exerciseDays/${DATE}`;
+const docAt = segments => `/databases/(default)/documents/${segments}`;
 
 /* The eight-exercise routine, plus the two retired ids: the largest document
  * the rules ever have to accept. */
@@ -85,7 +86,35 @@ const cases = [
   ["DENY", "the wrong plan version", "update", UID, stored(full),
     { ...day(full), planVersion: 3 }],
   ["DENY", "a client-chosen updatedAt", "update", UID, stored(full),
-    { ...day({ ...full, "leg-raises": entry(15, [true, true, false]) }), updatedAt: "2026-08-24T11:00:00Z" }]
+    { ...day({ ...full, "leg-raises": entry(15, [true, true, false]) }), updatedAt: "2026-08-24T11:00:00Z" }],
+
+  /* The admin boundary. The simulator evaluates against no stored data, so
+     exists(/admins/{uid}) is false in every case below — which is precisely a
+     non-admin's view of the project, and the direction that has to hold: an
+     ordinary account cannot read anyone else's settings, cannot change its own
+     sections, and cannot make itself an admin. The allow side of the boundary
+     needs seeded data the simulator has no way to provide, so it is checked by
+     using the admin pages rather than here. */
+  ["DENY", "a non-admin switching on somebody else's sections", "create", UID, null,
+    { sections: { dailyplan: true }, updatedAt: NOW }, docAt("features/someone-else")],
+  ["DENY", "a non-admin switching on their own sections", "create", UID, null,
+    { sections: { dailyplan: true }, updatedAt: NOW }, docAt(`features/${UID}`)],
+  ["DENY", "a non-admin reading somebody else's sections", "get", UID, null, null,
+    docAt("features/someone-else")],
+  ["DENY", "a non-admin reading somebody else's profile card", "get", UID, null, null,
+    docAt("profiles/someone-else")],
+  ["DENY", "making yourself an admin", "create", UID, null,
+    { email: "voobrazhenie@gmail.com" }, docAt(`admins/${UID}`)],
+  ["DENY", "a profile card filed under somebody else's address", "create", UID, null,
+    { email: "someone@else.example", name: null, lastSeen: NOW }, docAt(`profiles/${UID}`)],
+  ["DENY", "a profile card carrying an extra field", "create", UID, null,
+    { email: "voobrazhenie@gmail.com", name: null, lastSeen: NOW, role: "admin" }, docAt(`profiles/${UID}`)],
+  ["DENY", "a profile card written for another account", "create", UID, null,
+    { email: "voobrazhenie@gmail.com", name: null, lastSeen: NOW }, docAt("profiles/someone-else")],
+
+  ["ALLOW", "your own profile card", "create", UID, null,
+    { email: "voobrazhenie@gmail.com", name: null, lastSeen: NOW }, docAt(`profiles/${UID}`)],
+  ["ALLOW", "reading your own sections", "get", UID, null, null, docAt(`features/${UID}`)]
 ];
 
 async function liveSource(token, projectId) {
@@ -114,12 +143,12 @@ const response = await fetch(`https://firebaserules.googleapis.com/v1/projects/$
   body: JSON.stringify({
     source: { files: [{ name: "firestore.rules", content }] },
     testSuite: {
-      testCases: cases.map(([expectation, , method, uid, existing, data]) => ({
+      testCases: cases.map(([expectation, , method, uid, existing, data, path]) => ({
         expectation,
         request: {
           auth: { uid: UID, token: { email: "voobrazhenie@gmail.com" } },
           method,
-          path: pathFor(uid),
+          path: path || pathFor(uid),
           time: NOW,
           resource: { data }
         },

@@ -6,6 +6,13 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    // An admin is a document, not a claim on the token, so it can be granted
+    // without reissuing anybody's sign-in.
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
     function validSets(sets) {
       return sets is list
         && sets.size() == 3
@@ -96,6 +103,36 @@ service cloud.firestore {
         && validExercise(data.exercises, changed, 'leg-raises')
         && data.workoutCompleted is bool
         && data.updatedAt == request.time;
+    }
+
+    // Who may use the admin pages. Written by hand — the Firebase console or
+    // the Admin SDK — and never by the app: an account that could add itself
+    // here could then grant itself everything below.
+    match /admins/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if false;
+    }
+
+    // One card per person, so the admin pages can list who exists at all.
+    // Written by that person's own page when they sign in, from what Google
+    // already returned — signing in asks for nothing extra. The email has to be
+    // the one they actually signed in with, so a card cannot be filed under
+    // somebody else's address.
+    match /profiles/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['email', 'name', 'lastSeen'])
+        && request.resource.data.email == request.auth.token.email;
+      allow delete: if isAdmin();
+    }
+
+    // Which sections a person sees. Theirs to read, an admin's to set. It sits
+    // here rather than under users/{uid}/config/ on purpose: the catch-all
+    // below lets a person write anything of their own, which would include
+    // switching their own sections back on.
+    match /features/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isAdmin();
     }
 
     match /users/{uid}/exerciseDays/{date} {

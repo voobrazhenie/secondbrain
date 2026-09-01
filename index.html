@@ -49,6 +49,34 @@
   }
   .card .name{flex:1;min-width:0;font-size:16px;letter-spacing:-.01em;line-height:1.2}
 
+  /* Nothing personal is on screen until Firebase has said who is looking —
+     the deck is which sections this person has, which is itself their data. */
+  #wrap:not([data-auth="in"]) #deck,
+  #wrap:not([data-auth="in"]) #empty{ display:none }
+
+  .sync{
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 16px;
+    padding:9px 11px;background:var(--card);
+    border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
+    font-size:12px;font-weight:700;color:var(--grey);
+  }
+  .sync .dot{flex:0 0 auto;width:9px;height:9px;border:2px solid var(--ink);background:var(--sunk)}
+  .sync.on .dot{background:var(--lime)}
+  .sync.err .dot{background:var(--pink)}
+  .sync .msg{flex:1;min-width:120px}
+  .sync button{
+    font:inherit;font-size:11px;font-weight:900;letter-spacing:.05em;cursor:pointer;
+    font-family:"Arial Black",Impact,sans-serif;
+    padding:9px 13px;background:var(--card);color:var(--ink);
+    border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
+  }
+  .sync button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+
+  #empty{
+    background:var(--card);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:18px;font-size:14px;line-height:1.45;
+  }
+
   .card.dragging{opacity:.45;position:relative;z-index:3}
   /* Yellow, not teal — the drop marker has to read against a teal page. */
   .card.drop-before{box-shadow:0 -6px 0 var(--yellow),var(--shadow)}
@@ -56,8 +84,19 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <nav class="crumbs"><span class="crumb here">SECOND BRAIN</span></nav>
+<div class="wrap" id="wrap" data-auth="checking">
+  <nav class="crumbs">
+    <span class="crumb here">SECOND BRAIN</span>
+    <a class="crumb" id="adminLink" href="admin/" hidden>ADMIN</a>
+  </nav>
+
+  <div class="sync" id="sync">
+    <span class="dot"></span>
+    <span class="msg" id="syncMsg">Checking sign-in…</span>
+    <button id="authBtn" hidden></button>
+  </div>
+
+  <div id="empty" hidden>No sections are switched on for this account yet.</div>
 
   <div id="deck">
     <div class="card" data-key="exercise">
@@ -112,24 +151,31 @@
 </div>
 
 <script>
-/* Card order is a per-browser preference, not data: it lives in localStorage and
-   never leaves the device. Cards stay in the markup so the page still works
-   without JS — this only reorders what is already there, and a page added to the
-   markup later shows up at the bottom instead of disappearing. */
+"use strict";
+
+/* The home page is the list of sections this person has, which makes it their
+   data rather than a menu. So it is gated like the rest of the app: nothing
+   until Firebase says who is looking, then only the sections switched on for
+   them in features/{uid}.
+   
+   Card order used to be a localStorage preference. It is an account setting now
+   — one fewer thing on the device, and it follows him to his phone. */
 (function () {
-  const KEY = "sb.home.order";
-  const deck = document.getElementById("deck");
+  const LEGACY_ORDER_KEY = "sb.home.order";
+  try { localStorage.removeItem(LEGACY_ORDER_KEY); } catch {}
+
+  const $ = id => document.getElementById(id);
+  const deck = $("deck");
   const cards = [...deck.querySelectorAll(".card")];
 
-  const readOrder = () => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(KEY));
-      return Array.isArray(saved) ? saved : [];
-    } catch { return []; }
-  };
+  let order = [];        // section keys, this account's arrangement
+  let fbLib = null, account = null, fb = null, uid = null, mode = "signed-out";
+  let orderTimer = null;
+
+  const readOrder = () => order;
   const saveOrder = () => {
-    const keys = [...deck.querySelectorAll(".card")].map(c => c.dataset.key);
-    try { localStorage.setItem(KEY, JSON.stringify(keys)); } catch {}
+    order = [...deck.querySelectorAll(".card")].map(c => c.dataset.key);
+    pushHome();
   };
 
   function applyOrder() {
@@ -210,8 +256,129 @@
     card.prepend(handle);
   }
 
-  applyOrder();
+  /* ---------- sign-in, and what this account may see ---------- */
+
+  function setUI(state, msg, btnLabel, btnAction) {
+    const row = $("sync"), btn = $("authBtn");
+    row.className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
+    $("syncMsg").textContent = msg;
+    if (btnLabel) { btn.hidden = false; btn.textContent = btnLabel; btn.onclick = btnAction; }
+    else { btn.hidden = true; btn.onclick = null; }
+  }
+  const setAuthState = state => { $("wrap").dataset.auth = state; };
+
+  /* Hidden rather than removed, so the drag handlers stay attached and a
+     section switched back on reappears in its place without a reload. */
+  function applyFeatures(features) {
+    let shown = 0;
+    for (const card of cards) {
+      const on = features[card.dataset.key] === true;
+      card.hidden = !on;
+      if (on) shown++;
+    }
+    $("empty").hidden = shown > 0;
+  }
+
+  function hideEverything() {
+    for (const card of cards) card.hidden = true;
+    $("empty").hidden = true;
+  }
+
+  const homeRef = () => fb.f.doc(fb.db, "users", uid, "config", "home");
+
+  async function loadHome() {
+    const { f } = fb;
+    try {
+      let snap;
+      try { snap = await f.getDocFromServer(homeRef()); }
+      catch { snap = await f.getDoc(homeRef()); }
+      const stored = snap.exists() ? snap.data().order : null;
+      order = Array.isArray(stored) ? stored.filter(k => typeof k === "string") : [];
+    } catch (e) {
+      console.warn("Card order unavailable:", e.code || e.message);
+      order = [];
+    }
+    applyOrder();
+  }
+
+  /* Dragging one card past three others is one write, not three. */
+  function pushHome() {
+    if (mode !== "signed-in") return;
+    clearTimeout(orderTimer);
+    orderTimer = setTimeout(async () => {
+      const { f } = fb;
+      try { await f.setDoc(homeRef(), { order, updatedAt: f.serverTimestamp() }); }
+      catch { /* offline — the next drag sends the whole order again */ }
+    }, 600);
+  }
+
+  async function onAuth(user) {
+    if (!user) {
+      uid = null; mode = "signed-out";
+      order = [];
+      $("adminLink").hidden = true;
+      hideEverything();
+      setAuthState("out");
+      setUI("off", "Sign in to see your sections.", "Sign in with Google", signIn);
+      return;
+    }
+    uid = user.uid; mode = "signed-in";
+    setUI("on", `Signed in as ${user.email || "your account"}`, "Sign out", signOut);
+
+    // Not awaited: the admin pages want to know this account exists, but
+    // nothing on screen depends on it.
+    account.recordProfile(fb, user);
+    // A way in for whoever runs the place. Everyone else never learns it is
+    // there — and firestore.rules is what stops them if they guess the URL.
+    account.isAdmin(fb, uid).then(yes => { $("adminLink").hidden = !yes; });
+
+    const features = await account.loadFeatures(fb, uid);
+    if (!features) {
+      hideEverything();
+      setAuthState("err");
+      setUI("err", "Couldn't check which sections you have.", "Reload", () => location.reload());
+      return;
+    }
+    await loadHome();
+    applyFeatures(features);
+    setAuthState("in");
+  }
+
+  async function signIn() {
+    const msg = await fbLib.signIn(fb, text => setUI("off", text));
+    if (msg) setUI("err", msg, "Try again", signIn);
+  }
+
+  async function signOut() {
+    try { await fbLib.signOut(fb); }
+    catch (e) { setUI("err", `Couldn't sign out (${e.message}).`, "Try again", signOut); }
+  }
+
+  async function boot() {
+    try {
+      [fbLib, account] = await Promise.all([
+        import("./shared/firebase.js"),
+        import("./shared/account.js")
+      ]);
+      fb = await fbLib.connect();
+    } catch (e) {
+      setAuthState("err");
+      if (e && e.code === "no-config") {
+        setUI("err", "Sync isn't configured, so there's nothing to show here.",
+          "Reload", () => location.reload());
+      } else {
+        console.warn("Firebase unavailable:", e);
+        setUI("err", "Couldn't reach Firebase, so there's nothing to show here.",
+          "Reload", () => location.reload());
+      }
+      return;
+    }
+    mode = "signed-out";
+    fbLib.watchAuth(fb, onAuth);
+  }
+
   cards.forEach(addHandle);
+  boot();
 })();
 </script>
 </body>

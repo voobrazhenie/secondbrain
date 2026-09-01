@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#000000">
+<title>Second Brain · Admin</title>
+<link rel="stylesheet" href="../theme.css">
+<style>
+  /* The same neo-brutalist system as the app — thick strokes, squared corners,
+     hard zero-blur shadows — on black, so there is never a moment's doubt about
+     whether you are looking at the app or at everybody's settings.
+
+     A black page cannot use the app's black shadow, so the shadow is teal here.
+     That is the only token that changes; panels stay light with black strokes,
+     and everything inside them is the app's own type and spacing. */
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0; background:#000; color:var(--card);
+    padding:
+      calc(5vh + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
+      calc(60px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+    font:16px/1.5 "Archivo","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--page-width);margin:0 auto}
+  .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900}
+
+  .crumbs{margin-bottom:16px}
+  .version{
+    border:2px solid var(--teal);color:var(--teal);background:transparent;
+    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
+    font-size:10px;letter-spacing:.1em;padding:4px 9px;
+  }
+
+  .panel{
+    background:var(--card);color:var(--ink);
+    border:var(--stroke) solid var(--ink);box-shadow:4px 4px 0 var(--teal);
+    padding:16px 18px;margin-bottom:16px;
+  }
+  .panel h2{
+    margin:0 0 4px;font-size:13px;letter-spacing:.08em;
+    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
+  }
+  .panel .hint{margin:0 0 14px;font-size:12px;color:var(--faint);line-height:1.45}
+
+  label.field{display:block;font-size:11px;font-weight:900;letter-spacing:.06em;margin-bottom:6px}
+  select{
+    width:100%;font:inherit;font-size:14px;padding:10px 11px;
+    background:var(--sunk);color:var(--ink);
+    border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
+  }
+
+  /* One row per section: the whole row is the hit area, which is what makes
+     this usable with a thumb. */
+  .rows{margin-top:16px;border-top:2px solid var(--ink)}
+  .row{
+    display:flex;align-items:center;gap:12px;
+    padding:12px 2px;border-bottom:2px solid var(--ink);cursor:pointer;
+  }
+  .row:last-child{border-bottom:0}
+  .row input{
+    flex:0 0 auto;appearance:none;-webkit-appearance:none;margin:0;
+    width:22px;height:22px;background:var(--sunk);
+    border:2px solid var(--ink);cursor:pointer;
+  }
+  .row input:checked{background:var(--lime)}
+  .row input:checked::after{content:"";display:block;width:100%;height:100%;
+    background:var(--ink);clip-path:polygon(14% 46%,7% 60%,40% 86%,93% 24%,80% 14%,38% 62%)}
+  .row .name{flex:1;min-width:0;font-size:14px}
+  .row .path{font-size:11px;color:var(--faint)}
+
+  .note{font-size:12px;font-weight:700;margin-top:14px;min-height:1.4em;color:var(--grey)}
+  .note.err{color:var(--pink)}
+
+  .sync{
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 16px;
+    padding:9px 11px;background:var(--card);color:var(--grey);
+    border:2px solid var(--ink);box-shadow:3px 3px 0 var(--teal);
+    font-size:12px;font-weight:700;
+  }
+  .sync .dot{flex:0 0 auto;width:9px;height:9px;border:2px solid var(--ink);background:var(--sunk)}
+  .sync.on .dot{background:var(--lime)}
+  .sync.err .dot{background:var(--pink)}
+  .sync .msg{flex:1;min-width:120px}
+  button{
+    font:inherit;font-size:11px;font-weight:900;letter-spacing:.05em;cursor:pointer;
+    font-family:"Arial Black",Impact,sans-serif;
+    padding:9px 13px;background:var(--card);color:var(--ink);
+    border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
+  }
+  button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+
+  /* Nothing but the sign-in row until Firestore has confirmed an admin. */
+  #wrap:not([data-admin="yes"]) #features{ display:none }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap" data-admin="no">
+  <nav class="crumbs">
+    <a class="crumb" href="../">SECOND BRAIN</a>
+    <span class="crumb here">ADMIN</span>
+    <span class="version">0.1.1</span>
+  </nav>
+
+  <div class="sync" id="sync">
+    <span class="dot"></span>
+    <span class="msg" id="syncMsg">Checking sign-in…</span>
+    <button id="authBtn" hidden></button>
+  </div>
+
+  <section class="panel" id="features">
+    <h2>FEATURES FOR USERS</h2>
+    <p class="hint">Everyone who has signed in at least once. Switching a section
+      off hides its button on that person's home page; their data is left alone.</p>
+
+    <label class="field" for="userSelect">PERSON</label>
+    <select id="userSelect"></select>
+
+    <div class="rows" id="rows"></div>
+    <p class="note" id="note"></p>
+  </section>
+</div>
+
+<script>
+"use strict";
+
+/* The admin front end. What it draws is decided here; what it is *allowed* to
+   do is decided by firestore.rules, which only lets an account listed in
+   admins/{uid} read profiles/ or write features/. Hiding the panel is a
+   courtesy to the person looking, not the protection. */
+(function () {
+  const $ = id => document.getElementById(id);
+
+  let fbLib = null, account = null, sections = null, fb = null;
+  let uid = null, mode = "signed-out";
+  let people = [];               // [{ uid, email, name }]
+  let current = null;            // the uid whose features are on screen
+  let saveTimer = null;
+
+  function setUI(state, msg, btnLabel, btnAction) {
+    const row = $("sync"), btn = $("authBtn");
+    row.className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
+    $("syncMsg").textContent = msg;
+    if (btnLabel) { btn.hidden = false; btn.textContent = btnLabel; btn.onclick = btnAction; }
+    else { btn.hidden = true; btn.onclick = null; }
+  }
+  const setAdmin = yes => { $("wrap").dataset.admin = yes ? "yes" : "no"; };
+  const note = (text, isError) => {
+    $("note").textContent = text;
+    $("note").className = "note" + (isError ? " err" : "");
+  };
+
+  /* ---------- the people ---------- */
+
+  /* profiles/ is written by each person's own page when they sign in, so this
+     is everybody who has ever opened the app — not a list anybody had to keep
+     by hand, and not something they were asked for. */
+  async function loadPeople() {
+    const { f, db } = fb;
+    const snap = await f.getDocs(f.query(f.collection(db, "profiles")));
+    people = [];
+    snap.forEach(d => {
+      const v = d.data() || {};
+      people.push({ uid: d.id, email: v.email || "", name: v.name || "" });
+    });
+    people.sort((a, b) => (a.email || a.uid).localeCompare(b.email || b.uid));
+
+    const select = $("userSelect");
+    select.textContent = "";
+    if (!people.length) {
+      select.append(new Option("Nobody has signed in yet", ""));
+      return;
+    }
+    for (const p of people) {
+      const label = p.name && p.email ? `${p.email} — ${p.name}` : (p.email || p.uid);
+      select.append(new Option(label, p.uid));
+    }
+  }
+
+  /* ---------- the sections ---------- */
+
+  function drawRows(features) {
+    const rows = $("rows");
+    rows.textContent = "";
+    for (const section of sections.SECTIONS) {
+      const row = document.createElement("label");
+      row.className = "row";
+
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = features[section.key] === true;
+      box.dataset.key = section.key;
+      box.addEventListener("change", queueSave);
+
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = section.label;
+
+      const path = document.createElement("span");
+      path.className = "path";
+      path.textContent = section.path;
+
+      row.append(box, name, path);
+      rows.append(row);
+    }
+  }
+
+  const readRows = () => Object.fromEntries(
+    [...$("rows").querySelectorAll("input")].map(b => [b.dataset.key, b.checked]));
+
+  async function selectPerson(personUid) {
+    current = personUid || null;
+    $("rows").textContent = "";
+    note("");
+    if (!current) return;
+    note("Loading…");
+    const features = await account.loadFeatures(fb, current);
+    if (!features) { note("Couldn't read that person's sections.", true); return; }
+    drawRows(features);
+    note("");
+  }
+
+  /* Ticking four boxes in a row is one write. The document is replaced rather
+     than merged: it is redrawn from what is on screen, so there is nothing on
+     the server a whole-value write could lose. */
+  function queueSave() {
+    note("Saving…");
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 500);
+  }
+
+  async function save() {
+    if (!current) return;
+    const { f, db } = fb;
+    const sectionsOn = readRows();
+    try {
+      await f.setDoc(f.doc(db, "features", current), {
+        sections: sectionsOn,
+        updatedAt: f.serverTimestamp()
+      });
+      const on = Object.values(sectionsOn).filter(Boolean).length;
+      note(on === 1 ? "Saved — 1 section on." : `Saved — ${on} sections on.`);
+    } catch (e) {
+      note(`Couldn't save (${e.code || e.message}).`, true);
+    }
+  }
+
+  /* ---------- sign-in ---------- */
+
+  async function onAuth(user) {
+    if (!user) {
+      uid = null; mode = "signed-out";
+      current = null; people = [];
+      setAdmin(false);
+      $("rows").textContent = "";
+      setUI("off", "Sign in to use the admin pages.", "Sign in with Google", signIn);
+      return;
+    }
+    uid = user.uid; mode = "signed-in";
+    setUI("on", `Signed in as ${user.email || "your account"}`, "Sign out", signOut);
+
+    if (!(await account.isAdmin(fb, uid))) {
+      setAdmin(false);
+      setUI("err", "This account isn't an admin.", "Sign out", signOut);
+      return;
+    }
+    setAdmin(true);
+    try {
+      await loadPeople();
+    } catch (e) {
+      setUI("err", `Couldn't list people (${e.code || e.message}).`, "Reload", () => location.reload());
+      return;
+    }
+    $("userSelect").onchange = event => selectPerson(event.target.value);
+    await selectPerson($("userSelect").value);
+  }
+
+  async function signIn() {
+    const msg = await fbLib.signIn(fb, text => setUI("off", text));
+    if (msg) setUI("err", msg, "Try again", signIn);
+  }
+
+  async function signOut() {
+    try { await fbLib.signOut(fb); }
+    catch (e) { setUI("err", `Couldn't sign out (${e.message}).`, "Try again", signOut); }
+  }
+
+  async function boot() {
+    try {
+      [fbLib, account, sections] = await Promise.all([
+        import("../shared/firebase.js"),
+        import("../shared/account.js"),
+        import("../shared/sections.js")
+      ]);
+      fb = await fbLib.connect();
+    } catch (e) {
+      console.warn("Firebase unavailable:", e);
+      setUI("err", "Couldn't reach Firebase, so there's nothing to show here.",
+        "Reload", () => location.reload());
+      return;
+    }
+    mode = "signed-out";
+    fbLib.watchAuth(fb, onAuth);
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
