@@ -128,13 +128,10 @@
   .emoji{flex:0 0 auto;font-size:14px;line-height:1}
   .txt{flex:1;min-width:0;font-size:13px;font-weight:700}
   .row.done .txt{color:var(--grey);text-decoration:line-through}
+  /* Only a held-open row shows its detail line now. The Notes button that used
+     to reveal every one of them is gone: it was a control nobody reached for,
+     and the day reads better without a paragraph under each task. */
   .detail{display:none;font-size:10.5px;font-weight:600;color:var(--grey);margin-top:3px;line-height:1.35}
-  body.notes .detail{display:block}
-  body.notes .row{min-height:0;padding-top:9px;padding-bottom:9px}
-  .secnote{
-    display:none;font-size:11px;font-weight:600;color:var(--grey);line-height:1.4;padding:0 2px 6px;
-  }
-  body.notes .secnote{display:block}
   .pill{
     flex:0 0 auto;font-size:10px;font-weight:900;font-family:"Arial Black",Impact,sans-serif;
     background:var(--pink);color:var(--ink);border:2px solid var(--ink);padding:2px 6px;
@@ -169,7 +166,6 @@
   #wrap:not([data-auth="in"]) #priorityWrap,
   #wrap:not([data-auth="in"]) #level,
   #wrap:not([data-auth="in"]) #list,
-  #wrap:not([data-auth="in"]) .actions,
   #wrap:not([data-auth="in"]) #streak{ display:none }
 
   /* ---------- sync + actions ---------- */
@@ -197,7 +193,6 @@
   .sync.err .dot{background:var(--pink)}
   .sync .msg{flex:1;min-width:120px}
 
-  .actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
   button{
     font:inherit;font-size:11px;font-weight:900;letter-spacing:.05em;cursor:pointer;
     font-family:"Arial Black",Impact,sans-serif;
@@ -209,11 +204,6 @@
   button.primary{background:var(--yellow)}
   button.on{background:var(--teal)}
   button:disabled{opacity:.5;cursor:default;transform:none}
-
-  footer{
-    margin-top:22px;padding-top:12px;border-top:2px solid var(--ink);
-    font-size:10px;font-weight:700;color:var(--grey);line-height:1.55;
-  }
 
   /* ---------- add / edit / remove ---------- */
   .sec .add{
@@ -469,16 +459,6 @@
     <button id="authBtn" hidden></button>
   </div>
 
-  <div class="actions">
-    <button id="notesBtn">Notes</button>
-  </div>
-
-  <footer>
-    Your day lives in your own account and is readable only by you. Sign in to
-    see it.<br>
-    Not medical advice.
-  </footer>
-
 </div>
 
 <div class="scrim" id="scrim" hidden>
@@ -555,7 +535,19 @@ let viewDate = null;  // the day being looked at; null means today
 /* The routine, once the account has been read. Until then, and for an account
    that has not written one yet, it is empty: this page shows what its owner put
    in it and nothing else. Workout configuration is separate. */
-const emptyPlan = () => ({ schemaVersion: 1, startDate: todayISO(), principles: null, daily: [], oneOffs: null });
+const TODO_GROUP = "To do";
+/* Every routine has a To do category, whatever else is in it. It is where a new
+   task goes when nobody has said where, and a page that opens with nowhere to
+   put anything is a dead end. `keepEmpty` is what stops it disappearing on the
+   days it holds nothing. */
+const todoGroup = () => ({ title: TODO_GROUP, emoji: "\u{1F4CB}", keepEmpty: true, items: [] });
+const withTodo = daily => (daily || []).some(g => g && g.title === TODO_GROUP)
+  ? daily
+  : [todoGroup(), ...(daily || [])];
+const emptyPlan = () => ({
+  schemaVersion: 1, startDate: todayISO(), principles: null,
+  daily: [todoGroup()], oneOffs: null
+});
 let dailyConfig = emptyPlan();
 let plan    = null;   // today, derived from it
 /* ---------- what this page knows, while it is open ----------
@@ -1064,16 +1056,10 @@ function toggleGroup(title) {
   render();
 }
 
-/* Which sections are folded up, and whether the detail notes are showing, are
-   settings about a person's own list rather than about this browser — the next
-   account to sign in here has different sections entirely. So they live with
-   the account, which also means they follow him to his phone. */
-let notesOn = false;
-function setNotes(on) {
-  notesOn = !!on;
-  document.body.classList.toggle("notes", notesOn);
-  $("notesBtn").classList.toggle("on", notesOn);
-}
+/* Which sections are folded up is a setting about a person's own list rather
+   than about this browser — the next account to sign in here has different
+   sections entirely. So it lives with the account, and follows him to his
+   phone. */
 
 /* ---------- render ---------- */
 function render() {
@@ -1125,13 +1111,6 @@ function render() {
     list.appendChild(sec);
 
     if (collapsed) continue;
-
-    if (g.note) {
-      const n = document.createElement("div");
-      n.className = "secnote";
-      n.textContent = g.note;
-      list.appendChild(n);
-    }
 
     for (const it of g.items || []) {
       const on = isTicked(it, ticks);
@@ -1631,7 +1610,6 @@ const sync = {
     extras = { xp: true, priority: true, streaks: true };
     applyExtras();
     collapsedGroups = new Set();
-    setNotes(false);
     custom = { added: [], hidden: {}, doneOnce: {}, edits: {} };
     plan = null;
     viewDate = null;
@@ -2123,16 +2101,15 @@ const sync = {
       schemaVersion: v.schemaVersion || 1,
       startDate: isISODate(v.startDate) ? v.startDate : todayISO(),
       principles: v.principles || null,
-      daily: Array.isArray(v.daily) ? v.daily : [],
+      daily: withTodo(Array.isArray(v.daily) ? v.daily : []),
       oneOffs: v.oneOffs || null
     };
   },
 
   /* ---------- page preferences ----------
-     One small document holding the sections folded up and whether the detail
-     notes are showing. Written whole rather than merged: both fields are read
-     back off what is on screen, so there is nothing another device could be
-     holding that a whole-value write would lose. */
+     One small document holding the sections folded up. Written whole rather
+     than merged: it is read back off what is on screen, so there is nothing
+     another device could be holding that a whole-value write would lose. */
   prefsRef() {
     const { f, db } = this.fb;
     return f.doc(db, "users", this.uid, "config", "prefs");
@@ -2149,7 +2126,6 @@ const sync = {
       const v = snap.exists() ? snap.data() : {};
       collapsedGroups = new Set((Array.isArray(v.collapsed) ? v.collapsed : [])
         .filter(title => typeof title === "string"));
-      setNotes(v.notes === true);
     } catch (e) {
       console.warn("Preferences unavailable:", e.code || e.message);
     }
@@ -2169,7 +2145,6 @@ const sync = {
     try {
       await f.setDoc(this.prefsRef(), {
         collapsed: [...collapsedGroups],
-        notes: notesOn,
         updatedAt: f.serverTimestamp()
       });
     } catch { /* offline — the next toggle sends both fields again */ }
@@ -2418,11 +2393,6 @@ async function applyOverride() {
     plan = { ...plan, ...o };
   } catch { /* absent or unparseable — the derived day stands */ }
 }
-
-$("notesBtn").addEventListener("click", () => {
-  setNotes(!notesOn);
-  sync.pushPrefs();
-});
 
 $("dayPrev").addEventListener("click", () => goToDay(shiftDate(plan.date, -1)));
 $("dayNext").addEventListener("click", () => goToDay(shiftDate(plan.date, 1)));

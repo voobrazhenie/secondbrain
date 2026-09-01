@@ -114,7 +114,11 @@ const cases = [
 
   ["ALLOW", "your own profile card", "create", UID, null,
     { email: "voobrazhenie@gmail.com", name: null, lastSeen: NOW }, docAt(`profiles/${UID}`)],
-  ["ALLOW", "reading your own sections", "get", UID, null, null, docAt(`features/${UID}`)]
+  ["ALLOW", "reading your own sections", "get", UID, null, null, docAt(`features/${UID}`)],
+  ["ALLOW", "reading the default an account with no settings falls back to", "get", UID, null, null,
+    docAt("features/default")],
+  ["DENY", "a non-admin changing that default", "update", UID, null,
+    { sections: { dailyplan: true }, updatedAt: NOW }, docAt("features/default")]
 ];
 
 async function liveSource(token, projectId) {

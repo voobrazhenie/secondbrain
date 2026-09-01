@@ -128,8 +128,10 @@
 
   <section class="panel" id="features">
     <h2>FEATURES FOR USERS</h2>
-    <p class="hint">Everyone who has signed in at least once. Switching a section
-      off hides its button on that person's home page; their data is left alone.</p>
+    <p class="hint">Everyone who has signed in at least once, plus the settings a
+      new account gets before anybody has decided anything about it. Switching a
+      section off hides its button on that person's home page; their data is left
+      alone.</p>
 
     <label class="field" for="userSelect">PERSON</label>
     <select id="userSelect"></select>
@@ -185,10 +187,9 @@
 
     const select = $("userSelect");
     select.textContent = "";
-    if (!people.length) {
-      select.append(new Option("Nobody has signed in yet", ""));
-      return;
-    }
+    // Always first, and always there — it is the answer for everybody nobody has
+    // been through yet, so it is the one worth reaching without scrolling.
+    select.append(new Option("Default for new users", account.DEFAULT_ID));
     for (const p of people) {
       const label = p.name && p.email ? `${p.email} — ${p.name}` : (p.email || p.uid);
       select.append(new Option(label, p.uid));
@@ -308,7 +309,8 @@
         updatedAt: f.serverTimestamp()
       });
       const on = Object.values(sectionsOn).filter(Boolean).length;
-      note(on === 1 ? "Saved — 1 section on." : `Saved — ${on} sections on.`);
+      const who = current === account.DEFAULT_ID ? "Saved as the default" : "Saved";
+      note(on === 1 ? `${who} — 1 section on.` : `${who} — ${on} sections on.`);
     } catch (e) {
       note(`Couldn't save (${e.code || e.message}).`, true);
     }

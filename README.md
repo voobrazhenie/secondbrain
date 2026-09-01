@@ -39,7 +39,8 @@ See `exercise/README.md` for the exercise schema, schedule, synchronization beha
 The Firebase web config in `shared/firebase-config.js` is public project identification, not an Admin credential. Service-account keys bypass rules and must never be committed. `dailyplan/firebase-config.js` re-exports it for the sections that still import the config through that path.
 
 DailyPlan stores its routine — the categories, their items, and the start date day one is
-counted from — in `users/{uid}/config/plan`; its ticks and optional Priority in one
+counted from — in `users/{uid}/config/plan`, which always has a **To do** category whether or not
+one is stored, because a page with nowhere to put a new task is a dead end; its ticks and optional Priority in one
 `users/{uid}/days/{YYYY-MM-DD}` document per date; its added and hidden tasks in
 `users/{uid}/config/custom`; and which sections are folded up plus the detail-notes toggle in
 `users/{uid}/config/prefs`. Like exercise, it shows nothing until someone is signed in.
@@ -72,13 +73,17 @@ Three small collections sit outside `users/{uid}/`:
 admins/{uid}     marker document — who may use admin/
 profiles/{uid}   { email, name, lastSeen } — written by that person's own page
 features/{uid}   { sections: { key: bool }, extras: { section: { key: bool } } } — admin only
+features/default the settings an account gets before anybody has decided about it
 ```
 
 `profiles/` is what lets the admin pages list anybody at all. Each page writes its own on
 sign-in, from what Google already returned, so signing in asks for nothing it did not ask for
 before. `features/` is deliberately **not** under `users/{uid}/config/`: the owner-writes-anything
 rule there would let a person switch their own sections back on. An account with no `features/`
-document sees no sections — an invitation is a decision, not a default. `extras` default the other
+document reads through to `features/default`, which sits first in the admin dropdown and is
+edited with the same checkboxes as a person. Nothing is copied on sign-in: changing the default
+changes what everybody still on it gets, rather than only whoever signs in next. Where there is no
+default either, an account sees no sections — an invitation is a decision, not an accident. `extras` default the other
 way, to on: a missing section means "not invited yet", but a missing extra just means nobody has
 been through the extra settings, and the answer to that is the page as it has always looked.
 DailyPlan reads its own three and hides the points, the priority card or the streaks accordingly —

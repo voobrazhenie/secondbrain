@@ -130,8 +130,12 @@ service cloud.firestore {
     // here rather than under users/{uid}/config/ on purpose: the catch-all
     // below lets a person write anything of their own, which would include
     // switching their own sections back on.
+    // "default" is not a uid — Firebase account ids are 28 characters — so this
+    // document is the settings a person gets before anybody has decided anything
+    // about them. Any signed-in account may read it, because reading through to
+    // it is how an account with no document of its own knows what it has.
     match /features/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
+      allow read: if isOwner(uid) || isAdmin() || (uid == 'default' && request.auth != null);
       allow write: if isAdmin();
     }
 
