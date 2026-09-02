@@ -1,9 +1,25 @@
 # Design guide
 
-`theme.css` is the source of truth for colours, strokes and shadows — read it
-before proposing anything. This file is for what a stylesheet cannot say: what a
-new page needs in order to be part of the app, how interactions behave, and the
-rules that have been arrived at by getting them wrong.
+Read this before building a page or changing how something looks. `theme.css` is
+the source of truth for colours, strokes and shadows; this file is for what a
+stylesheet cannot say: what a new page needs in order to be part of the app, how
+interactions behave, who it is for, and the rules arrived at by getting them
+wrong.
+
+## Who it is for
+
+- **Nikita's taste, across several rounds:** compact, gamified, playful,
+  stylish. Not corporate, not skeuomorphic. He has iterated through Figma
+  mockups, Pinterest references and direct HTML before landing here — don't
+  propose a new visual direction without knowing that history exists, and ask
+  what changed his mind before if it matters.
+- **He is not a designer by trade but has specific taste**, and will say
+  directly what is off. Take that literally rather than as a vague signal.
+- **The app has more than one person in it now.** A screen is not only his: a
+  new person opens on an empty list, with the points, the priority card and the
+  streaks switched off, and without the sections nobody has given them. That
+  empty version is what a beta tester meets first, so check it — it is the
+  screen most likely to look unfinished and least likely to get looked at.
 
 ## Making a new page
 

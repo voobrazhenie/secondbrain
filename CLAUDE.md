@@ -54,11 +54,15 @@ account and never to this repository or to the browser.
 
 ## Anything user-facing
 
-Read `docs/DESIGN-GUIDE.md` first — always before building a new page, and
-before changing how something looks or behaves. It carries what a new section
-needs in order to be part of the installed app, how the gestures work, and the
+**Read `docs/DESIGN-GUIDE.md` before building a page or changing how anything
+looks or behaves.** It carries what a new section needs in order to be part of
+the installed app, the sign-in gate, the gestures, whose taste this is, and the
 rules that exist because they were got wrong once. `theme.css` stays the source
 of truth for colours, strokes and shadows.
+
+There is no designer subagent. Design judgement is done inline, here, against
+that guide — a subagent starts cold, re-derives what this session already knows,
+and hands back a spec somebody then has to implement.
 
 ## Reading and writing his data
 

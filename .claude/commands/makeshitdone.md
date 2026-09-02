@@ -27,11 +27,12 @@ resolving, search Trello boards for "Second Brain" as a fallback).
       For anything UI-facing in `dailyplan/index.html`, test it for real —
       serve it locally and drive it with headless Chromium — don't just
       eyeball the diff.
-   c. Don't delegate this to the `designer` / `fullstack-developer` /
-      `code-reviewer` subagents by default — in practice on this project
-      they've stalled 10+ minutes without finishing. Do the research, the
-      design judgement, the implementation, and the review yourself, inline,
-      unless the user asks otherwise for a specific card.
+   c. Don't delegate this to the `fullstack-developer` / `code-reviewer`
+      subagents by default — in practice on this project they've stalled 10+
+      minutes without finishing. Do the research, the design judgement, the
+      implementation, and the review yourself, inline, unless the user asks
+      otherwise for a specific card. For anything user-facing, read
+      `docs/DESIGN-GUIDE.md` first.
    d. Commit with a message that says why, not what. Push to whatever branch
       this session is already working on — don't invent a new one. Then
       merge straight to `main` and push that too, so the card is actually
