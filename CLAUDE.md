@@ -13,6 +13,45 @@ Nikita is not a technical reader. Keep replies **short and plain**.
 - Flag real trade-offs and things left undone — briefly, in his words, not in
   implementation terms.
 
+## How we work
+
+- **Commit and push to `main`.** No feature branch, no pull request, unless he
+  asks for one. He does not read branches, and a branch is an extra step
+  between the work and the only place he can see it.
+- **The live site is his only way to check anything.**
+  <https://voobrazhenie.github.io/secondbrain/>, usually on his phone. So push
+  when a piece of work is done, and tell him what to look at. GitHub Pages
+  caches the HTML for ten minutes and an installed home-screen app holds it
+  longer, so when something looks unchanged, a hard refresh — or fully closing
+  the app — is the first thing to try.
+- **Run `npm test` before pushing.** It includes browser tests in `tests/` that
+  open the real pages against a stubbed Firebase. They exist because the bugs
+  that got through were invisible to tests that only read source.
+- **Rules changes:** `node tools/rules-check.mjs`, then
+  `node tools/rules-deploy.mjs`. A bad ruleset is live the moment it is
+  released, and the check runs against the real API.
+- **Verify in a browser before saying something works.** Chromium is installed;
+  `tests/helpers/browser.mjs` has the harness. Asserting that an element is
+  marked hidden is not the same as asserting a person cannot see it.
+
+## What the app is now
+
+It is multi-user. More than one person signs in, so anything about a person —
+their routine, their settings, which sections they see — belongs to their
+account and never to this repository or to the browser.
+
+- **Nothing of an account stays on the device.** No `localStorage` copies of
+  anyone's data. Firebase's own offline cache is fine; it is filed under the
+  document path, so it cannot be handed to the next account to sign in. This
+  rule exists because breaking it put his day, his points and his task list
+  into a second account, twice.
+- **Never put personal content in the repo.** His daily routine used to be a
+  file here, which meant every account that signed in was shown his medication,
+  and the repository is public.
+- **`admin/` is where people are given sections**, and `firestore.rules` is
+  what enforces it — hiding a button is a courtesy, not a lock. Only an account
+  in `admins/{uid}` may read `profiles/` or write `features/`.
+
 ## Reading and writing his data
 
 His data lives in Firestore under `users/{uid}/`, in these collections:
