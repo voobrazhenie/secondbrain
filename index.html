@@ -22,8 +22,8 @@
   body{
     margin:0; background:var(--teal); color:var(--ink);
     padding:
-      calc(9vh + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
-      calc(60px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+      calc(var(--page-top) + env(safe-area-inset-top)) calc(var(--page-side) + env(safe-area-inset-right))
+      calc(var(--page-bottom) + env(safe-area-inset-bottom)) calc(var(--page-side) + env(safe-area-inset-left));
     font:16px/1.5 "Archivo","Helvetica Neue",Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
@@ -85,10 +85,10 @@
 </head>
 <body>
 <div class="wrap" id="wrap" data-auth="checking">
-  <nav class="crumbs">
+  <header class="topbar">
     <span class="crumb here">SECOND BRAIN</span>
     <a class="crumb" id="adminLink" href="admin/" hidden>ADMIN</a>
-  </nav>
+  </header>
 
   <div class="sync" id="sync">
     <span class="dot"></span>

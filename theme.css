@@ -42,13 +42,50 @@
    --maxw now point it here. */
 :root{ --page-width:560px }
 
-/* Breadcrumb nav — where you are, on one line, at the top of every section.
-   SECOND BRAIN is the link home; the filled chip is the page you are on. */
-.crumbs{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+/* How far the page sits from the edges of the screen, on top of whatever the
+   notch and the home indicator need. One set of numbers for every section: the
+   pages had drifted to five different top paddings — 14px on dailyplan, 5vh on
+   most, 9vh at home — so opening one after another felt like different apps.
+   dailyplan's is the one that reads right, so it is the one here. Every page
+   writes it the same way:
+
+     padding:
+       calc(var(--page-top) + env(safe-area-inset-top))
+       calc(var(--page-side) + env(safe-area-inset-right))
+       calc(var(--page-bottom) + env(safe-area-inset-bottom))
+       calc(var(--page-side) + env(safe-area-inset-left));  */
+:root{ --page-top:14px; --page-side:16px; --page-bottom:40px }
+
+/* ---------- top bar ----------
+   The header every section opens with, and the first thing on the page. Today
+   it holds the breadcrumb on the left — SECOND BRAIN links home, the filled
+   chip is the page you are on — and, on the pages that have one, a status chip
+   pushed right by a <span class="grow">. It is built to take more than that:
+   put a button in it and it lines up with the rest.
+
+   The bar is one line of the same height on every page, which is why the
+   line-height is pinned here rather than inherited — pages set body text to
+   1.4 or 1.5, and that alone made the bar a pixel taller on half of them.
+
+     <header class="topbar">
+       <a class="crumb" href="../">SECOND BRAIN</a>
+       <span class="crumb here">SECTION</span>
+       <span class="grow"></span>
+       …anything that belongs on the right…
+     </header>                                                              */
+.topbar{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+  min-height:26px;line-height:1.4;margin:0 0 12px;
+}
+.grow{flex:1}
 .crumb{display:inline-block;border:2px solid var(--ink);background:var(--card);color:var(--ink);
   font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
   font-size:10px;letter-spacing:.1em;padding:4px 9px;text-decoration:none}
 .crumb.here{background:var(--ink);color:var(--paper)}
+/* A black page needs the chip drawn the other way round, or "you are here" is
+   black on black and only the text shows. admin/ is the only one. */
+.topbar.on-dark .crumb{background:transparent;color:var(--card);border-color:var(--card)}
+.topbar.on-dark .crumb.here{background:var(--card);color:var(--ink)}
 
 /* House rules for glyphs, so new work stays consistent:
    - No emoji. The home page tiles and the older dailyplan/cleaning/finance

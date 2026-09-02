@@ -25,8 +25,8 @@
   body{
     margin:0; background:var(--paper); color:var(--ink);
     padding:
-      calc(5vh + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
-      calc(60px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+      calc(var(--page-top) + env(safe-area-inset-top)) calc(var(--page-side) + env(safe-area-inset-right))
+      calc(var(--page-bottom) + env(safe-area-inset-bottom)) calc(var(--page-side) + env(safe-area-inset-left));
     font:15px/1.5 "Archivo","Helvetica Neue",Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
@@ -133,10 +133,10 @@
 <body>
 <div class="wrap" id="wrap" data-auth="checking">
 
-  <nav class="crumbs">
+  <header class="topbar">
     <a class="crumb" href="../">SECOND BRAIN</a>
     <span class="crumb here">LIFE STREAMS</span>
-  </nav>
+  </header>
 
   <div id="groups"></div>
 

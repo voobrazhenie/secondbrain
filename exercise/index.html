@@ -31,8 +31,8 @@
     body{
       margin:0;background:var(--yellow);color:var(--ink);
       padding:
-        calc(14px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right))
-        calc(30px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+        calc(var(--page-top) + env(safe-area-inset-top)) calc(var(--page-side) + env(safe-area-inset-right))
+        calc(var(--page-bottom) + env(safe-area-inset-bottom)) calc(var(--page-side) + env(safe-area-inset-left));
       font:15px/1.4 "Archivo","Helvetica Neue",Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
@@ -41,10 +41,8 @@
     a:hover{color:var(--pink)}
     .wrap{max-width:var(--maxw);margin:0 auto}
     .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;letter-spacing:-.01em}
-    .grow{flex:1}
     [hidden]{display:none!important}
 
-    .topbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
     .syncchip{
       display:inline-flex;align-items:center;gap:5px;
       background:var(--card);border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
@@ -276,12 +274,12 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="topbar">
+    <header class="topbar">
       <a class="crumb" href="../">SECOND BRAIN</a>
       <span class="crumb here">EXERCISE</span>
       <span class="grow"></span>
       <span class="syncchip off" id="chip"><i></i><span id="chipText">CHECKING</span></span>
-    </div>
+    </header>
 
     <div id="content" aria-live="polite">
       <div class="panel"><strong>Checking sign-in</strong><span>Exercises stay hidden until Firebase authentication resolves.</span></div>

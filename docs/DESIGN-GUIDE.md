@@ -48,6 +48,39 @@ page is missing any.
 `black-translucent` on a dark one — `admin/` is the only dark page, and a light
 status bar would put black text on black.
 
+**The top bar, and the space above it.** Every page opens with the same header
+in the same place. It is one rule in `theme.css` — do not give a page its own.
+
+```html
+<header class="topbar">
+  <a class="crumb" href="../">SECOND BRAIN</a>
+  <span class="crumb here">SECTION</span>
+  <span class="grow"></span>          <!-- anything after this sits on the right -->
+</header>
+```
+
+```css
+body{
+  padding:
+    calc(var(--page-top) + env(safe-area-inset-top))
+    calc(var(--page-side) + env(safe-area-inset-right))
+    calc(var(--page-bottom) + env(safe-area-inset-bottom))
+    calc(var(--page-side) + env(safe-area-inset-left));
+}
+```
+
+The breadcrumb is the whole bar today — `SECOND BRAIN` links home, the filled
+chip is where you are — but it is a header, not a breadcrumb strip, and buttons
+will go in it. Put them after the `.grow`.
+
+On a black page add `on-dark`: `<header class="topbar on-dark">` flips the chips
+so "you are here" is not black on black. `admin/` is the only one.
+
+The pages had drifted to five different top paddings and two different header
+classes, which made opening one section after another feel like opening
+different apps. `tests/topbar.test.mjs` measures the bar in a browser on every
+page and fails if one of them moves; `dailyplan/` is the reference.
+
 **Sign-in.** Use `shared/firebase.js`; do not write another copy of the popup
 and its redirect fallback. It also records the profile card that makes the
 person visible in `admin/`, so a page that rolls its own sign-in leaves them
@@ -90,8 +123,6 @@ given it.
   neutral surfaces only — never muted text on `--yellow`, `--teal`, `--pink`,
   `--lime` or `--ink`. Use full contrast there and lean on size and weight.
 - One column width for every section: `--page-width`.
-- Every page opens with the `.crumbs` breadcrumb — `SECOND BRAIN` links home,
-  the filled chip is where you are.
 - Glyphs: no new emoji, no directional arrows. `▾` / `▴` on a card that opens
   and closes is the one exception.
 - Dark pages are for tools, not for sections. `admin/` is black so there is

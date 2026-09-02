@@ -32,16 +32,16 @@
   body{
     margin:0; background:#000; color:var(--card);
     padding:
-      calc(5vh + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
-      calc(60px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+      calc(var(--page-top) + env(safe-area-inset-top)) calc(var(--page-side) + env(safe-area-inset-right))
+      calc(var(--page-bottom) + env(safe-area-inset-bottom)) calc(var(--page-side) + env(safe-area-inset-left));
     font:16px/1.5 "Archivo","Helvetica Neue",Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
   .wrap{max-width:var(--page-width);margin:0 auto}
   .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900}
 
-  .crumbs{margin-bottom:16px}
   .version{
+    margin-left:auto;
     border:2px solid var(--teal);color:var(--teal);background:transparent;
     font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
     font-size:10px;letter-spacing:.1em;padding:4px 9px;
@@ -127,11 +127,11 @@
 </head>
 <body>
 <div class="wrap" id="wrap" data-admin="no">
-  <nav class="crumbs">
+  <header class="topbar on-dark">
     <a class="crumb" href="../">SECOND BRAIN</a>
     <span class="crumb here">ADMIN</span>
     <span class="version">0.1.1</span>
-  </nav>
+  </header>
 
   <div class="sync" id="sync">
     <span class="dot"></span>

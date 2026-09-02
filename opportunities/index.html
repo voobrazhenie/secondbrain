@@ -34,8 +34,8 @@
   body{
     margin:0; background:var(--yellow); color:var(--ink);
     padding:
-      calc(5vh + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
-      calc(60px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+      calc(var(--page-top) + env(safe-area-inset-top)) calc(var(--page-side) + env(safe-area-inset-right))
+      calc(var(--page-bottom) + env(safe-area-inset-bottom)) calc(var(--page-side) + env(safe-area-inset-left));
     font:16px/1.5 "Archivo","Helvetica Neue",Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
@@ -48,7 +48,7 @@
   .wrap{max-width:var(--page-width);margin:0 auto}
   .hide{display:none !important}
 
-  /* Header is .crumbs from theme.css. */
+  /* Header is .topbar from theme.css. */
 
   /* ---------- sync bar (same contract as dailyplan/, jobs/ and streams/) ---------- */
   .sync{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
@@ -203,10 +203,10 @@
 </head>
 <body>
 <div class="wrap">
-  <nav class="crumbs">
+  <header class="topbar">
     <a class="crumb" href="../">SECOND BRAIN</a>
     <span class="crumb here">OPPORTUNITIES</span>
-  </nav>
+  </header>
 
   <div id="gate">
     <p>This module is private. Sign in with the account that owns this data to see it.</p>

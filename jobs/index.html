@@ -45,8 +45,8 @@
   body{
     margin:0; background:var(--page); color:var(--ink);
     padding:
-      calc(5vh + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
-      calc(60px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+      calc(var(--page-top) + env(safe-area-inset-top)) calc(var(--page-side) + env(safe-area-inset-right))
+      calc(var(--page-bottom) + env(safe-area-inset-bottom)) calc(var(--page-side) + env(safe-area-inset-left));
     font:16px/1.5 "Archivo","Helvetica Neue",Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
@@ -59,7 +59,7 @@
   .wrap{max-width:var(--page-width);margin:0 auto}
   .hide{display:none !important}
 
-  /* Header is .crumbs from theme.css — one line, no back arrow. */
+  /* Header is .topbar from theme.css — one line, no back arrow. */
 
   /* ---------- sync bar ----------
      Quiet card with a status dot rather than a full-width colour block, and it
@@ -232,10 +232,10 @@
 <body>
 <div class="wrap">
 
-  <nav class="crumbs">
+  <header class="topbar">
     <a class="crumb" href="../">SECOND BRAIN</a>
     <span class="crumb here">JOB SEARCH</span>
-  </nav>
+  </header>
 
   <div id="gate">
     <p>This module is private. Sign in with the account that owns this data to see it.</p>

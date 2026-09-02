@@ -28,18 +28,15 @@
   body{
     margin:0; background:var(--yellow); color:var(--ink);
     padding:
-      calc(14px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
-      calc(30px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+      calc(var(--page-top) + env(safe-area-inset-top)) calc(var(--page-side) + env(safe-area-inset-right))
+      calc(var(--page-bottom) + env(safe-area-inset-bottom)) calc(var(--page-side) + env(safe-area-inset-left));
     font:15px/1.4 "Archivo","Helvetica Neue",Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
   .wrap{max-width:var(--maxw);margin:0 auto}
   .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;letter-spacing:-.01em}
-  .grow{flex:1}
 
   /* ---------- header ---------- */
-  .topbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-  .home:hover{color:var(--pink)}
   .streak{
     display:inline-flex;align-items:center;gap:5px;
     background:var(--yellow);border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
@@ -385,12 +382,12 @@
 <body>
 <div class="wrap" id="wrap" data-auth="checking">
 
-  <div class="topbar">
+  <header class="topbar">
     <a class="crumb" href="../">SECOND BRAIN</a>
     <span class="crumb here">DAILYPLAN</span>
     <span class="grow"></span>
     <span class="streak" id="streak"><b id="streakN">0</b><span id="streakLbl">days</span></span>
-  </div>
+  </header>
 
   <!-- One streak today, more later, so the block is named for the idea rather
        than for the habit that happens to be in it. -->
