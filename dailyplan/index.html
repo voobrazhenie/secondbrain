@@ -1845,9 +1845,7 @@ const sync = {
       // Server first, cache second — the same shape attach() uses. A cached
       // copy would render a number that the listener then corrects a moment
       // later, and the flicker reads as the bug this is fixing.
-      let snap;
-      try { snap = await f.getDocFromServer(this.trackerRef()); }
-      catch { snap = await f.getDoc(this.trackerRef()); }
+      const snap = await fbLib.readDoc(f, this.trackerRef());
       const raw = snap.exists() ? snap.data()[WEED_ID] : null;
       if (isISODate(raw)) { weedDate = raw; renderCounter(); return; }
       const found = await this.recoverWeed();
@@ -1876,7 +1874,7 @@ const sync = {
     const tick = new f.FieldPath("ticks", WEED_ID);
     const only = [f.where(tick, "==", true)];
     if (before) only.push(f.where(f.documentId(), "<", f.doc(days, before)));
-    const snap = await f.getDocsFromServer(f.query(days, ...only,
+    const snap = await fbLib.readDocs(f, f.query(days, ...only,
       f.orderBy(tick, "desc"), f.orderBy(f.documentId(), "desc"), f.limit(1)));
     return snap.empty ? null : snap.docs[0].id;
   },
@@ -2028,9 +2026,7 @@ const sync = {
     const date = plan.date;
     const ref = this.ref(date);
     try {
-      let snap;
-      try { snap = await f.getDocFromServer(ref); }
-      catch { snap = await f.getDoc(ref); }
+      const snap = await fbLib.readDoc(f, ref);
       if (snap.exists()) {
         const data = snap.data();
         // Same guard the live listener uses: a tick still on its way up must not
@@ -2108,9 +2104,7 @@ const sync = {
     if (!reconcile && this.customPending) return;
     const { f } = this.fb;
     try {
-      let snap;
-      try { snap = await f.getDocFromServer(this.customRef()); }
-      catch { snap = await f.getDoc(this.customRef()); }
+      const snap = await fbLib.readDoc(f, this.customRef());
 
       const v = snap.exists() ? snap.data() : {};
 
@@ -2171,9 +2165,7 @@ const sync = {
     let v = null;
     try {
       // Server first, cache second — the same shape attach() uses.
-      let snap;
-      try { snap = await f.getDocFromServer(this.planRef()); }
-      catch { snap = await f.getDoc(this.planRef()); }
+      const snap = await fbLib.readDoc(f, this.planRef());
       if (snap.exists()) v = snap.data();
     } catch (e) {
       // Leave whatever is already loaded rather than blanking a working page.
@@ -2208,9 +2200,7 @@ const sync = {
     try {
       // Server first, cache second — the same shape attach() uses, so the
       // sections don't unfold a moment after the list appears.
-      let snap;
-      try { snap = await f.getDocFromServer(this.prefsRef()); }
-      catch { snap = await f.getDoc(this.prefsRef()); }
+      const snap = await fbLib.readDoc(f, this.prefsRef());
       const v = snap.exists() ? snap.data() : {};
       collapsedGroups = new Set((Array.isArray(v.collapsed) ? v.collapsed : [])
         .filter(title => typeof title === "string"));
@@ -2400,7 +2390,7 @@ const sync = {
     await this.flush();
     const { f } = this.fb;
     try {
-      const snap = await f.getDocFromServer(this.ref(plan.date));
+      const snap = await fbLib.readDoc(f, this.ref(plan.date));
       const data = snap.exists() ? snap.data() : {};
       this.adopt(data.ticks || {}, plan.date);
       if (data.priority) this.adoptPriority(data.priority, plan.date);

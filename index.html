@@ -289,9 +289,7 @@
   async function loadHome() {
     const { f } = fb;
     try {
-      let snap;
-      try { snap = await f.getDocFromServer(homeRef()); }
-      catch { snap = await f.getDoc(homeRef()); }
+      const snap = await fbLib.readDoc(f, homeRef());
       const stored = snap.exists() ? snap.data().order : null;
       order = Array.isArray(stored) ? stored.filter(k => typeof k === "string") : [];
     } catch (e) {
@@ -331,14 +329,17 @@
     // there — and firestore.rules is what stops them if they guess the URL.
     account.isAdmin(fb, uid).then(yes => { $("adminLink").hidden = !yes; });
 
-    const features = await account.loadFeatures(fb, uid);
+    // Together, not one after the other: they are two separate documents, and
+    // on a connection that has gone quiet each read waits before falling back
+    // to the cache — in series that wait happens twice before anything is
+    // drawn.
+    const [features] = await Promise.all([account.loadFeatures(fb, uid), loadHome()]);
     if (!features) {
       hideEverything();
       setAuthState("err");
       setUI("err", "Couldn't check which sections you have.", "Reload", () => location.reload());
       return;
     }
-    await loadHome();
     applyFeatures(features.sections);
     setAuthState("in");
   }

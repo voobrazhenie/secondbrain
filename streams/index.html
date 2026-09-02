@@ -689,9 +689,7 @@ const sync = {
   async pull() {
     const { f } = this.fb;
     try {
-      let snap;
-      try { snap = await f.getDocFromServer(this.ref()); }
-      catch { snap = await f.getDoc(this.ref()); }
+      const snap = await fbLib.readDoc(f, this.ref());
       streams = snap.exists() ? (snap.data().streams || []) : [];
       render();
       /* No "else push what this device is holding". That branch is what seeded a

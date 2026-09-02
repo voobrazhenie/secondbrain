@@ -11,6 +11,7 @@
  */
 
 import { SECTIONS, noSections, allExtras } from "./sections.js";
+import { readDoc } from "./read.js";
 
 /* The settings a person gets before anybody has decided anything about them.
  * It is a features document like everyone else's, filed under an id no Firebase
@@ -53,9 +54,7 @@ async function readFeatureDoc(fb, id) {
   const { f, db } = fb;
   const ref = f.doc(db, "features", id);
   try {
-    let snap;
-    try { snap = await f.getDocFromServer(ref); }
-    catch { snap = await f.getDoc(ref); }
+    const snap = await readDoc(f, ref);
     return snap.exists() ? snap.data() : null;
   } catch (e) {
     console.warn("Features unavailable:", e.code || e.message);

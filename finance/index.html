@@ -1168,9 +1168,7 @@ const sync = {
   async pull() {
     const { f } = this.fb;
     try {
-      let snap;
-      try { snap = await f.getDocFromServer(this.ref()); }
-      catch { snap = await f.getDoc(this.ref()); }
+      const snap = await fbLib.readDoc(f, this.ref());
       const data = snap.exists() ? snap.data() : {};
       accounts = data.accounts || {};
       rates = data.rates || {};
@@ -1271,9 +1269,7 @@ const sync = {
       f.where("date", ">=", sinceISO),
       f.orderBy("date")
     );
-    let snap;
-    try { snap = await f.getDocsFromServer(q); }
-    catch { snap = await f.getDocs(q); }
+    const snap = await fbLib.readDocs(f, q);
     return snap.docs.map(d => ({ date: d.data().date, net: d.data().net }));
   }
 };

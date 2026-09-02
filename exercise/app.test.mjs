@@ -6,8 +6,13 @@ const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
 const html = await readFile(new URL("./index.html", import.meta.url), "utf8");
 
 test("exercise synchronization is server-only and has no live listener or browser fallback", () => {
-  assert.match(app, /getDocsFromServer/);
-  assert.match(app, /getDocFromServer/);
+  // readDoc/readDocs are the server reads — they ask the server first and only
+  // fall back to Firebase's own cache when it does not answer. See
+  // shared/read.js: a server read that never settles is what leaves a page
+  // blank, and this one used to be able to.
+  assert.match(app, /import \{ readDoc, readDocs \} from "\.\.\/shared\/read\.js"/);
+  assert.match(app, /readDocs\(fb, request\)/);
+  assert.match(app, /readDoc\(fb, fb\.doc\(/);
   assert.doesNotMatch(app, /onSnapshot/);
   assert.doesNotMatch(app, /localStorage/);
   assert.doesNotMatch(app, /persistentLocalCache/);

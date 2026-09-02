@@ -160,6 +160,14 @@ given it.
 - **Refresh on return.** A home-screen app is never really closed, so re-read
   on `visibilitychange` — throttled, and never while a dialog or an edit is
   open, since a re-render would take the open field with it.
+- **Read through `shared/read.js`.** `readDoc(f, ref)` and `readDocs(f, query)`
+  are how a page asks the server for something. Never call
+  `getDocFromServer` / `getDocsFromServer` directly: they wait on the network,
+  and on a phone coming back from sleep the promise does not fail — it never
+  settles at all. A `try { server } catch { cache }` around it catches nothing,
+  the page keeps awaiting, and the gate never opens. That is the blank screen
+  with the sign-in line at the top of it. `readDoc` gives the server six
+  seconds and then takes whatever the cache has.
 
 ## The trap that keeps catching us
 

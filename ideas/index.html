@@ -516,9 +516,7 @@ const sync = {
   async pull() {
     const { f } = this.fb;
     try {
-      let snap;
-      try { snap = await f.getDocFromServer(this.ref()); }
-      catch { snap = await f.getDoc(this.ref()); }
+      const snap = await fbLib.readDoc(f, this.ref());
       const remote = snap.exists() ? snap.data().ideas : null;
       ideas = Array.isArray(remote) ? remote.map(cleanIdea).filter(Boolean) : [];
       render();

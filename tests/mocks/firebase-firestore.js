@@ -67,13 +67,23 @@ export const doc = (parent, ...segs) => {
 };
 
 export const getDoc = async ref => snapOf(ref);
-export const getDocFromServer = getDoc;
+export const getDocFromCache = getDoc;
+
+/* The server reads can be told to stall, which is the failure the pages are
+ * built against: not an error, no answer at all. A phone coming back from
+ * sleep gets this from the real SDK, and the page then sits on its gate with
+ * an empty screen — see shared/read.js. */
+const stalled = () => { try { return sessionStorage.getItem("__mockstall") === "1"; } catch { return false; } };
+const never = new Promise(() => {});
+
+export const getDocFromServer = ref => stalled() ? never : getDoc(ref);
 
 export const getDocs = async q => {
   const docs = docsUnder(q.isCol ? q : q.col);
   return { docs, empty: docs.length === 0, forEach: fn => docs.forEach(fn) };
 };
-export const getDocsFromServer = getDocs;
+export const getDocsFromCache = getDocs;
+export const getDocsFromServer = q => stalled() ? never : getDocs(q);
 
 export const setDoc = async (ref, data, opts) => applyDoc(key(ref), data, !!(opts && opts.merge));
 export const updateDoc = async (ref, data) => applyDoc(key(ref), data, true);

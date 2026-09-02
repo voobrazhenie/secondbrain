@@ -1,4 +1,5 @@
 import { berlinDate, buildWeekSchedule, isRestStatus, shiftDate, weekRange } from "./schedule.mjs";
+import { readDoc, readDocs } from "../shared/read.js";
 import { firebaseConfig } from "../dailyplan/firebase-config.js";
 
 const SDK = "https://www.gstatic.com/firebasejs/12.16.0/";
@@ -678,8 +679,8 @@ async function readSelectedWeek(reason, { force = false } = {}) {
         fb.orderBy(fb.documentId(), "asc"));
       const previousSunday = shiftDate(range.start, -1);
       const [snapshot, previousSnapshot] = await Promise.all([
-        fb.getDocsFromServer(request),
-        fb.getDocFromServer(fb.doc(db, "users", uid, "exerciseDays", previousSunday))
+        readDocs(fb, request),
+        readDoc(fb, fb.doc(db, "users", uid, "exerciseDays", previousSunday))
       ]);
       if (!user || user.uid !== uid) return;
       const fresh = new Map();

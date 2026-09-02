@@ -54,6 +54,11 @@ export async function connect() {
   return fb;
 }
 
+/* Reads that always answer, re-exported so a page holding only `fbLib` can
+ * reach them: `fbLib.readDoc(f, ref)`. They live in read.js because
+ * account.js needs them too, and it is already imported from here. */
+export { readDoc, readDocs } from "./read.js";
+
 /* Calls back with the signed-in user, or null. Fires once on load with the
  * answer, and again on every sign-in and sign-out. Returns the unsubscribe.
  *

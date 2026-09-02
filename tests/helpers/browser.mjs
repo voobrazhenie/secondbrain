@@ -62,7 +62,7 @@ export async function serve() {
 
 /* A page with the SDK swapped out, optionally starting from a given set of
  * documents and a given signed-in account. `seed` is [[path, data], …]. */
-export async function openPage(browser, origin, url, { user = null, seed = [], localStorage: ls = {}, touch = false } = {}) {
+export async function openPage(browser, origin, url, { user = null, seed = [], localStorage: ls = {}, touch = false, stall = false } = {}) {
   const page = await browser.newPage({ viewport: { width: 430, height: 950 }, hasTouch: touch });
 
   await page.route("https://www.gstatic.com/firebasejs/**", async route => {
@@ -81,13 +81,16 @@ export async function openPage(browser, origin, url, { user = null, seed = [], l
     if (m.type() === "error" && !m.text().includes("404")) problems.push("console: " + m.text());
   });
 
-  await page.addInitScript(([seeded, account, keys]) => {
+  await page.addInitScript(([seeded, account, keys, stalling]) => {
     try {
       if (!sessionStorage.getItem("__mockdb")) sessionStorage.setItem("__mockdb", seeded);
+      // The server reads never answer — the failure a phone gets coming back
+      // from sleep. The cache still does, which is what the pages fall back to.
+      if (stalling) sessionStorage.setItem("__mockstall", "1");
       for (const [k, v] of Object.entries(keys)) localStorage.setItem(k, v);
     } catch {}
     if (account) globalThis.__MOCK_USER = account;
-  }, [JSON.stringify(seed), user, ls]);
+  }, [JSON.stringify(seed), user, ls, stall]);
 
   await page.goto(origin + url, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(600);
