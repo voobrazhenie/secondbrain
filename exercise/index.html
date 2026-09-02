@@ -3,8 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
   <meta name="theme-color" content="#FFD53D">
   <title>Exercise · Second Brain</title>
+
+  <!-- Add to Home Screen. iOS ignores the manifest's name/display, so the
+       apple-* metas below are what actually make it launch standalone.
+       One manifest for the whole Second Brain, so moving between sections
+       never falls back to Safari. -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="apple-touch-icon" href="../icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Second Brain">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="stylesheet" href="../theme.css">
   <style>
     /* Same neo-brutalist system as / and dailyplan/. Shared colors, strokes and
