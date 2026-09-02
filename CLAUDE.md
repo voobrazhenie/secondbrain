@@ -52,6 +52,14 @@ account and never to this repository or to the browser.
   what enforces it — hiding a button is a courtesy, not a lock. Only an account
   in `admins/{uid}` may read `profiles/` or write `features/`.
 
+## Anything user-facing
+
+Read `docs/DESIGN-GUIDE.md` first — always before building a new page, and
+before changing how something looks or behaves. It carries what a new section
+needs in order to be part of the installed app, how the gestures work, and the
+rules that exist because they were got wrong once. `theme.css` stays the source
+of truth for colours, strokes and shadows.
+
 ## Reading and writing his data
 
 His data lives in Firestore under `users/{uid}/`, in these collections:

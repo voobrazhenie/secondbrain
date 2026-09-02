@@ -1,10 +1,9 @@
 /* Shared design tokens for Second Brain — colors, strokes, shadows.
 
-   One thing every page needs that cannot live here: the head tags that make a
-   section open inside the installed app instead of dropping into the browser's
-   own bar — the manifest link, `apple-mobile-web-app-capable`, a status bar
-   style, a theme colour, and `viewport-fit=cover`. A stylesheet cannot add
-   tags to a head, so `tests/head.test.mjs` checks every page has them.
+   What a new page needs beyond these tokens — the head tags that make a section
+   open inside the installed app rather than in the browser's own bar, the
+   sign-in gate, the gestures — is in `docs/DESIGN-GUIDE.md`. A stylesheet
+   cannot add tags to a head, so `tests/head.test.mjs` checks those.
    One canonical copy; pages link to this instead of redefining their own.
    Values taken from dailyplan/index.html, the most complete/current set.
    exercise/ and cleaning/ are not on this system yet — left alone on purpose. */

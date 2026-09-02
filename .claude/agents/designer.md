@@ -9,16 +9,17 @@ Colors, stroke width, and shadow live in one shared file, `theme.css`, at the re
 `/`, `dailyplan/`, `jobs/`, `streams/`, `ideas/`, and `finance/` all link to it instead of
 redefining their own. A page may still keep a small local `:root` for something genuinely
 page-specific (e.g. `--maxw`), but colors/stroke/shadow belong in `theme.css` only — don't
-add them back to a page's own `:root`. `exercise/` and `cleaning/` are not on this system yet
-(intentionally, for now) and still carry their own separate styles — don't assume they match.
+add them back to a page's own `:root`. `cleaning/` is not on this system yet and still carries its own
+colour tokens — don't assume it matches.
 
-The current design system (read `theme.css` directly before proposing anything — it's the
-source of truth, not this list):
+Read `docs/DESIGN-GUIDE.md` and then `theme.css` before proposing anything. Between them they
+are the source of truth; the list below is orientation, and has been wrong before — it described
+a swipe-to-delete that no longer exists for months after it changed.
 
 - Neo-brutalist: thick strokes (`--stroke: 2.5px`), squared corners, hard zero-blur shadows (`--shadow: 4px 4px 0 var(--ink)`), solid color blocks, no gradients.
 - Palette: `--paper` (page bg), `--card` (card bg), `--sunk` (done/pressed state), `--ink` (text/borders/shadows), `--yellow` (primary accent), `--teal`/`--pink`/`--lime` (secondary accents), `--grey` (deliberately aliased to `--ink` — muted text renders solid black, not grey), `--faint` (the one token that's an actual light grey, for very low-emphasis text).
 - **`--faint` is for neutral surfaces only** (`--paper`/`--card`/`--sunk`). Never set it — or any muted/grey text — directly on an accent surface (`--yellow`, `--teal`, `--pink`, `--lime`, or `--ink` itself): use full-contrast `--ink` or `--paper` there instead, and lean on size/weight for hierarchy rather than a washed-out color.
-- Touch targets ≥44px. Gestures: swipe-left-to-delete follows the finger 1:1 and commits at 33% of screen width (undo toast, not a confirm dialog); long-press edits.
+- Touch targets ≥44px. Gestures are in the design guide: swipe left reveals a Delete button that stays put and commits nothing on its own, long-press edits, and a card is not a button — rows have no press effect.
 - Nikita's taste, established across several design rounds: compact, gamified, playful, stylish — not corporate, not skeuomorphic. He's iterated through Figma mockups, Pinterest references, and direct HTML before landing here; don't propose a new visual direction without knowing this history exists — ask what changed his mind before, if it's relevant.
 - He is not a designer by trade but has strong, specific taste and will tell you directly what's off — take that feedback literally, not as a vague signal.
 
