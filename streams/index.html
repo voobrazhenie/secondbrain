@@ -103,10 +103,11 @@
     transition:transform .16s ease-out;touch-action:pan-y}
   /* .handle comes from theme.css; here it also carries the Focus-now colour. */
   .stream.hot .handle{background:var(--pink)}
-  /* A stream is one line and stays one line — no expanding. Selection and the
-     iOS callout are off so a long press reads as "rename", not "select text". */
+  /* A stream is one line and stays one line — no expanding. Selection is off
+     via .press-edit in theme.css, so a long press reads as "rename" rather
+     than "select text". */
   .rowbody{flex:1;min-width:0;display:flex;align-items:center;padding:11px 14px 11px 12px;
-    cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+    cursor:pointer}
   .r-title{font-size:15px;font-weight:700;overflow-wrap:anywhere}
 
   .stream-body{border-top:2px solid var(--ink);padding:11px 12px}
@@ -348,7 +349,7 @@ function streamRow(s, group) {
   surface.style.transform = `translateX(${revealedId === s.id ? -TRAY_W : 0}px)`;
 
   const body = document.createElement("div");
-  body.className = "rowbody";
+  body.className = "rowbody press-edit";
   const title = document.createElement("span");
   title.className = "r-title";
   title.textContent = s.title;
@@ -515,7 +516,7 @@ const LONG_PRESS_MS = 500;
 
 function attachSwipe(surface, s) {
   let startX = 0, startY = 0, base = 0, dx = 0, axis = null, tracking = false;
-  let timer = null, held = false;
+  let timer = null, held = false, mouse = false;
 
   const settle = offset => {
     surface.style.transition = "";
@@ -525,6 +526,7 @@ function attachSwipe(surface, s) {
   surface.addEventListener("pointerdown", event => {
     if (event.button) return;
     tracking = true; axis = null; dx = 0; held = false;
+    mouse = event.pointerType === "mouse";
     startX = event.clientX; startY = event.clientY;
     base = revealedId === s.id ? -TRAY_W : 0;
     clearTimeout(timer);
@@ -546,6 +548,8 @@ function attachSwipe(surface, s) {
       if (Math.abs(ax) < TAP_SLOP && Math.abs(ay) < TAP_SLOP) return;
       axis = Math.abs(ax) > Math.abs(ay) ? "x" : "y";
       clearTimeout(timer);
+      // Swiping is a finger's gesture; a mouse drag across a row is not one.
+      if (axis === "x" && mouse) axis = "y";
       if (axis === "x") {
         surface.style.transition = "none";
         surface.setPointerCapture(event.pointerId);

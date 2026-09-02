@@ -6,7 +6,8 @@
 
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
-import { playwright, serve, openPage, signIn, signOut, painted, paintedAll, stored } from "./helpers/browser.mjs";
+import { playwright, serve, openPage, signIn, signOut, painted, paintedAll, stored,
+         swipeLeft, dragLeft } from "./helpers/browser.mjs";
 import { plan, features, routine } from "./helpers/fixtures.mjs";
 
 const browser = await playwright();
@@ -169,7 +170,8 @@ test("the add form says Add task, and drops the XP field when points are off", {
 test("a row does not move when pressed, and swiping reveals a Delete that stays", { skip }, async () => {
   const { page, problems } = await openPage(browser, site.origin, "/dailyplan/", {
     user: { uid: "uidA", email: "a@example.com" },
-    seed: [plan("uidA"), features("uidA", ["dailyplan"])]
+    seed: [plan("uidA"), features("uidA", ["dailyplan"])],
+    touch: true
   });
   await signIn(page);
 
@@ -186,13 +188,10 @@ test("a row does not move when pressed, and swiping reveals a Delete that stays"
   await page.waitForTimeout(300);
 
   const before = await rowCount(page);
-  await page.mouse.move(first.x + 250, y);
-  await page.mouse.down();
-  for (const x of [230, 200, 170, 150]) { await page.mouse.move(x, y); await page.waitForTimeout(25); }
-  await page.mouse.up();
-  await page.waitForTimeout(400);
+  const revealed = () => page.evaluate(() => !!document.querySelector(".rowwrap.revealed"));
 
-  assert.equal(await page.evaluate(() => !!document.querySelector(".rowwrap.revealed")), true,
+  await swipeLeft(page, "#list .row");
+  assert.equal(await revealed(), true,
     "it stays open rather than springing back or deleting on its own");
   assert.equal(await painted(page, ".rowwrap.revealed .tray button"), true);
   assert.equal(await rowCount(page), before, "the swipe itself destroys nothing");
@@ -200,6 +199,72 @@ test("a row does not move when pressed, and swiping reveals a Delete that stays"
   await page.click(".rowwrap.revealed .tray button");
   await page.waitForTimeout(600);
   assert.equal(await rowCount(page), before - 1, "the button is what deletes");
-  assert.equal(await page.evaluate(() => !!document.querySelector(".rowwrap.revealed")), false);
+  assert.equal(await revealed(), false);
+  assert.deepEqual(problems, []);
+});
+
+/* Swiping is a finger's gesture. On a desktop the same drag with a mouse used
+   to slide the card off its Delete, which nobody was asking for — the hover
+   buttons beside the card are the desktop way in. */
+test("a mouse drag across a row does not swipe it", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [plan("uidA"), features("uidA", ["dailyplan"])]
+  });
+  await signIn(page);
+
+  const before = await rowCount(page);
+  await dragLeft(page, "#list .row");
+  assert.equal(await page.evaluate(() => !!document.querySelector(".rowwrap.revealed")), false,
+    "the card stays shut");
+  assert.equal(await page.evaluate(
+    () => document.querySelector("#list .row").style.transform || ""), "",
+    "and it never moved");
+  assert.equal(await rowCount(page), before);
+  assert.deepEqual(problems, []);
+});
+
+/* A long press opens the edit form. It must not also select the words under
+   the finger, which is what it did on the phone: the form came up with the
+   text highlighted and iOS's copy callout behind it. */
+test("a card you press and hold does not select its own text", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [plan("uidA"), features("uidA", ["dailyplan"])]
+  });
+  await signIn(page);
+
+  const selectable = sel => page.evaluate(
+    s => getComputedStyle(document.querySelector(s)).userSelect, sel);
+
+  assert.equal(await selectable("#list .row"), "none", "a task row");
+  assert.equal(await selectable(".priority"), "none", "the priority card");
+  // Inside the form it is the whole point, so nothing may take it away there.
+  await page.evaluate(() => openAdd("To do"));
+  assert.equal(await selectable("#mText"), "text", "the field being typed into");
+  assert.deepEqual(problems, []);
+});
+
+/* The edit and remove buttons appear beside the card on a desktop, not on top
+   of it — inside, they sat on the XP pill and hid the row's own score. */
+test("the hover buttons sit clear of the card", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [plan("uidA"), features("uidA", ["dailyplan"])]
+  });
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await signIn(page);
+
+  await page.locator(".rowwrap").first().hover();
+  await page.waitForTimeout(150);
+  assert.equal(await painted(page, ".rowbtns"), true, "they are there to be used");
+
+  const clear = await page.evaluate(() => {
+    const card = document.querySelector(".rowwrap").getBoundingClientRect();
+    const btns = document.querySelector(".rowbtns").getBoundingClientRect();
+    return { gap: Math.round(btns.left - card.right), onScreen: btns.right <= innerWidth };
+  });
+  assert.ok(clear.gap > 0, `the buttons overlap the card by ${-clear.gap}px`);
+  assert.ok(clear.onScreen, "and they are still on the screen");
   assert.deepEqual(problems, []);
 });

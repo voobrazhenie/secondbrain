@@ -10,13 +10,34 @@ const store = load();
 const persist = () => { try { sessionStorage.setItem("__mockdb", JSON.stringify([...store])); } catch {} };
 const watchers = new Map();
 
-const key = ref => ref.path;
+const docsUnder = col => [...store.keys()]
+  .filter(p => p.startsWith(col.path + "/") && !p.slice(col.path.length + 1).includes("/"))
+  .map(p => ({ id: p.split("/").pop(), data: () => store.get(p) }));
+
+const key = ref => (ref.isCol || ref.col) ? (ref.col || ref).path : ref.path;
 const snapOf = ref => {
   const d = store.get(key(ref));
   return { id: ref.id, exists: () => d !== undefined, data: () => d, metadata: { hasPendingWrites: false } };
 };
-const notify = path => (watchers.get(path) || [])
-  .forEach(cb => cb(snapOf({ path, id: path.split("/").pop() })));
+/* A collection listener gets every document under it, the same shape getDocs
+ * returns. Opportunities and Jobs read a collection rather than one document,
+ * and without this their onSnapshot handed back a document snapshot: snap.docs
+ * was undefined, the page threw before it painted, and neither section could
+ * be opened in a test at all. */
+const colSnapOf = ref => {
+  const docs = docsUnder({ path: key(ref) });
+  return { docs, empty: docs.length === 0, forEach: fn => docs.forEach(fn),
+           metadata: { hasPendingWrites: false } };
+};
+const isCollection = ref => !!(ref.isCol || ref.col);
+
+/* A write under a collection wakes that collection's listeners as well as the
+ * document's own. */
+const notify = path => {
+  (watchers.get(path) || []).forEach(cb => cb(snapOf({ path, id: path.split("/").pop() })));
+  const parent = path.slice(0, path.lastIndexOf("/"));
+  (watchers.get(parent) || []).forEach(cb => cb(colSnapOf({ path: parent })));
+};
 
 /* serverTimestamp() and deleteField() arrive as sentinels; resolve them the way
  * the real server would before the value lands in the store. */
@@ -48,10 +69,6 @@ export const doc = (parent, ...segs) => {
 export const getDoc = async ref => snapOf(ref);
 export const getDocFromServer = getDoc;
 
-const docsUnder = col => [...store.keys()]
-  .filter(p => p.startsWith(col.path + "/") && !p.slice(col.path.length + 1).includes("/"))
-  .map(p => ({ id: p.split("/").pop(), data: () => store.get(p) }));
-
 export const getDocs = async q => {
   const docs = docsUnder(q.isCol ? q : q.col);
   return { docs, empty: docs.length === 0, forEach: fn => docs.forEach(fn) };
@@ -63,9 +80,10 @@ export const updateDoc = async (ref, data) => applyDoc(key(ref), data, true);
 
 export const onSnapshot = (ref, cb) => {
   const p = key(ref);
+  const col = isCollection(ref);
   if (!watchers.has(p)) watchers.set(p, []);
   watchers.get(p).push(cb);
-  Promise.resolve().then(() => cb(snapOf(ref)));
+  Promise.resolve().then(() => cb(col ? colSnapOf(ref) : snapOf(ref)));
   return () => watchers.set(p, (watchers.get(p) || []).filter(x => x !== cb));
 };
 

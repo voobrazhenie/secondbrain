@@ -144,6 +144,9 @@
   .handle.drag{cursor:grab;touch-action:none}
   .opp.dragging{opacity:.45;position:relative;z-index:3}
   .handle.hf{background:var(--pink)}
+  /* Selection is off here — .press-edit in theme.css — so a swipe across the
+     row drags the card rather than highlighting its title. The description
+     below, in .opp-body, is not part of it and stays selectable. */
   .rowbody{flex:1;min-width:0;padding:11px 12px;cursor:pointer}
   .cat-label{display:block;font-size:9px;font-weight:800;letter-spacing:.08em;
     text-transform:uppercase;color:var(--faint);margin-bottom:3px}
@@ -615,7 +618,7 @@ const App = {
     if (draggable) this.attachDrag(handle, card, it);
 
     const body = document.createElement("div");
-    body.className = "rowbody";
+    body.className = "rowbody press-edit";
     if (it.category) {
       const cat = document.createElement("span");
       cat.className = "cat-label";
@@ -710,7 +713,7 @@ const App = {
      path at a time. A tap on a revealed row closes the tray rather than opening
      the card, for the same reason. */
   attachSwipe(surface, it) {
-    let startX = 0, startY = 0, base = 0, dx = 0, axis = null, tracking = false;
+    let startX = 0, startY = 0, base = 0, dx = 0, axis = null, tracking = false, mouse = false;
 
     const settle = offset => {
       surface.style.transition = "";
@@ -720,6 +723,7 @@ const App = {
     surface.addEventListener("pointerdown", event => {
       if (event.button) return;
       tracking = true; axis = null; dx = 0;
+      mouse = event.pointerType === "mouse";
       startX = event.clientX; startY = event.clientY;
       base = this.revealedId === it.id ? -TRAY_W : 0;
     });
@@ -731,6 +735,8 @@ const App = {
       if (axis === null) {
         if (Math.abs(ax) < TAP_SLOP && Math.abs(ay) < TAP_SLOP) return;
         axis = Math.abs(ax) > Math.abs(ay) ? "x" : "y";
+        // Swiping is a finger's gesture; a mouse drag across a row is not one.
+        if (axis === "x" && mouse) axis = "y";
         if (axis === "x") {
           surface.style.transition = "none";
           surface.setPointerCapture(event.pointerId);

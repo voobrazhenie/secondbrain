@@ -779,7 +779,7 @@ $("rangeRow").querySelectorAll("button").forEach(btn => {
 function buildRow(a) {
   const settled = a.kind === "debt" && a.amount === 0;
   const row = document.createElement("div");
-  row.className = "row" + (a.kind === "debt" ? " debt" : "") + (settled ? " settled" : "");
+  row.className = "row press-edit" + (a.kind === "debt" ? " debt" : "") + (settled ? " settled" : "");
   row.tabIndex = 0;
   row.dataset.id = a.id;
   row.innerHTML = rowHTML(a);
@@ -914,7 +914,7 @@ function startEdit(row, a) {
   let done = false;
   const backToDisplay = () => {
     const settled = a.kind === "debt" && a.amount === 0;
-    row.className = "row" + (a.kind === "debt" ? " debt" : "") + (settled ? " settled" : "");
+    row.className = "row press-edit" + (a.kind === "debt" ? " debt" : "") + (settled ? " settled" : "");
     row.innerHTML = rowHTML(a);
   };
   const commit = () => {

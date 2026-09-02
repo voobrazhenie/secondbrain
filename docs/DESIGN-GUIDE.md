@@ -141,7 +141,20 @@ given it.
   finger crossed a third of the screen, which put the point of no return in the
   middle of a gesture. `dailyplan/` and `opportunities/` both do it this way;
   copy one of them.
+- **Swiping is a finger's gesture only.** A pointer-events swipe works with a
+  mouse for free, and it should not: dragging sideways across a card with a
+  mouse is not how anyone asks to delete something. Read `pointerType` at
+  `pointerdown` and treat a sideways mouse drag as no gesture at all.
 - **Long press edits**, and a drag or a long press must never also fire the tap.
+- **A card with a gesture on it does not select its own text.** Put
+  `press-edit` (theme.css) on the part the gesture listens to. Without it a
+  long press opened the edit form *and* highlighted the words underneath, with
+  iOS's copy callout behind them. Put it only on that part — an expanded
+  description stays selectable, and so does every form field.
+- **Desktop gets buttons, not gestures.** Edit and remove appear on hover, in
+  the margin beside the card rather than on it: inside, they land on whatever
+  the card's right-hand side is already showing. `dailyplan/` places both its
+  pairs with one rule.
 - **Undo, not confirm.** A destructive action happens and offers a toast with
   UNDO, rather than asking first.
 - **Refresh on return.** A home-screen app is never really closed, so re-read

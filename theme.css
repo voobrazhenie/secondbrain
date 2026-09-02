@@ -87,6 +87,17 @@
 .topbar.on-dark .crumb{background:transparent;color:var(--card);border-color:var(--card)}
 .topbar.on-dark .crumb.here{background:var(--card);color:var(--ink)}
 
+/* ---------- cards you press and hold ----------
+   A card that opens its edit form on a long press must not also select its own
+   words. On a phone both happened at once: the form opened and the text under
+   the finger came up highlighted, with iOS's own copy callout behind it. A
+   sideways swipe did the same. So the part of a card a gesture listens to gets
+   this, and only that part — an expanded description below it stays selectable,
+   and so does every field in a form, which is where selecting text is the
+   point. */
+.press-edit{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select{-webkit-user-select:text;user-select:text}
+
 /* House rules for glyphs, so new work stays consistent:
    - No emoji. The home page tiles and the older dailyplan/cleaning/finance
      icon sets stay until they are redesigned, but nothing new gets one.

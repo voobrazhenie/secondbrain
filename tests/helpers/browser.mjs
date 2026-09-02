@@ -62,8 +62,8 @@ export async function serve() {
 
 /* A page with the SDK swapped out, optionally starting from a given set of
  * documents and a given signed-in account. `seed` is [[path, data], …]. */
-export async function openPage(browser, origin, url, { user = null, seed = [], localStorage: ls = {} } = {}) {
-  const page = await browser.newPage({ viewport: { width: 430, height: 950 } });
+export async function openPage(browser, origin, url, { user = null, seed = [], localStorage: ls = {}, touch = false } = {}) {
+  const page = await browser.newPage({ viewport: { width: 430, height: 950 }, hasTouch: touch });
 
   await page.route("https://www.gstatic.com/firebasejs/**", async route => {
     const name = route.request().url().split("/").pop();
@@ -119,6 +119,40 @@ export const painted = (page, selector) => page.evaluate(
 export const paintedAll = (page, selector) => page.evaluate(
   sel => [...document.querySelectorAll(sel)].filter(el => getComputedStyle(el).display !== "none").length,
   selector);
+
+/* Swipe a card left with a finger.
+ *
+ * It has to be a finger: swiping is a touch gesture now, and a mouse drag
+ * across a card deliberately does nothing — on a desktop the hover buttons do
+ * that job. Playwright's touchscreen can tap but not drag, so this goes through
+ * CDP, which is real input rather than events dispatched from inside the page.
+ * The page has to have been opened with `touch: true`. */
+export async function swipeLeft(page, selector, distance = 140) {
+  const box = await page.locator(selector).first().boundingBox();
+  const y = Math.round(box.y + box.height / 2);
+  const from = Math.round(box.x + box.width - 30);
+  const cdp = await page.context().newCDPSession(page);
+  const at = (type, x) => cdp.send("Input.dispatchTouchEvent", {
+    type, touchPoints: type === "touchEnd" ? [] : [{ x: Math.round(x), y }]
+  });
+  await at("touchStart", from);
+  for (let i = 1; i <= 8; i++) await at("touchMove", from - (distance / 8) * i);
+  await at("touchEnd", from - distance);
+  await cdp.detach();
+  await page.waitForTimeout(400);
+}
+
+/* The same drag with a mouse, which should leave the card where it is. */
+export async function dragLeft(page, selector, distance = 140) {
+  const box = await page.locator(selector).first().boundingBox();
+  const y = box.y + box.height / 2;
+  const from = box.x + box.width - 30;
+  await page.mouse.move(from, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) { await page.mouse.move(from - (distance / 8) * i, y); await page.waitForTimeout(20); }
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+}
 
 export const stored = (page, path) => page.evaluate(p => globalThis.__MOCK_STORE.get(p), path);
 export const storedPaths = page => page.evaluate(() => [...globalThis.__MOCK_STORE.keys()].sort());

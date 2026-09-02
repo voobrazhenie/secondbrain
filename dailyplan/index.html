@@ -52,6 +52,7 @@
      in it is weed-specific. Same box metrics as a checklist .row on purpose, so
      it sits in the page rather than shouting over it. */
   .counter{
+    --sq:36px;
     display:flex;align-items:center;gap:11px;
     background:var(--card);color:var(--ink);
     border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
@@ -61,7 +62,7 @@
      you haven't ticked. No red: a bad day gets the colour drained out, not a
      telling-off. */
   .counter .sq{
-    flex:0 0 auto;width:36px;height:36px;
+    flex:0 0 auto;width:var(--sq);height:var(--sq);
     border:var(--stroke) solid var(--ink);background:var(--card);
     display:flex;align-items:center;justify-content:center;
     font-family:"Arial Black",Impact,sans-serif;font-weight:900;font-size:17px;line-height:1;
@@ -70,11 +71,23 @@
   }
   .counter .sq.on{background:var(--lime)}
   .counter .sq.d3{font-size:13px;letter-spacing:-.04em}
+  /* The unit and the name stack, rather than running along one line: two short
+     words side by side read as a sentence the row is not making. Stacked, the
+     square is what you look at and the words label it. The column is exactly
+     as tall as the square so DAYS starts level with its top edge, and the name
+     centres in what is left under it. */
+  .counter .lbl{
+    flex:1;min-width:0;height:var(--sq);
+    display:flex;flex-direction:column;
+  }
   .counter .unit{
     flex:0 0 auto;font-family:"Arial Black",Impact,sans-serif;
-    font-size:9px;letter-spacing:.07em;color:var(--grey);
+    font-size:9px;line-height:1;letter-spacing:.07em;color:var(--grey);
   }
-  .counter .nm{flex:1;min-width:0;font-size:13px;font-weight:900;line-height:1.15}
+  .counter .nm{
+    flex:1;min-width:0;display:flex;align-items:center;
+    font-size:13px;font-weight:900;line-height:1.15;
+  }
   @media (prefers-reduced-motion: reduce){ .counter .sq{transition:none} }
 
   /* ---------- day switcher ---------- */
@@ -230,9 +243,20 @@
   }
   .tray button:active{transform:none;box-shadow:none}
 
-  /* desktop affordance — hidden on touch, where the gestures do the work */
-  .rowbtns{position:absolute;top:50%;right:8px;transform:translateY(-50%);
+  /* Desktop affordance — hidden on touch, where the gestures do the work.
+
+     The buttons sit in the margin beside the card rather than on it. Inside,
+     they landed on the XP pill and covered the one number the row is scored
+     by. Being outside needs somewhere to be outside in: the column is 560px
+     and centred, so the window has to be wide enough to leave a margin for
+     them — narrower than that they stay tucked in at the right edge, which is
+     the lesser problem. The priority card's pair is placed by the same rule,
+     so the two cannot drift apart. */
+  .rowbtns,.priority-btns{position:absolute;top:50%;right:8px;transform:translateY(-50%);
     display:none;gap:5px;z-index:2}
+  @media (min-width:760px){
+    .rowbtns,.priority-btns{right:auto;left:100%;margin-left:10px}
+  }
   @media (hover:hover){ .rowwrap:not(.revealed):hover .rowbtns{display:flex} }
   .rowbtns button{padding:2px 7px;font-size:11px;box-shadow:2px 2px 0 var(--ink)}
 
@@ -294,8 +318,7 @@
   .priority-wrap .tray button{background:var(--ink);color:var(--paper)}
   .priority-wrap .priority{border:0;box-shadow:none}
 
-  /* desktop affordance — hidden on touch, where the gestures do the work */
-  .priority-btns{position:absolute;top:9px;right:10px;display:none;gap:5px;z-index:2}
+  /* Placed with .rowbtns above; only the colour is its own. */
   @media (hover:hover){ .priority-wrap:not(.revealed):hover .priority-btns{display:flex} }
   .priority-btns button{
     padding:2px 7px;font-size:11px;background:var(--card);
@@ -394,8 +417,10 @@
   <section class="streaks" id="streaks" aria-label="Streaks">
     <div class="counter" id="counter" hidden>
       <span class="sq" id="counterN">0</span>
-      <span class="unit">DAYS</span>
-      <span class="nm">No weed</span>
+      <span class="lbl">
+        <span class="unit">DAYS</span>
+        <span class="nm">No weed</span>
+      </span>
     </div>
   </section>
 
@@ -409,7 +434,7 @@
   <div class="priority-wrap" id="priorityWrap" hidden>
     <div class="rowclip">
       <div class="tray"><button type="button" id="prioritySwipeDelete">DELETE</button></div>
-    <section class="priority" id="priority" aria-label="Priority">
+    <section class="priority press-edit" id="priority" aria-label="Priority">
       <div id="priorityEmpty" hidden>
         <div class="k">PRIORITY</div>
         <div class="acts">
@@ -1125,7 +1150,7 @@ function render() {
     for (const it of g.items || []) {
       const on = isTicked(it, ticks);
       const row = document.createElement("label");
-      row.className = "row" + (on ? " done" : "");
+      row.className = "row press-edit" + (on ? " done" : "");
 
       const cb = document.createElement("input");
       cb.type = "checkbox";
@@ -1236,13 +1261,16 @@ function closeRevealed() {
    Nothing is destroyed by the swipe itself: it moves the card off a button, and
    the button is what deletes.
 
-   Pointer events rather than touch events, so a mouse drag works too and the
-   browser keeps its own scrolling (`touch-action: pan-y` on the card says
-   vertical belongs to the page and horizontal to us). */
+   Pointer events rather than touch events, so the browser keeps its own
+   scrolling (`touch-action: pan-y` on the card says vertical belongs to the
+   page and horizontal to us) and one path covers finger and mouse. Only the
+   finger swipes, though: on a desktop the hover buttons do the same job, and
+   dragging a mouse sideways across a row was never anyone's way of asking to
+   delete it. */
 function attachGestures(wrap, card, { id, onEdit, enabled = () => true }) {
   let x0 = 0, y0 = 0, dx = 0, base = 0;
   let axis = null;          // null until decided, then "x" or "y"
-  let tracking = false, timer = null, suppress = false;
+  let tracking = false, timer = null, suppress = false, mouse = false;
 
   const settle = offset => {
     card.style.transition = "";
@@ -1255,6 +1283,7 @@ function attachGestures(wrap, card, { id, onEdit, enabled = () => true }) {
   card.addEventListener("pointerdown", e => {
     if (e.button || !enabled()) return;
     tracking = true; axis = null; dx = 0; suppress = false;
+    mouse = e.pointerType === "mouse";
     x0 = e.clientX; y0 = e.clientY;
     base = isOpen() ? -TRAY_W : 0;
     timer = setTimeout(() => {
@@ -1273,6 +1302,10 @@ function attachGestures(wrap, card, { id, onEdit, enabled = () => true }) {
       if (Math.abs(ax) < TAP_SLOP && Math.abs(ay) < TAP_SLOP) return;
       axis = Math.abs(ax) > Math.abs(ay) ? "x" : "y";
       clearTimeout(timer);
+      // Swiping is a finger's gesture. A mouse has the hover buttons instead,
+      // and dragging one sideways across a row was never meant to delete
+      // anything — so on a mouse the sideways drag is simply not a swipe.
+      if (axis === "x" && mouse) axis = "y";
       if (axis === "x") {
         card.style.transition = "none";
         card.setPointerCapture(e.pointerId);
