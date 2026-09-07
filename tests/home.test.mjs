@@ -8,7 +8,7 @@
 
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
-import { playwright, serve, openPage, signIn, painted, stored } from "./helpers/browser.mjs";
+import { playwright, serve, openPage, signIn, signOut, painted, stored } from "./helpers/browser.mjs";
 import { person, admin, features, sections } from "./helpers/fixtures.mjs";
 
 const browser = await playwright();
@@ -84,4 +84,49 @@ test("the way in to admin/ shows only for an admin", { skip }, async () => {
   });
   await signIn(boss.page);
   assert.equal(await painted(boss.page, "#adminLink"), true);
+});
+
+/* Signed in, the row said "Signed in as …" over the sections and nothing else.
+   It goes once they are drawn, and the way out goes to the footer. */
+test("signed in, the sync row is gone and the way out is in the footer", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/", {
+    user: { uid: "uidB", email: "b@example.com" },
+    seed: [features("uidB", ["dailyplan"])]
+  });
+
+  assert.equal(await painted(page, "#sync"), true, "signed out it is the way in");
+  assert.equal(await painted(page, "#signOutBtn"), false, "and there is nothing to sign out of");
+
+  await signIn(page);
+  assert.equal(await painted(page, "#sync"), false, "signed in it has nothing left to say");
+  assert.equal(await painted(page, "#signOutBtn"), true, "the footer carries the way out");
+
+  await signOut(page);
+  assert.deepEqual(await cards(page), [], "and it signs out");
+  assert.equal(await painted(page, "#sync"), true, "leaving the way back in");
+  assert.deepEqual(problems, []);
+});
+
+/* The group is for everybody, signed in or not, and it has to leave the
+   installed app rather than navigate it — there is no back button in there. */
+test("the Telegram group is on the page in both states, and opens away from the app", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/", {
+    user: { uid: "uidB", email: "b@example.com" },
+    seed: [features("uidB", ["dailyplan"])]
+  });
+
+  const link = () => page.evaluate(() => {
+    const a = document.getElementById("groupLink");
+    return { painted: getComputedStyle(a).display !== "none", href: a.href, target: a.target, rel: a.rel };
+  });
+
+  const out = await link();
+  assert.equal(out.painted, true);
+  assert.equal(out.href, "https://t.me/+k7uKdPUtf51hZTAy");
+  assert.equal(out.target, "_blank");
+  assert.match(out.rel, /noopener/);
+
+  await signIn(page);
+  assert.equal((await link()).painted, true, "still there with the sections up");
+  assert.deepEqual(problems, []);
 });

@@ -104,11 +104,14 @@ export async function signIn(page, { settle = 1800 } = {}) {
   await page.waitForTimeout(settle);
 }
 
-/* Signing out reloads the page, so the click has to be awaited alongside it. */
+/* Signing out reloads the page, so the click has to be awaited alongside it.
+   The home page keeps its way out in the footer, everything else on the sync
+   row's own button. */
 export async function signOut(page, { settle = 1400 } = {}) {
+  const footer = await page.locator("#signOutBtn").count();
   await Promise.all([
     page.waitForNavigation({ waitUntil: "domcontentloaded" }).catch(() => {}),
-    page.click("#authBtn")
+    page.click(footer ? "#signOutBtn" : "#authBtn")
   ]);
   await page.waitForTimeout(settle);
 }
