@@ -7,9 +7,11 @@
 export const SECTIONS = [
   { key: "exercise",      label: "Exercise",       path: "exercise/" },
   { key: "dailyplan",     label: "DailyPlan",      path: "dailyplan/", extras: [
-    { key: "xp",       label: "Experience",    hint: "the points on each task and the level bar" },
-    { key: "priority", label: "Priority task", hint: "the priority card above the list" },
-    { key: "streaks",  label: "Streaks",       hint: "the streak counters" }
+    { key: "xp",        label: "Experience",     hint: "the points on each task and the level bar" },
+    { key: "priority",  label: "Priority task",  hint: "the priority card above the list" },
+    { key: "streaks",   label: "Streaks",        hint: "the streak counters" },
+    { key: "intervals", label: "Interval tasks", hint: "tasks that come back every few days",
+      default: false }
   ] },
   { key: "jobs",          label: "Job search",     path: "jobs/" },
   { key: "streams",       label: "Streams",        path: "streams/" },
@@ -25,7 +27,14 @@ export const noSections = () => Object.fromEntries(SECTIONS.map(s => [s.key, fal
 
 /* Extras default the other way round: on. A missing section means "not invited
    yet", but a missing extra just means nobody has been through the extra
-   settings, and the answer to that is the page as it has always looked. */
+   settings, and the answer to that is the page as it has always looked.
+
+   `default: false` is the exception, and it is what a new extra needs: shipping
+   one without it switches a feature on for everybody the day it lands, which is
+   the opposite of how anything else here arrives. */
+export const extraDefault = e => e.default !== false;
+
 export const allExtras = () => Object.fromEntries(
-  SECTIONS.filter(s => s.extras).map(s => [s.key, Object.fromEntries(s.extras.map(e => [e.key, true]))])
+  SECTIONS.filter(s => s.extras)
+    .map(s => [s.key, Object.fromEntries(s.extras.map(e => [e.key, extraDefault(e)]))])
 );

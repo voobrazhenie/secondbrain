@@ -90,7 +90,30 @@ test("the extra settings start folded and write under the section they belong to
   await page.click('.extras input[data-key="streaks"]');
   await page.waitForTimeout(1200);
   const written = await stored(page, "features/uidB");
-  assert.deepEqual(written.extras.dailyplan, { xp: false, priority: true, streaks: false });
+  assert.deepEqual(written.extras.dailyplan,
+    { xp: false, priority: true, streaks: false, intervals: false });
+});
+
+/* Interval tasks ship switched off, which is the opposite of how every extra
+   before them arrived. An extra nobody has touched used to read as on, so a new
+   one was on for everybody the day it landed — for a feature being tried out on
+   one account that is exactly wrong. */
+test("an extra that ships switched off is off for an account nobody has set up", { skip }, async () => {
+  const { page } = await openPage(browser, site.origin, "/admin/", {
+    user: { uid: "uidA", email: "a@example.com", displayName: "Ay" }, seed
+  });
+  await signIn(page);
+  // uidA has a features document but nobody has been through its extras.
+  await page.selectOption("#userSelect", "uidA");
+  await page.waitForTimeout(1000);
+  await page.click(".extras-bar");
+  await page.waitForTimeout(200);
+
+  const boxes = await page.evaluate(() => Object.fromEntries(
+    [...document.querySelectorAll('.extras input')].map(b => [b.dataset.key, b.checked])));
+  assert.equal(boxes.intervals, false, "off, without anybody having said so");
+  assert.equal(boxes.xp, true, "while the ones that were always there stay on");
+  assert.equal(boxes.streaks, true);
 });
 
 test("the default is edited like a person, and saved as the default", { skip }, async () => {

@@ -510,7 +510,12 @@
         <option value="today">Just today</option>
         <option value="daily">Routine — every day</option>
         <option value="carry">Until it's done</option>
+        <option value="every" id="mEveryOpt">Every few days</option>
       </select>
+    </div>
+    <div id="mEveryWrap" hidden>
+      <label for="mEvery">EVERY HOW MANY DAYS</label>
+      <input id="mEvery" type="number" inputmode="numeric" min="1" max="365" step="1" value="7">
     </div>
     <div class="acts">
       <button id="mCancel">CANCEL</button>
@@ -792,42 +797,93 @@ function itemText(it) {
   return it.reps ? `${it.text || ""} · ${it.reps}` : (it.text || "");
 }
 
-/* ---------- recurrence ----------
-   An item can repeat on a cycle rather than daily:
-     every:  14            repeat every 14 days
-     anchor: "2026-08-05"  the day the first cycle is due (defaults to plan start)
+/* ---------- interval tasks ----------
+   An item can come back on a cycle rather than every day:
+     every:  14            due again 14 days after it was last done
+     anchor: "2026-08-05"  the day the first one is due
    and it can stand down on days when another item is showing:
      skipWhen: ["c-microneedling"]
    which is how minoxidil gets out of the way on microneedling days.
 
-   Due-ness is measured from when the item was actually last ticked, not from
-   the calendar: miss a day and it stays due — carries forward — until it's
-   done, then the next cycle counts `every` days from that real completion
-   instead of from the original anchor. Before it's ever been ticked, the
-   anchor plays the same role a real completion would (as if one had landed
-   `every` days before it), so a missed first occurrence carries forward the
-   exact same way rather than silently vanishing until the next multiple. */
-function lastTicked(id, exceptDate) {
+   The cycle counts from when it was actually done, not from the calendar. Miss
+   a day and it stays due — it carries forward, badged DAY 2, DAY 3, exactly
+   like an "until it's done" task — and the next one then counts `every` days
+   from the day it really got done. Due Sep 1 and done Sep 1 is next due Sep 8;
+   due Sep 1, missed, and done Sep 2 is next due Sep 9.
+
+   The dates it was done are stored, in `custom.intervals`, and this reads them.
+   They used to be *derived*, by scanning up to ninety days of tick records for
+   the most recent one — and that scan was answered from whatever the page
+   happened to be holding. `loadHistory()` is started after the first day is
+   drawn and never awaited, so the first paint ran against an empty history:
+   every interval task looked due and was shown, then vanished when the history
+   landed. If that query was slow or failed, the wrong answer stayed. Stepping
+   back a day pulled that day in by another route, which is why moving around
+   the calendar changed what today showed.
+
+   So nothing is derived here now. The list is small — a date is ten characters
+   and only completions are kept — it rides in a document the page already
+   reads once on open, and the answer is the same however little else has
+   loaded. */
+const INTERVAL_KEEP = 30;      // completions kept per task, newest last
+
+function completions(id) {
+  const list = (custom.intervals || {})[id];
+  return Array.isArray(list) ? list : [];
+}
+
+/* The last time it was done *before* the day being drawn. Today's own tick is
+   left out on purpose: ticking a task must not make the row vanish under the
+   finger that ticked it — it goes quiet from tomorrow. */
+function lastDone(id, before) {
   let last = null;
-  for (const [date, h] of history) {
-    if (date < exceptDate && h.ticks && h.ticks[id] && (!last || date > last)) last = date;
-  }
-  for (const date of storedDates()) {
-    if (date < exceptDate && loadTicks(date)[id] && (!last || date > last)) last = date;
+  for (const date of completions(id)) {
+    if (date < before && (!last || date > last)) last = date;
   }
   return last;
 }
+
+/* The day it is next due, from the last completion or, before there is one,
+   from where the task starts. */
+function nextDue(it, date) {
+  const last = lastDone(it.id, date);
+  if (last) return shiftDate(last, it.every);
+  return it.anchor || it.since || dailyConfig.startDate;
+}
+
+function isInterval(it) { return Number(it.every) > 0; }
+
 function onCycle(it, date) {
-  if (!it.every) return true;
-  const anchor = it.anchor || dailyConfig.startDate;
-  const baseline = lastTicked(it.id, date) || shiftDate(anchor, -it.every);
-  return date >= shiftDate(baseline, it.every);
+  if (!isInterval(it)) return true;
+  return date >= nextDue(it, date);
+}
+
+/* 1 on the day it falls due, 2 the day after — the same count a carried task
+   shows, so an overdue interval task reads the same as anything else that has
+   been sitting there. */
+function overdueDays(it, date) {
+  if (!isInterval(it)) return 0;
+  const due = nextDue(it, date);
+  return date < due ? 0 : daysBetween(due, date) + 1;
 }
 
 function scheduleFilter(items, date) {
   const due = (items || []).filter(i => onCycle(i, date));
   const showing = new Set(due.map(i => i.id));
   return due.filter(i => !(i.skipWhen || []).some(id => showing.has(id)));
+}
+
+/* Ticking one records the day; unticking takes it back off, which is why the
+   completions are a list rather than a single last-done date — there has to be
+   an earlier one to fall back to. Trimmed to the newest INTERVAL_KEEP so it
+   cannot grow forever: at every 14 days that is about a year of them. */
+function markInterval(id, date, on) {
+  const kept = completions(id).filter(d => d !== date);
+  if (on) kept.push(date);
+  kept.sort();
+  custom.intervals = { ...(custom.intervals || {}) };
+  if (kept.length) custom.intervals[id] = kept.slice(-INTERVAL_KEEP);
+  else delete custom.intervals[id];
 }
 
 /* Excludes the day in progress: ticking a one-off shouldn't make it vanish from
@@ -849,7 +905,7 @@ function everTicked(id, exceptDate) {
    has no editor for it, so anything you add, edit or delete lives here instead
    and is layered over the derived day. Kept in users/{uid}/config/custom so it
    follows you between devices like the ticks do. */
-let custom = { added: [], hidden: {}, doneOnce: {}, edits: {} };
+let custom = { added: [], hidden: {}, doneOnce: {}, edits: {}, intervals: {} };
 
 function saveCustom({ push = true } = {}) {
   if (push) sync.pushCustom();
@@ -869,8 +925,16 @@ const newId = () => "u-" + Date.now().toString(36) + Math.random().toString(36).
    was finished. Those two dates are the whole mechanism: it shows from
    `created` up to and including `done`, and nowhere else. Nothing runs
    overnight to move it; every day is worked out from the dates when the page
-   draws it. */
+   draws it.
+
+   Every few days — `every`, with `since` for the first one. Same idea, one step
+   further out: the dates it was done are what say when the next one lands. See
+   the interval block above. */
 function showsOn(a, date) {
+  if (isInterval(a)) {
+    if (a.since && date < a.since) return false;
+    return onCycle(a, date);
+  }
   if (a.carry) {
     if (a.created && date < a.created) return false;
     if (a.done && date > a.done) return false;
@@ -879,9 +943,10 @@ function showsOn(a, date) {
   return a.scope === "daily" || a.scope === date;
 }
 
-/* 1 on the day it was created, 2 the next day, and so on — what the row shows
-   as "day 3" while a task drags on. */
+/* 1 on the day it was created — or the day it fell due — 2 the next day, and so
+   on. What the row shows as "day 3" while a task drags on. */
 function carriedDays(a, date) {
+  if (isInterval(a)) return overdueDays(a, date);
   if (!a.carry || !a.created) return 0;
   return daysBetween(a.created, date) + 1;
 }
@@ -928,7 +993,11 @@ function deriveDay(date) {
   const groups = [];
 
   for (const g of dailyConfig.daily || []) {
-    const items = scheduleFilter(g.items, date).map(i => ({ ...i, text: itemText(i) }));
+    // An overdue interval item in the routine is badged like an overdue one you
+    // added — it is the same thing, and it should not read differently for
+    // having come from the routine.
+    const items = scheduleFilter(g.items, date)
+      .map(i => ({ ...i, text: itemText(i), carriedDays: overdueDays(i, date) }));
     if (items.length || g.keepEmpty) groups.push({ ...g, items });
   }
 
@@ -1028,7 +1097,7 @@ function levelFromXp(xp) {
   return { level, into: remaining, need: costForLevel(level) };
 }
 
-/* Same dual-scan shape as lastTicked(). Precedence matters:
+/* Same dual-scan shape as everTicked(). Precedence matters:
    this browser's day meta is only what this device saw, so Firestore history
    overrides it for past days — it carries the other devices' writes too. Local
    still covers everything outside the 90-day window, and everything when signed
@@ -1366,6 +1435,8 @@ function openAdd(group) {
   $("mXpWrap").hidden = extras.xp === false;
   $("mScopeWrap").style.display = "";
   $("mScope").value = "today";
+  $("mEvery").value = "7";
+  syncEveryField();
   $("scrim").hidden = false;
   setTimeout(() => $("mText").focus(), 30);
 }
@@ -1380,9 +1451,20 @@ function openEdit(item) {
   // How often only applies to tasks you added — programme items are every day.
   const own = custom.added.find(a => a.id === item.id);
   $("mScopeWrap").style.display = own ? "" : "none";
-  if (own) $("mScope").value = own.carry ? "carry" : own.scope === "daily" ? "daily" : "today";
+  if (own) {
+    $("mScope").value = isInterval(own) ? "every"
+      : own.carry ? "carry"
+      : own.scope === "daily" ? "daily" : "today";
+    $("mEvery").value = isInterval(own) ? own.every : 7;
+  }
+  syncEveryField();
   $("scrim").hidden = false;
   setTimeout(() => $("mText").focus(), 30);
+}
+
+/* The interval only means anything for the one answer that uses it. */
+function syncEveryField() {
+  $("mEveryWrap").hidden = $("mScope").value !== "every";
 }
 
 function closeModal() { $("scrim").hidden = true; editing = null; addGroup = null; }
@@ -1393,23 +1475,34 @@ function saveModal() {
   const emoji = $("mEmoji").value.trim() || "✅";
   const xp = Math.max(0, Math.min(99, parseInt($("mXp").value, 10) || 0));
   const how = $("mScope").value;
+  const every = Math.max(1, Math.min(365, parseInt($("mEvery").value, 10) || 1));
 
   if (editing) {
     const own = custom.added.find(a => a.id === editing.id);
     if (own) {
       Object.assign(own, { text, emoji, xp });
-      if (how === "carry") {
+      if (how === "every") {
+        // The first one is due on the day in view; from there its own
+        // completions carry it. Changing the number just moves the next one.
+        own.every = every;
+        own.since = own.since || plan.date;
+        delete own.scope; delete own.carry; delete own.created; delete own.done;
+      } else if (how === "carry") {
         // Switching a task to a carried one starts its clock on the day in view.
         own.carry = true;
         own.created = own.created || plan.date;
-        delete own.scope;
+        delete own.scope; delete own.every; delete own.since;
       } else {
         own.scope = how === "daily" ? "daily" : plan.date;
         delete own.carry; delete own.created; delete own.done;
+        delete own.every; delete own.since;
       }
     } else {
       custom.edits[editing.id] = { text, emoji, xp };
     }
+  } else if (how === "every") {
+    custom.added.push({ id: newId(), text, emoji, xp, group: addGroup,
+                        every, since: plan.date });
   } else if (how === "carry") {
     custom.added.push({ id: newId(), text, emoji, xp, group: addGroup,
                         carry: true, created: plan.date, done: "" });
@@ -1590,6 +1683,16 @@ function setTick(id, on) {
     saveCustom();
   }
 
+  /* An interval task records the day, and that day is the only thing that says
+     when the next one is due — it is not worked out from the day records later.
+     Ticking a past day writes that past day, and unticking takes it back off,
+     which both land correctly because what is kept is a list. */
+  const cycling = allItems().find(i => i.id === id && isInterval(i));
+  if (cycling) {
+    markInterval(id, plan.date, on);
+    saveCustom();
+  }
+
   const item = allItems().find(i => i.id === id);
   const row = rowEls.get(id);
   if (row) row.classList.toggle("done", item?.invert ? !on : on);
@@ -1632,11 +1735,22 @@ let fbLib = null, accountLib = null;
 /* The parts of this page the account is allowed to see. Everything on until
    the answer arrives, which is what an account nobody has been through the
    extra settings for gets anyway. */
-let extras = { xp: true, priority: true, streaks: true };
+/* Interval tasks are the exception: they start off, and an account is given
+   them deliberately. The others are the page as it has always looked, so they
+   stand until the answer says otherwise. */
+let extras = { xp: true, priority: true, streaks: true, intervals: false };
 function applyExtras() {
   document.body.classList.toggle("no-xp", extras.xp === false);
   document.body.classList.toggle("no-priority", extras.priority === false);
   document.body.classList.toggle("no-streaks", extras.streaks === false);
+  /* Only the way to make one is switched off. A task that already cycles keeps
+     cycling either way — hiding the option is not a reason to start showing
+     something every day that is meant to come round every fortnight. */
+  $("mEveryOpt").hidden = extras.intervals !== true;
+  if (extras.intervals !== true && $("mScope").value === "every") {
+    $("mScope").value = "today";
+    syncEveryField();
+  }
 }
 
 /* ================= sync layer =================
@@ -1695,10 +1809,10 @@ const sync = {
     mem.xpMonth.clear();
     mem.peak = 0;
     dailyConfig = emptyPlan();
-    extras = { xp: true, priority: true, streaks: true };
+    extras = { xp: true, priority: true, streaks: true, intervals: false };
     applyExtras();
     collapsedGroups = new Set();
-    custom = { added: [], hidden: {}, doneOnce: {}, edits: {} };
+    custom = { added: [], hidden: {}, doneOnce: {}, edits: {}, intervals: {} };
     plan = null;
     viewDate = null;
     weedDate = undefined;
@@ -2110,10 +2224,11 @@ const sync = {
 
       if (!reconcile) {
         custom = {
-          added:    Array.isArray(v.added) ? v.added : [],
-          hidden:   v.hidden   || {},
-          doneOnce: v.doneOnce || {},
-          edits:    v.edits    || {}
+          added:     Array.isArray(v.added) ? v.added : [],
+          hidden:    v.hidden    || {},
+          doneOnce:  v.doneOnce  || {},
+          edits:     v.edits     || {},
+          intervals: v.intervals || {}
         };
         saveCustom({ push: false });
         rebuild();
@@ -2124,11 +2239,22 @@ const sync = {
       for (const a of (v.added || [])) byId.set(a.id, a);
       for (const a of custom.added) byId.set(a.id, a);   // this device's version wins
 
+      /* Completions merge per task, not per document: two devices that each
+         ticked a different day of the same task both did something real, and
+         taking one side's list whole would throw the other away. */
+      const bothWays = (mine, theirs) => {
+        const ids = new Set([...Object.keys(theirs || {}), ...Object.keys(mine || {})]);
+        return Object.fromEntries([...ids].map(id => [id,
+          [...new Set([...((theirs || {})[id] || []), ...((mine || {})[id] || [])])]
+            .sort().slice(-INTERVAL_KEEP)]));
+      };
+
       custom = {
         added: [...byId.values()],
-        hidden:   { ...(v.hidden   || {}), ...custom.hidden   },
-        doneOnce: { ...(v.doneOnce || {}), ...custom.doneOnce },
-        edits:    { ...(v.edits    || {}), ...custom.edits    }
+        hidden:    { ...(v.hidden   || {}), ...custom.hidden   },
+        doneOnce:  { ...(v.doneOnce || {}), ...custom.doneOnce },
+        edits:     { ...(v.edits    || {}), ...custom.edits    },
+        intervals: bothWays(custom.intervals, v.intervals)
       };
       saveCustom({ push: false });
       rebuild();
@@ -2250,10 +2376,38 @@ const sync = {
             : Object.values(v.ticks || {}).filter(Boolean).length
         });
       });
+      this.seedIntervals();
       rebuild();
     } catch (e) {
       console.warn("History unavailable:", e);
     }
+  },
+
+  /* One-time, per task: interval tasks used to leave no record of their own —
+     the day records were the record — so the first load after this shipped has
+     to lift what is in them, or every cycle would restart from today and
+     microneedling done last week would come due again tomorrow.
+
+     It runs off the history that has just loaded and writes once. After that
+     the completions are their own record and this finds nothing left to do. */
+  seedIntervals() {
+    if (this.mode !== "signed-in") return;
+    const cycling = [
+      ...(dailyConfig.daily || []).flatMap(g => g.items || []),
+      ...custom.added
+    ].filter(isInterval);
+
+    let found = false;
+    for (const it of cycling) {
+      if (completions(it.id).length) continue;
+      const done = [];
+      for (const [date, h] of history) if (h.ticks && h.ticks[it.id]) done.push(date);
+      if (!done.length) continue;
+      done.sort();
+      custom.intervals = { ...(custom.intervals || {}), [it.id]: done.slice(-INTERVAL_KEEP) };
+      found = true;
+    }
+    if (found) saveCustom();
   },
 
   /* Queued whatever the auth state is. A tick made before onAuthStateChanged
@@ -2424,8 +2578,12 @@ const sync = {
     this.lastRefresh = now;
     await this.loadExtras();
     await this.loadPlan();
-    await this.loadHistory();
+    // Custom before history: loadHistory() seeds any interval task that has no
+    // completions of its own yet, and it should be reading the account's own
+    // list when it decides there are none — not a copy this tab has been
+    // holding since the last refresh.
     await this.loadCustomRemote({ reconcile: false });
+    await this.loadHistory();
     await this.loadXp();
     // Only when the counter never got an answer. null is settled — an account
     // with genuinely nothing recorded — and re-querying it on every focus
@@ -2496,6 +2654,7 @@ $("prioritySwipeDelete").addEventListener("click", e => {
   if (plan) deletePriority();
 });
 
+$("mScope").addEventListener("change", syncEveryField);
 $("mCancel").addEventListener("click", closeModal);
 $("mSave").addEventListener("click", saveModal);
 $("scrim").addEventListener("click", e => { if (e.target === $("scrim")) closeModal(); });

@@ -10,7 +10,7 @@
  * sections on.
  */
 
-import { SECTIONS, noSections, allExtras } from "./sections.js";
+import { SECTIONS, noSections, allExtras, extraDefault } from "./sections.js";
 import { readDoc } from "./read.js";
 
 /* The settings a person gets before anybody has decided anything about them.
@@ -81,12 +81,16 @@ export async function loadFeatures(fb, uid) {
   const sections = noSections();
   for (const s of SECTIONS) sections[s.key] = storedSections[s.key] === true;
 
-  // `!== false` rather than `=== true`: an extra nobody has touched is on.
+  /* An extra nobody has touched falls to its own default — on for the ones that
+     have always been part of the page, off for one that ships switched off. So
+     `!== false` for the first kind and `=== true` for the second: either way,
+     what is stored wins and only the silence is decided here. */
   const extras = allExtras();
   for (const s of SECTIONS) {
     if (!s.extras) continue;
     for (const e of s.extras) {
-      extras[s.key][e.key] = (storedExtras[s.key] || {})[e.key] !== false;
+      const stored = (storedExtras[s.key] || {})[e.key];
+      extras[s.key][e.key] = extraDefault(e) ? stored !== false : stored === true;
     }
   }
   return { sections, extras };
