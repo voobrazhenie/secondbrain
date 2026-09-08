@@ -7,7 +7,7 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { playwright, serve, openPage, signIn, signOut, painted, paintedAll, stored,
-         swipeLeft, dragLeft } from "./helpers/browser.mjs";
+         swipeLeft, dragLeft, holdPress } from "./helpers/browser.mjs";
 import { plan, features, routine } from "./helpers/fixtures.mjs";
 
 const browser = await playwright();
@@ -69,7 +69,6 @@ test("the extra settings hide the points, the priority card and the streaks", { 
   assert.equal(await painted(on.page, "#level"), true);
   assert.equal(await painted(on.page, "#priorityWrap"), true);
   assert.equal(await painted(on.page, "#streaks"), true);
-  assert.equal(await painted(on.page, "#streak"), true);
 
   const off = await openPage(browser, site.origin, "/dailyplan/", {
     user: { uid: "uidA", email: "a@example.com" },
@@ -82,7 +81,6 @@ test("the extra settings hide the points, the priority card and the streaks", { 
   assert.equal(await painted(off.page, "#level"), false);
   assert.equal(await painted(off.page, "#priorityWrap"), false);
   assert.equal(await painted(off.page, "#streaks"), false);
-  assert.equal(await painted(off.page, "#streak"), false, "the chip in the top bar goes too");
 });
 
 
@@ -266,5 +264,164 @@ test("the hover buttons sit clear of the card", { skip }, async () => {
   });
   assert.ok(clear.gap > 0, `the buttons overlap the card by ${-clear.gap}px`);
   assert.ok(clear.onScreen, "and they are still on the screen");
+  assert.deepEqual(problems, []);
+});
+
+
+/* ---------- streaks ----------
+ *
+ * The number on a tile is worked out for the day being looked at, not for
+ * today. That was the bug: stepping back a week left the count where it was,
+ * which made it read as a total rather than as a streak. */
+
+const day = (uid, date, ticks) => [`users/${uid}/days/${date}`, { ticks, xpEarned: 0, ticked: Object.keys(ticks).length }];
+const tiles = page => page.evaluate(() => [...document.querySelectorAll("#streakRow .strk")]
+  .map(el => ({ n: el.querySelector(".n").textContent, name: el.querySelector(".nm").textContent })));
+
+/* The routine the old single counter needed: the weed card, by its id. */
+const weedRoutine = () => {
+  const r = routine();
+  r.daily[1].items.push({ id: "r-smoked-weed", emoji: "\u{1F33F}", text: "Didn't smoke weed", xp: 15, invert: true });
+  return r;
+};
+
+test("the weed counter becomes a streak, and it is written to the account", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/?date=2026-03-10", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [plan("uidA", weedRoutine()), features("uidA", ["dailyplan"])]
+  });
+  await signIn(page);
+  assert.deepEqual((await tiles(page)).map(t => t.name), ["No weed"]);
+
+  const written = await stored(page, "users/uidA/config/streaks");
+  assert.equal(written.items.length, 1);
+  assert.equal(written.items[0].itemId, "r-smoked-weed");
+  assert.equal(written.items[0].kind, "avoid");
+  assert.deepEqual(problems, []);
+});
+
+test("a streak counts for the day on screen, not for today", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/?date=2026-03-10", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [
+      plan("uidA", weedRoutine()),
+      features("uidA", ["dailyplan"]),
+      // The last slip was the first of the month, so the tenth is nine days on.
+      day("uidA", "2026-03-01", { "r-smoked-weed": true }),
+      [`users/uidA/config/trackers`, { "r-smoked-weed": "2026-03-01" }]
+    ]
+  });
+  await signIn(page);
+  assert.equal((await tiles(page))[0].n, "9");
+
+  // Back to the fifth: four days on from the same slip, not still nine.
+  await page.click("#dayPrev");
+  await page.waitForTimeout(300);
+  for (let i = 0; i < 4; i++) { await page.click("#dayPrev"); await page.waitForTimeout(120); }
+  await page.waitForTimeout(400);
+  assert.equal(await page.evaluate(() => plan.date), "2026-03-05");
+  assert.equal((await tiles(page))[0].n, "4");
+
+  // And on the day itself the run is back to nothing.
+  for (let i = 0; i < 4; i++) { await page.click("#dayPrev"); await page.waitForTimeout(120); }
+  await page.waitForTimeout(400);
+  assert.equal((await tiles(page))[0].n, "0");
+  assert.deepEqual(problems, []);
+});
+
+test("a habit streak counts the days in a row its card was ticked", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/?date=2026-03-10", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [
+      plan("uidA"),
+      features("uidA", ["dailyplan"]),
+      ["users/uidA/config/streaks", { items: [
+        { id: "s-sleep", name: "Sleep", kind: "build", itemId: "r-sleep", target: 30, since: null, done: null }
+      ] }],
+      day("uidA", "2026-03-07", { "r-sleep": true }),
+      day("uidA", "2026-03-08", { "r-sleep": true }),
+      day("uidA", "2026-03-09", { "r-sleep": true })
+    ]
+  });
+  await signIn(page);
+  // Today is not ticked yet, so the run behind it is what shows.
+  assert.equal((await tiles(page))[0].n, "3");
+
+  // Ticking today extends it rather than starting it again.
+  await page.evaluate(() => setTick("r-sleep", true));
+  await page.waitForTimeout(300);
+  assert.equal((await tiles(page))[0].n, "4");
+  assert.deepEqual(problems, []);
+});
+
+test("adding a streak makes the daily card that feeds it", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/?date=2026-03-10", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [plan("uidA"), features("uidA", ["dailyplan"])]
+  });
+  await signIn(page);
+  assert.equal(await painted(page, "#streaks"), true, "the strip is there to add the first one to");
+
+  await page.click("#streakAdd");
+  await page.fill("#sName", "Cold shower");
+  await page.selectOption("#sKind", "build");
+  await page.fill("#sCard", "Cold shower");
+  await page.selectOption("#sGroup", "Recover");
+  await page.click("#sSave");
+  await page.waitForTimeout(700);
+
+  assert.deepEqual((await tiles(page)).map(t => t.name), ["Cold shower"]);
+  const custom = await stored(page, "users/uidA/config/custom");
+  const card = custom.added.find(a => a.text === "Cold shower");
+  assert.equal(card.scope, "daily", "it comes back every day");
+  assert.equal(card.group, "Recover");
+  const written = await stored(page, "users/uidA/config/streaks");
+  assert.equal(written.items[0].itemId, card.id);
+  assert.deepEqual(problems, []);
+});
+
+test("marking a streak done takes the tile away and leaves the card behind", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/?date=2026-03-10", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [
+      plan("uidA", weedRoutine()),
+      features("uidA", ["dailyplan"]),
+      ["users/uidA/config/streaks", { items: [
+        { id: "s-weed", name: "No weed", kind: "avoid", itemId: "r-smoked-weed", target: 30, since: "2026-02-08", done: null }
+      ] }]
+    ]
+  });
+  await signIn(page);
+  assert.equal((await tiles(page)).length, 1);
+  const rowsBefore = await rowCount(page);
+
+  await page.evaluate(() => openStreakEdit("s-weed"));
+  await page.click("#sDone");
+  await page.waitForTimeout(700);
+
+  assert.deepEqual(await tiles(page), [], "the tile is off the row");
+  assert.equal(await rowCount(page), rowsBefore, "the card it counted is still on the list");
+  const written = await stored(page, "users/uidA/config/streaks");
+  assert.equal(written.items[0].done, "2026-03-10");
+  assert.deepEqual(problems, []);
+});
+
+test("holding a streak tile opens its dialog", { skip }, async () => {
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/?date=2026-03-10", {
+    touch: true,
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [
+      plan("uidA", weedRoutine()),
+      features("uidA", ["dailyplan"]),
+      ["users/uidA/config/streaks", { items: [
+        { id: "s-weed", name: "No weed", kind: "avoid", itemId: "r-smoked-weed", target: 30, since: "2026-02-08", done: null }
+      ] }]
+    ]
+  });
+  await signIn(page);
+  assert.equal(await painted(page, "#sScrim"), false);
+  await holdPress(page, "#streakRow .strk");
+  assert.equal(await painted(page, "#sScrim"), true, "the dialog is on screen");
+  assert.equal(await page.inputValue("#sName"), "No weed");
   assert.deepEqual(problems, []);
 });

@@ -146,6 +146,13 @@ given it.
   mouse is not how anyone asks to delete something. Read `pointerType` at
   `pointerdown` and treat a sideways mouse drag as no gesture at all.
 - **Long press edits**, and a drag or a long press must never also fire the tap.
+  When the press opens a dialog, swallow the click that ends it too: the finger
+  is still down, the backdrop appears underneath it, and that click then closes
+  the dialog the press just opened. `dailyplan/`'s streak tiles show the shape.
+- **A card too small for hover buttons** — the streak tiles are a third of the
+  column — takes the long press on touch and a double-click or right-click on a
+  desktop. Buttons in the margin are still the rule everywhere they fit; inside
+  a tile they would sit on the number, which is all the tile has.
 - **A card with a gesture on it does not select its own text.** Put
   `press-edit` (theme.css) on the part the gesture listens to. Without it a
   long press opened the edit form *and* highlighted the words underneath, with

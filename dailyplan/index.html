@@ -36,59 +36,80 @@
   .wrap{max-width:var(--maxw);margin:0 auto}
   .blk{font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;letter-spacing:-.01em}
 
-  /* ---------- header ---------- */
-  .streak{
-    display:inline-flex;align-items:center;gap:5px;
-    background:var(--yellow);border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
-    padding:3px 9px;font-family:"Arial Black",Impact,sans-serif;
-    font-size:8.5px;font-weight:900;letter-spacing:.06em;
-  }
-  .streak b{font-size:12px}
-  .streak.cold{background:var(--sunk);color:var(--grey)}
+  /* ---------- streaks ----------
+     A row of tiles, three across, each one a run of days you are keeping up.
+     Two kinds sit in it and read identically: something you are building,
+     counted while you keep ticking it, and something you are avoiding, counted
+     from the last day you did it. The tile does not say which — the number is
+     the same fact either way.
 
-  /* ---------- day counter ----------
-     One tracked thing, one row: a square holding the number, the unit, the name.
-     Built to take more of these later (screen time, habits to build) — nothing
-     in it is weed-specific. Same box metrics as a checklist .row on purpose, so
-     it sits in the page rather than shouting over it. */
-  .counter{
-    --sq:36px;
-    display:flex;align-items:center;gap:11px;
+     The square is a vertical bar as well as a number: it fills from the bottom
+     towards the streak's target, so progress is visible before the number is
+     read. Past the target it just stays full — nothing here stops counting.
+
+     Nothing in it is weed-specific. That one is now simply the first entry in
+     users/{uid}/config/streaks. */
+  .streaks{margin-bottom:14px}
+  .streaks[hidden]{display:none}
+  /* The same strip as a list category, without the fold: there is nothing to
+     collapse here, so it takes the look and not the behaviour. */
+  .streaks .sechead{
+    display:flex;align-items:center;gap:8px;margin:0 0 9px;cursor:default;
+  }
+  .streaks .sechead .t{
+    font-size:11px;font-weight:900;letter-spacing:.07em;
+    background:var(--ink);color:var(--paper);padding:3px 8px;
+    font-family:"Arial Black",Impact,sans-serif;
+  }
+  .streaks .sechead .r{flex:1;height:2px;background:var(--ink)}
+
+  /* Three to a row, and the gap comes out of the thirds so the third tile
+     lands on the right edge rather than wrapping. A fourth starts a new row. */
+  .streakrow{display:flex;flex-wrap:wrap;gap:9px}
+  .strk{
+    flex:0 0 calc((100% - 18px) / 3);min-width:0;
+    display:flex;flex-direction:column;align-items:center;gap:7px;
     background:var(--card);color:var(--ink);
     border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
-    padding:9px 11px;min-height:56px;margin-bottom:14px;
+    padding:9px;cursor:pointer;
   }
-  /* Filled while the count is running, empty at zero — the same shape as a box
-     you haven't ticked. No red: a bad day gets the colour drained out, not a
-     telling-off. */
-  .counter .sq{
-    flex:0 0 auto;width:var(--sq);height:var(--sq);
+  /* Square on a phone, and capped so a wide window doesn't blow it up into a
+     panel. The number sits over the fill rather than inside it, which is what
+     keeps it readable at both ends of the bar. */
+  .strk .sq{
+    position:relative;overflow:hidden;
+    width:min(100%, 74px);aspect-ratio:1;
     border:var(--stroke) solid var(--ink);background:var(--card);
-    display:flex;align-items:center;justify-content:center;
-    font-family:"Arial Black",Impact,sans-serif;font-weight:900;font-size:17px;line-height:1;
-    font-variant-numeric:tabular-nums;letter-spacing:-.02em;
-    transition:background-color .2s linear;
   }
-  .counter .sq.on{background:var(--lime)}
-  .counter .sq.d3{font-size:13px;letter-spacing:-.04em}
-  /* The unit and the name stack, rather than running along one line: two short
-     words side by side read as a sentence the row is not making. Stacked, the
-     square is what you look at and the words label it. The column is exactly
-     as tall as the square so DAYS starts level with its top edge, and the name
-     centres in what is left under it. */
-  .counter .lbl{
-    flex:1;min-width:0;height:var(--sq);
-    display:flex;flex-direction:column;
+  .strk .fill{
+    position:absolute;left:0;right:0;bottom:0;height:0;
+    background:var(--lime);transition:height .45s cubic-bezier(.2,.7,.3,1);
   }
-  .counter .unit{
-    flex:0 0 auto;font-family:"Arial Black",Impact,sans-serif;
-    font-size:9px;line-height:1;letter-spacing:.07em;color:var(--grey);
+  .strk .n{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:"Arial Black",Impact,sans-serif;font-weight:900;font-size:24px;line-height:1;
+    font-variant-numeric:tabular-nums;letter-spacing:-.03em;
   }
-  .counter .nm{
-    flex:1;min-width:0;display:flex;align-items:center;
-    font-size:13px;font-weight:900;line-height:1.15;
+  .strk .n.d3{font-size:18px;letter-spacing:-.05em}
+  /* Two lines at most, and then it is cut: a tile is a third of the column and
+     a long name must not make one taller than the two beside it. */
+  .strk .nm{
+    width:100%;text-align:center;font-size:10.5px;font-weight:900;line-height:1.2;
+    overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    overflow-wrap:anywhere;
   }
-  @media (prefers-reduced-motion: reduce){ .counter .sq{transition:none} }
+  /* Nothing recorded yet, or still loading: an empty square and a dash, the
+     same shape as a box you have not ticked. */
+  .strk.cold .sq{background:var(--sunk)}
+  @media (prefers-reduced-motion: reduce){ .strk .fill{transition:none} }
+
+  /* The one control in the section header. Same metrics as a category's +. */
+  .streaks .add{
+    flex:0 0 auto;padding:2px 8px;font-size:13px;line-height:1.1;
+    background:var(--card);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);
+    font-family:"Arial Black",Impact,sans-serif;cursor:pointer;
+  }
+  .streaks .add:active{transform:translate(2px,2px);box-shadow:none}
 
   /* ---------- day switcher ---------- */
   .daynav{
@@ -170,12 +191,11 @@
      script, so a cached page cannot flash yesterday's list in the moment
      before the SDK loads. What stays visible in every state is the top bar,
      the sync row — which carries the sign-in button — and the footer. */
-  #wrap:not([data-auth="in"]) .counter,
+  #wrap:not([data-auth="in"]) .streaks,
   #wrap:not([data-auth="in"]) .daynav,
   #wrap:not([data-auth="in"]) #priorityWrap,
   #wrap:not([data-auth="in"]) #level,
-  #wrap:not([data-auth="in"]) #list,
-  #wrap:not([data-auth="in"]) #streak{ display:none }
+  #wrap:not([data-auth="in"]) #list{ display:none }
 
   /* ---------- sync + actions ---------- */
   /* Which of these a person gets is set per account in admin/. Display only:
@@ -185,11 +205,7 @@
   body.no-xp .pill,
   body.no-xp .level{ display:none!important }
   body.no-priority .priority-wrap{ display:none!important }
-  /* Both of them: the block of counters, and the days-in-a-row chip in the top
-     bar. A switch called Streaks that leaves a streak on screen is worse than
-     either answer on its own. */
-  body.no-streaks .streaks,
-  body.no-streaks .streak{ display:none!important }
+  body.no-streaks .streaks{ display:none!important }
 
   .sync{
     display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:16px 0;
@@ -287,6 +303,11 @@
   .modal .rowpair>div.small{flex:0 0 104px;min-width:0}
   .modal .acts{display:flex;gap:9px;margin-top:16px}
   .modal .acts button{flex:1}
+  /* Finishing a streak and deleting one are both endings, so they sit together
+     under the line rather than beside SAVE, where the thumb is already going. */
+  .modal .acts.minor{margin-top:9px}
+  .modal .acts.minor button{background:var(--sunk);font-size:10px}
+  .modal .acts.minor button.warn{background:var(--pink)}
 
   /* ---------- toast ---------- */
   .toast{
@@ -409,19 +430,19 @@
     <a class="crumb" href="../">SECOND BRAIN</a>
     <span class="crumb here">DAILYPLAN</span>
     <span class="grow"></span>
-    <span class="streak" id="streak"><b id="streakN">0</b><span id="streakLbl">days</span></span>
   </header>
 
-  <!-- One streak today, more later, so the block is named for the idea rather
-       than for the habit that happens to be in it. -->
-  <section class="streaks" id="streaks" aria-label="Streaks">
-    <div class="counter" id="counter" hidden>
-      <span class="sq" id="counterN">0</span>
-      <span class="lbl">
-        <span class="unit">DAYS</span>
-        <span class="nm">No weed</span>
-      </span>
+  <!-- The tiles are drawn from users/{uid}/config/streaks, so the section is
+       named for the idea rather than for whichever habit happens to be in it.
+       The strip shows with nothing in it once an account is signed in, because
+       the + in it is the only way to make the first one. -->
+  <section class="streaks" id="streaks" aria-label="Streaks" hidden>
+    <div class="sechead">
+      <span class="t">STREAKS</span>
+      <span class="r"></span>
+      <button class="add" id="streakAdd" title="Add a streak">+</button>
     </div>
+    <div class="streakrow" id="streakRow"></div>
   </section>
 
   <div class="daynav">
@@ -520,6 +541,39 @@
     <div class="acts">
       <button id="mCancel">CANCEL</button>
       <button class="primary" id="mSave">SAVE</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="sScrim" hidden>
+  <div class="modal">
+    <h3 id="sTitle">ADD STREAK</h3>
+    <label for="sName">NAME</label>
+    <input id="sName" type="text" maxlength="40" placeholder="e.g. No weed">
+    <div id="sKindWrap">
+      <label for="sKind">WHAT IT COUNTS</label>
+      <select id="sKind">
+        <option value="build">Days I did it</option>
+        <option value="avoid">Days since I did it</option>
+      </select>
+    </div>
+    <div id="sCardWrap">
+      <label for="sCard">DAILY CARD</label>
+      <input id="sCard" type="text" maxlength="70" placeholder="The task this counts">
+    </div>
+    <div id="sGroupWrap">
+      <label for="sGroup">CATEGORY</label>
+      <select id="sGroup"></select>
+    </div>
+    <label for="sTarget">TARGET IN DAYS</label>
+    <input id="sTarget" type="number" inputmode="numeric" min="1" max="999" step="1" value="30">
+    <div class="acts">
+      <button id="sCancel">CANCEL</button>
+      <button class="primary" id="sSave">SAVE</button>
+    </div>
+    <div class="acts minor" id="sMinor" hidden>
+      <button id="sDone">MARK DONE</button>
+      <button class="warn" id="sDelete">DELETE</button>
     </div>
   </div>
 </div>
@@ -1027,7 +1081,7 @@ const allItems = () => (plan.groups || []).flatMap(g => g.items || []);
    row is ticked when there is no flag. "Didn't smoke weed" works this way, so
    a clean day stores nothing at all and a day never opened still reads clean.
    Only the display and the XP invert — the flag itself keeps its old meaning,
-   which is what the streak and the no-weed counter are still counting. */
+   which is what the streak tile is still counting. */
 const isTicked = (item, ticks) => item.invert ? !ticks[item.id] : !!ticks[item.id];
 
 function todayXp() {
@@ -1041,25 +1095,6 @@ function todayTicked() {
   return allItems().filter(i => t[i.id]).length;
 }
 
-/* A day counts toward the streak if anything at all was ticked, so the streak
-   measures showing up for the daily commitments. */
-function activeDates() {
-  const s = new Set();
-  for (const [date, h] of history) if (h.ticked > 0) s.add(date);
-  for (const date of storedDates()) {
-    if (Object.keys(loadTicks(date)).length > 0) s.add(date);
-  }
-  if (todayTicked() > 0) s.add(plan.date); else s.delete(plan.date);
-  return s;
-}
-function computeStreak() {
-  const active = activeDates();
-  const today = todayISO();
-  let cur = active.has(today) ? today : shiftDate(today, -1);
-  let n = 0;
-  while (active.has(cur)) { n++; cur = shiftDate(cur, -1); }
-  return n;
-}
 function totalXp() {
   let sum = todayXp();
   for (const [date, h] of history) if (date !== plan.date) sum += h.xpEarned || 0;
@@ -1295,8 +1330,7 @@ function render() {
 
   // Every row was just rebuilt, so whichever had its Delete showing is gone.
   revealed = null;
-  renderStreak();
-  renderCounter();
+  renderStreaks();
   renderLevel();
   renderDayNav();
   renderPriority();
@@ -1548,18 +1582,8 @@ function refreshDerived() {
     const cnt = secEls.get(g.title);
     if (cnt) cnt.textContent = `${(g.items || []).filter(i => isTicked(i, ticks)).length}/${(g.items || []).length}`;
   }
-  renderStreak();
-  renderCounter();
+  renderStreaks();
   renderLevel();
-}
-
-/* Labelled SHOWING UP, not DAYS: the no-weed counter below it is also a day
-   count, and two unlabelled numbers next to each other read as the same thing. */
-function renderStreak() {
-  const s = computeStreak();
-  $("streakN").textContent = s;
-  $("streakLbl").textContent = "SHOWING UP";
-  $("streak").className = "streak" + (s === 0 ? " cold" : "");
 }
 
 function renderLevel() {
@@ -1584,50 +1608,348 @@ function renderLevel() {
     (plan.date === todayISO() ? " TODAY" : "");
 }
 
-/* ---------- day counter ----------
-   Days since the last recorded smoke, counting today.
+/* ---------- streaks ----------
+   A streak is a run of days, and there are two ways of running one:
 
-   Firestore is the only source. The date lives in one field —
-   users/{uid}/config/trackers.r-smoked-weed — read once on sign-in and then
-   kept live by sync.attachTrackers(). Nothing is read from localStorage and
-   nothing is rescanned: an earlier version answered from this device's own
-   storage first, falling back to a 90-day scan, so two browsers signed into
-   the same account showed two different numbers. That is the bug this
-   replaces, and it is why no local fallback is left to drift.
+     kind "build"  a habit you are keeping up. The number is how many days in a
+                   row its card has been ticked, ending on the day in view.
+     kind "avoid"  something you are staying off. The number is how many days
+                   have passed since the last day its card was ticked — so the
+                   card records the slip, and ticking it puts the count back to
+                   zero. "No weed" is this kind: its card is inverted, so on
+                   screen it reads as ticked until you untick it.
 
-   When the field is missing or malformed, sync.recoverWeed() asks the server
-   for the single most recent day whose tick is set — one document, ordered by
-   date descending — and writes the answer back, so the repair happens once
-   rather than on every load. If there is genuinely no such day the counter
-   shows a dash. It never guesses a start date.
+   Every streak points at one card in the day (`itemId`), and the card is what
+   feeds it. Adding a streak makes that card; the card is a normal routine task
+   afterwards and can be edited and scored like any other.
 
-   A day with no record at all counts as a no-weed day. That is deliberate —
-   the alternative punishes forgetting to open an app rather than smoking. The
-   cost is that a week away reads as 7.
+   Both numbers are worked out for the day being looked at, not for today. Step
+   back a week and the tiles show what they said a week ago, which is the whole
+   reason the day nav is there. They read the ninety days of history the rest of
+   the page reads, so a date older than that window falls back to the tracker
+   date below and then to the streak's own start.
 
-   Read off todayISO() rather than plan.date, like computeStreak(): this is a
-   fact about right now, not about the day the nav happens to be showing. */
-const WEED_ID = "r-smoked-weed";
+   Stored in users/{uid}/config/streaks as one small list. Nothing about it is
+   weed-specific — that one is simply the first entry, written in for accounts
+   that had the old single counter. */
 
-/* undefined = not loaded yet, null = nothing on record, otherwise the date.
-   The first two both render as a dash, but only the second is a settled
-   answer — keeping them apart is what stops a slow read looking like "never". */
-let weedDate;
+const DEFAULT_TARGET = 30;
+
+let streaks = [];              // [{ id, name, kind, itemId, target, since, done }]
+
+/* The last day each avoid-streak's card was ticked, from
+   users/{uid}/config/trackers — one field per card id, merge-written so two
+   trackers can never clobber each other.
+
+   It exists because the history query is bounded to ninety days and a clean
+   run is allowed to be longer than that. Undefined means not loaded yet and
+   null means the server has nothing; the two look the same on screen but only
+   the second is a settled answer, and keeping them apart is what stops a slow
+   read reading as "never". */
+let trackerDates = new Map();  // itemId -> "YYYY-MM-DD" | null | undefined
 
 const isISODate = v => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
-function noWeedDays() {
-  if (!isISODate(weedDate)) return null;
-  return Math.max(0, daysBetween(weedDate, todayISO()));
+function normaliseStreak(v) {
+  if (!v || typeof v !== "object") return null;
+  const id = typeof v.id === "string" && v.id ? v.id : null;
+  const itemId = typeof v.itemId === "string" && v.itemId ? v.itemId : null;
+  if (!id || !itemId) return null;
+  const target = Math.max(1, Math.min(999, Number(v.target) || DEFAULT_TARGET));
+  return {
+    id, itemId, target,
+    name: typeof v.name === "string" ? v.name.slice(0, 40) : "",
+    kind: v.kind === "avoid" ? "avoid" : "build",
+    since: isISODate(v.since) ? v.since : null,
+    /* Marked done and taken off the row. The record stays so the undo has
+       something to put back, and so a finished challenge is not simply lost. */
+    done: isISODate(v.done) ? v.done : null
+  };
 }
 
-function renderCounter() {
-  if (!plan) return;              // nothing on screen to update
-  const n = noWeedDays();
-  const sq = $("counterN");
-  $("counter").hidden = false;
-  sq.textContent = n === null ? "\u2014" : n;
-  sq.className = "sq" + (n > 0 ? " on" : "") + (n !== null && String(n).length > 2 ? " d3" : "");
+const liveStreaks = () => streaks.filter(s => !s.done);
+
+/* The raw flag for one card on one date. Days the page is holding win over the
+   history query, because the day in view is being edited right now. Raw, never
+   inverted: what "No weed" stores is the smoking, and that is what counts. */
+function tickOn(itemId, date) {
+  if (mem.ticks.has(date)) return !!mem.ticks.get(date)[itemId];
+  const h = history.get(date);
+  return !!(h && h.ticks && h.ticks[itemId]);
+}
+
+/* A day nobody opened is not told apart from a day nothing was ticked on, and
+   that is deliberate. For a build streak it ends the run, which is what missing
+   a day means. For an avoid streak it counts as a clean day — the alternative
+   punishes forgetting to open an app rather than the thing being tracked, and
+   the cost of it is that a week away reads as seven clean days. */
+
+/* The most recent day on or before `date` that the card was ticked. History
+   first, then the tracker field for anything older than the window. */
+function lastTick(streak, date) {
+  let best = null;
+  for (const d of history.keys()) if (d <= date && tickOn(streak.itemId, d)) {
+    if (!best || d > best) best = d;
+  }
+  for (const d of storedDates()) if (d <= date && tickOn(streak.itemId, d)) {
+    if (!best || d > best) best = d;
+  }
+  const recorded = trackerDates.get(streak.itemId);
+  if (isISODate(recorded) && recorded <= date && (!best || recorded > best)) best = recorded;
+  return best;
+}
+
+/* The number on the tile, for the day in view. null while the answer is still
+   on its way, which is the dash. */
+function streakCount(streak, date) {
+  if (streak.kind === "avoid") {
+    // Not loaded yet, and nothing in the history to answer with instead.
+    if (trackerDates.get(streak.itemId) === undefined && !history.size) return null;
+    const last = lastTick(streak, date);
+    const from = last || streak.since;
+    if (!from) return null;
+    return Math.max(0, daysBetween(from, date));
+  }
+  /* A build streak counts back from the day in view. The day itself is only
+     part of the run once it has been ticked — an untouched today must not end
+     a run that is still going, so it starts from yesterday until it is done. */
+  let cur = tickOn(streak.itemId, date) ? date : shiftDate(date, -1);
+  let n = 0;
+  while (tickOn(streak.itemId, cur)) {
+    if (streak.since && cur < streak.since) break;
+    n++;
+    cur = shiftDate(cur, -1);
+  }
+  return n;
+}
+
+function renderStreaks() {
+  if (!plan) return;
+  const row = $("streakRow");
+  const live = liveStreaks();
+  // Nothing to show and nothing to add to: the section goes altogether rather
+  // than leaving an empty strip on a new account's first screen.
+  $("streaks").hidden = live.length === 0 && sync.mode !== "signed-in";
+  row.textContent = "";
+
+  for (const st of live) {
+    const n = streakCount(st, plan.date);
+    const card = document.createElement("div");
+    card.className = "strk press-edit" + (n ? "" : " cold");
+    card.setAttribute("role", "button");
+    card.tabIndex = 0;
+    card.title = st.name;
+
+    const sq = document.createElement("div");
+    sq.className = "sq";
+    const fill = document.createElement("i");
+    fill.className = "fill";
+    // Past the target it stays full — the count carries on, the bar cannot.
+    fill.style.height = Math.max(0, Math.min(100, ((n || 0) / st.target) * 100)) + "%";
+    const num = document.createElement("span");
+    const shown = n === null ? "—" : String(n);
+    num.className = "n" + (shown.length > 2 ? " d3" : "");
+    num.textContent = shown;
+    sq.append(fill, num);
+
+    const nm = document.createElement("span");
+    nm.className = "nm";
+    nm.textContent = st.name;
+
+    card.append(sq, nm);
+    attachHold(card, () => openStreakEdit(st.id));
+    row.appendChild(card);
+  }
+}
+
+/* The finger is still down when the dialog opens, so the click that ends the
+   press lands on the backdrop that has just appeared underneath it — and the
+   backdrop's job is to close the dialog. One click is swallowed to stop the
+   press from undoing itself. */
+function swallowNextClick() {
+  const stop = e => { e.preventDefault(); e.stopPropagation(); off(); };
+  const off = () => { clearTimeout(t); document.removeEventListener("click", stop, true); };
+  const t = setTimeout(off, 700);
+  document.addEventListener("click", stop, true);
+}
+
+/* Long press opens the tile's own dialog — editing and removing are both in
+   there, so the tile needs no swipe and no second gesture. Desktop gets the
+   same dialog from a double-click or a right-click, the way a task row does;
+   hover buttons would have to sit on top of the number, which is the one thing
+   a tile a third of a column wide has room for. */
+function attachHold(el, onHold) {
+  let timer = null, x0 = 0, y0 = 0, fired = false;
+  const cancel = () => { clearTimeout(timer); timer = null; };
+  el.addEventListener("pointerdown", e => {
+    if (e.button) return;
+    fired = false; x0 = e.clientX; y0 = e.clientY;
+    timer = setTimeout(() => {
+      fired = true;
+      if (navigator.vibrate) navigator.vibrate(12);
+      onHold();
+      swallowNextClick();
+    }, LONG_PRESS_MS);
+  });
+  el.addEventListener("pointermove", e => {
+    if (!timer) return;
+    if (Math.abs(e.clientX - x0) > TAP_SLOP || Math.abs(e.clientY - y0) > TAP_SLOP) cancel();
+  });
+  el.addEventListener("pointerup", cancel);
+  el.addEventListener("pointercancel", cancel);
+  el.addEventListener("click", e => { if (fired) { e.preventDefault(); e.stopPropagation(); fired = false; } }, true);
+  el.addEventListener("dblclick", e => { e.preventDefault(); onHold(); });
+  el.addEventListener("contextmenu", e => { e.preventDefault(); onHold(); });
+  el.addEventListener("keydown", e => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    onHold();
+  });
+}
+
+/* ---------- the streak dialog ----------
+   Adding one writes two things: the streak, and the daily card that feeds it.
+   Editing one renames both, because the tile and the row are the same idea and
+   letting them drift apart is how you end up with "Meditation" counting
+   "Morning sit".
+
+   MARK DONE takes the tile off the row and keeps the record; DELETE takes the
+   streak away for good, and with it the card it created — but never a card that
+   was already in the routine before the streak pointed at it. */
+let streakEditing = null;   // streak id, or null while adding
+
+function groupTitles() {
+  const seen = [];
+  for (const g of plan?.groups || []) if (!seen.includes(g.title)) seen.push(g.title);
+  for (const g of dailyConfig.daily || []) if (!seen.includes(g.title)) seen.push(g.title);
+  return seen.length ? seen : [TODO_GROUP];
+}
+
+function fillGroupSelect(value) {
+  const sel = $("sGroup");
+  sel.textContent = "";
+  for (const title of groupTitles()) {
+    const opt = document.createElement("option");
+    opt.value = title; opt.textContent = title;
+    sel.appendChild(opt);
+  }
+  sel.value = groupTitles().includes(value) ? value : TODO_GROUP;
+}
+
+function openStreakAdd() {
+  streakEditing = null;
+  $("sTitle").textContent = "ADD STREAK";
+  $("sName").value = "";
+  $("sKind").value = "build";
+  $("sCard").value = "";
+  $("sTarget").value = String(DEFAULT_TARGET);
+  $("sCardWrap").hidden = false;
+  $("sGroupWrap").hidden = false;
+  fillGroupSelect(TODO_GROUP);
+  $("sMinor").hidden = true;
+  $("sScrim").hidden = false;
+  setTimeout(() => $("sName").focus(), 30);
+}
+
+function openStreakEdit(id) {
+  const st = streaks.find(x => x.id === id);
+  if (!st) return;
+  streakEditing = id;
+  $("sTitle").textContent = "EDIT STREAK";
+  $("sName").value = st.name;
+  $("sKind").value = st.kind;
+  $("sTarget").value = String(st.target);
+  const own = custom.added.find(a => a.id === st.itemId);
+  const item = allItems().find(i => i.id === st.itemId);
+  $("sCard").value = own ? own.text : (item ? item.text : "");
+  // Only a card this page owns can be renamed or refiled from here; a routine
+  // item belongs to the routine and is edited on its own row.
+  $("sCardWrap").hidden = !own;
+  $("sGroupWrap").hidden = !own;
+  if (own) fillGroupSelect(own.group);
+  $("sMinor").hidden = false;
+  $("sScrim").hidden = false;
+  setTimeout(() => $("sName").focus(), 30);
+}
+
+function closeStreakModal() { $("sScrim").hidden = true; streakEditing = null; }
+
+function saveStreakModal() {
+  const name = $("sName").value.trim();
+  if (!name) { $("sName").focus(); return; }
+  const kind = $("sKind").value === "avoid" ? "avoid" : "build";
+  const target = Math.max(1, Math.min(999, parseInt($("sTarget").value, 10) || DEFAULT_TARGET));
+  const cardText = $("sCard").value.trim() || name;
+  const group = $("sGroup").value || TODO_GROUP;
+
+  if (streakEditing) {
+    const st = streaks.find(x => x.id === streakEditing);
+    if (!st) { closeStreakModal(); return; }
+    Object.assign(st, { name, kind, target });
+    const own = custom.added.find(a => a.id === st.itemId);
+    if (own && !$("sCardWrap").hidden) {
+      own.text = cardText;
+      own.group = group;
+      // The card records the slip for an avoid streak, so it reads inverted on
+      // the list: ticked until the day you did the thing.
+      if (kind === "avoid") own.invert = true; else delete own.invert;
+      saveCustom();
+    }
+  } else {
+    const itemId = newId();
+    custom.added.push({
+      id: itemId, text: cardText, emoji: "✅", xp: 10, group,
+      scope: "daily", streakId: null, ...(kind === "avoid" ? { invert: true } : {})
+    });
+    const st = {
+      id: "s-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name, kind, itemId, target, since: plan.date, done: null
+    };
+    // Marked on the card too, so deleting the streak knows which card it made.
+    custom.added[custom.added.length - 1].streakId = st.id;
+    streaks.push(st);
+    saveCustom();
+  }
+  sync.pushStreaks();
+  closeStreakModal();
+  rebuild();
+}
+
+/* Finished, and off the row. The card it counts stays on the list — a run you
+   completed is not a reason to stop doing the thing. */
+function markStreakDone() {
+  const st = streaks.find(x => x.id === streakEditing);
+  if (!st) return;
+  st.done = plan.date;
+  sync.pushStreaks();
+  closeStreakModal();
+  rebuild();
+  showToast(`“${st.name}” marked done`, () => {
+    st.done = null;
+    sync.pushStreaks();
+    rebuild();
+  });
+}
+
+function deleteStreak() {
+  const st = streaks.find(x => x.id === streakEditing);
+  if (!st) return;
+  const at = streaks.indexOf(st);
+  streaks.splice(at, 1);
+  // Only a card this streak created goes with it. One that was already in the
+  // routine is somebody's task, not this tile's private business.
+  const cardAt = custom.added.findIndex(a => a.id === st.itemId && a.streakId === st.id);
+  const card = cardAt >= 0 ? custom.added[cardAt] : null;
+  if (card) { custom.added.splice(cardAt, 1); saveCustom(); }
+  sync.pushStreaks();
+  closeStreakModal();
+  rebuild();
+  showToast(`Removed “${st.name}”`, () => {
+    streaks.splice(at, 0, st);
+    if (card) { custom.added.push(card); saveCustom(); }
+    sync.pushStreaks();
+    rebuild();
+  });
 }
 
 /* ---------- moving between days ---------- */
@@ -1673,7 +1995,11 @@ function setTick(id, on) {
     saveCustom();
   }
 
-  if (id === WEED_ID) updateTracker(on);
+  /* An avoid streak's date is the durable record of the last slip, and it has
+     to move with the tick that caused it. queued here, sent in flush()'s batch
+     with the day record so the two can never end up disagreeing. */
+  const avoided = liveStreaks().find(st => st.kind === "avoid" && st.itemId === id);
+  if (avoided) updateTracker(id, on);
 
   /* Finishing a carried task is what stops it carrying: the day it was ticked
      is written on the task itself, so tomorrow simply does not draw it. */
@@ -1709,24 +2035,23 @@ function setTick(id, on) {
    Ticking only ever moves the date forward — a backdated entry older than what
    is already recorded must not erase real clean days. Unticking only matters
    when the day being undone is the one currently recorded; any other day's
-   untick cannot change what the most recent smoke was.
+   untick cannot change what the most recent one was.
 
    Undoing the recorded day needs the next-most-recent one, and that is a
    question only the server can answer, so it is marked here and resolved in
-   flush(). The one-step undo buffer this used to keep is gone with the scan it
-   existed to protect against: there is no bounded local scan left to return a
-   wrong empty answer, so there is nothing to guard. */
-function updateTracker(on) {
+   flush(). */
+function updateTracker(itemId, on) {
+  const recorded = trackerDates.get(itemId);
   if (on) {
-    if (isISODate(weedDate) && plan.date <= weedDate) return;
-    weedDate = plan.date;
-    sync.trackerPending = { set: plan.date };
+    if (isISODate(recorded) && plan.date <= recorded) return;
+    trackerDates.set(itemId, plan.date);
+    sync.trackerPending = { ...(sync.trackerPending || {}), [itemId]: { set: plan.date } };
   } else {
-    if (plan.date !== weedDate) return;
-    weedDate = undefined;                          // unknown until the server answers
-    sync.trackerPending = { recoverBefore: plan.date };
+    if (plan.date !== recorded) return;
+    trackerDates.set(itemId, undefined);            // unknown until the server answers
+    sync.trackerPending = { ...(sync.trackerPending || {}), [itemId]: { recoverBefore: plan.date } };
   }
-  renderCounter();
+  renderStreaks();
 }
 
 /* shared/firebase.js and shared/account.js, once init() has pulled them in. */
@@ -1770,7 +2095,7 @@ const sync = {
   xpPending: null,
   prefsTimer: null,
   trackerUnsub: null,
-  trackerPending: null,   // { set } or { recoverBefore }, resolved in flush()
+  trackerPending: null,   // { itemId: { set } | { recoverBefore } }, resolved in flush()
   lastRefresh: 0,         // throttles refreshAll(), see there
 
   setUI(state, msg, btnLabel, btnAction) {
@@ -1815,11 +2140,14 @@ const sync = {
     custom = { added: [], hidden: {}, doneOnce: {}, edits: {}, intervals: {} };
     plan = null;
     viewDate = null;
-    weedDate = undefined;
+    streaks = [];
+    trackerDates = new Map();
+    streakEditing = null;
+    $("streakRow").textContent = "";
     lastRendered = null;
     priorityEditDate = null;
     $("list").textContent = "";
-    for (const id of ["counter", "level", "priorityWrap", "scrim"]) $(id).hidden = true;
+    for (const id of ["streaks", "level", "priorityWrap", "scrim", "sScrim"]) $(id).hidden = true;
   },
 
   /* Connecting, and knowing who is signed in, is shared/firebase.js's job now.
@@ -1872,14 +2200,15 @@ const sync = {
     // corrected after it.
     // The routine first: everything below derives a day from it.
     await Promise.all([this.loadPlan(), this.loadExtras()]);
-    await Promise.all([this.loadPrefs(), this.loadCustomRemote({ reconcile: false })]);
+    await Promise.all([this.loadPrefs(), this.loadCustomRemote({ reconcile: false }),
+                       this.loadStreaks()]);
     await rebuild();
     this.setAuthState("in");
     this.attach();
     this.loadHistory();
     this.loadXp();
     this.attachTrackers();
-    this.loadWeed();
+    this.loadTrackers();
   },
 
   /* ---------- lifetime XP ----------
@@ -1949,29 +2278,37 @@ const sync = {
     return f.doc(db, "users", this.uid, "config", "trackers");
   },
 
-  /* One document read per sign-in, and that is the normal cost of the counter.
-     The query below runs only when the field is missing or malformed, which is
-     also how an account that predates the field repairs itself — once, because
-     the answer is written back. */
-  async loadWeed() {
+  /* One document read per sign-in, and that is the normal cost of the tiles.
+     The query below runs only for a streak whose field is missing and which
+     has no start date of its own — in practice the one carried over from the
+     single counter this replaced, which repairs itself once because the answer
+     is written back. A streak added here always records the day it started, so
+     it never asks. */
+  async loadTrackers() {
     const { f } = this.fb;
+    const avoid = liveStreaks().filter(st => st.kind === "avoid");
+    if (!avoid.length) return;
     try {
       // Server first, cache second — the same shape attach() uses. A cached
       // copy would render a number that the listener then corrects a moment
       // later, and the flicker reads as the bug this is fixing.
       const snap = await fbLib.readDoc(f, this.trackerRef());
-      const raw = snap.exists() ? snap.data()[WEED_ID] : null;
-      if (isISODate(raw)) { weedDate = raw; renderCounter(); return; }
-      const found = await this.recoverWeed();
-      weedDate = found;
-      if (found) await this.writeTracker(found);
-      renderCounter();
+      const data = snap.exists() ? snap.data() : {};
+      for (const st of avoid) {
+        const raw = data[st.itemId];
+        if (isISODate(raw)) { trackerDates.set(st.itemId, raw); continue; }
+        if (st.since) { trackerDates.set(st.itemId, null); continue; }
+        const found = await this.recoverLast(st.itemId);
+        trackerDates.set(st.itemId, found);
+        if (found) await this.writeTracker(st.itemId, found);
+      }
+      renderStreaks();
     } catch (e) {
       console.warn("Tracker read failed:", e.code || e.message);
     }
   },
 
-  /* The most recent day whose weed tick is set, or null if there is none — one
+  /* The most recent day a card was ticked, or null if there is none — one
      document, never a walk through the history window.
 
      `before` narrows it to days strictly earlier than that date, which is what
@@ -1982,10 +2319,10 @@ const sync = {
      Ordering by the tick field before the document id reads as redundant, the
      filter having already pinned it to true. It is what keeps the query on
      Firestore's automatic index, so no composite index has to exist for it. */
-  async recoverWeed(before) {
+  async recoverLast(itemId, before) {
     const { f, db } = this.fb;
     const days = f.collection(db, "users", this.uid, "days");
-    const tick = new f.FieldPath("ticks", WEED_ID);
+    const tick = new f.FieldPath("ticks", itemId);
     const only = [f.where(tick, "==", true)];
     if (before) only.push(f.where(f.documentId(), "<", f.doc(days, before)));
     const snap = await fbLib.readDocs(f, f.query(days, ...only,
@@ -1995,10 +2332,10 @@ const sync = {
 
   /* Only for the repair above. A tick's own tracker write rides in flush()'s
      batch instead, so the day record and this field move together. */
-  async writeTracker(date) {
+  async writeTracker(itemId, date) {
     const { f } = this.fb;
     await f.setDoc(this.trackerRef(),
-      { [WEED_ID]: date || f.deleteField(), updatedAt: f.serverTimestamp() },
+      { [itemId]: date || f.deleteField(), updatedAt: f.serverTimestamp() },
       { merge: true });
   },
 
@@ -2013,13 +2350,73 @@ const sync = {
            remote value. hasPendingWrites clears itself, so the server always
            gets the last word and a cached copy never does. */
         if (snap.metadata.hasPendingWrites) return;
-        const raw = snap.exists() ? snap.data()[WEED_ID] : null;
-        const remote = isISODate(raw) ? raw : null;
-        if (remote === weedDate) return;
-        weedDate = remote;
-        if (plan) renderCounter();
+        const data = snap.exists() ? snap.data() : {};
+        let moved = false;
+        for (const st of liveStreaks()) {
+          if (st.kind !== "avoid") continue;
+          const raw = data[st.itemId];
+          const remote = isISODate(raw) ? raw : null;
+          if (remote === trackerDates.get(st.itemId)) continue;
+          trackerDates.set(st.itemId, remote);
+          moved = true;
+        }
+        if (moved && plan) renderStreaks();
       },
       e => console.warn("Tracker sync dropped:", e.code || e.message));
+  },
+
+  /* ---------- the streaks themselves ----------
+     One small list, written whole: it is read back off what is on screen, and
+     it changes only when somebody opens the dialog.
+
+     An account that has the old single weed counter and no list yet gets one
+     written for it, pointing at the card already in its routine. That is the
+     only migration here, and it runs once — afterwards the document exists and
+     this does nothing. */
+  streaksRef() {
+    const { f, db } = this.fb;
+    return f.doc(db, "users", this.uid, "config", "streaks");
+  },
+
+  async loadStreaks() {
+    const { f } = this.fb;
+    let v = null;
+    try {
+      const snap = await fbLib.readDoc(f, this.streaksRef());
+      if (snap.exists()) v = snap.data();
+    } catch (e) {
+      console.warn("Streaks unavailable:", e.code || e.message);
+      return;
+    }
+    if (v && Array.isArray(v.items)) {
+      streaks = v.items.map(normaliseStreak).filter(Boolean);
+      return;
+    }
+    streaks = this.migrateStreaks();
+    if (streaks.length) await this.pushStreaks();
+  },
+
+  /* The counter this section used to have was one hard-coded card id. If the
+     account's routine still holds it, it becomes the first streak rather than
+     disappearing with the code that drew it. */
+  migrateStreaks() {
+    const legacy = (dailyConfig.daily || []).flatMap(g => g.items || [])
+      .find(i => i.id === "r-smoked-weed");
+    if (!legacy) return [];
+    return [{ id: "s-weed", name: "No weed", kind: "avoid",
+              itemId: "r-smoked-weed", target: DEFAULT_TARGET, since: null, done: null }];
+  },
+
+  async pushStreaks() {
+    if (this.mode !== "signed-in") return;
+    const { f } = this.fb;
+    try {
+      await f.setDoc(this.streaksRef(),
+        { items: streaks, updatedAt: f.serverTimestamp() });
+    } catch (e) {
+      this.setUI("err", `Couldn't save the streak (${e.code || e.message}). Saved on this device.`,
+        "Retry", () => this.pushStreaks());
+    }
   },
 
   /* The popup, its redirect fallback and the wording of a failed sign-in are
@@ -2429,7 +2826,7 @@ const sync = {
     clearTimeout(this.timer);
     if (this.mode !== "signed-in") return;
     const tracker = this.trackerPending;
-    if (!this.queue.size && !tracker) return;
+    if (!this.queue.size && !(tracker && Object.keys(tracker).length)) return;
     const { f, db } = this.fb;
     const date = this.queueDate;
     const edits = new Map(this.queue);
@@ -2449,22 +2846,24 @@ const sync = {
       this.flushDate = null;
       for (const [id, on] of edits) if (!this.queue.has(id)) this.queue.set(id, on);
       if (edits.size) this.queueDate = date;
-      if (tracker && !this.trackerPending) this.trackerPending = tracker;
+      if (tracker) this.trackerPending = { ...tracker, ...(this.trackerPending || {}) };
     };
 
     /* Resolved before the batch is opened rather than inside it: replacing an
        unticked date with the one before it is a server query, and a batch can
        only be assembled from answers already in hand. */
-    let trackerDate;
+    const trackerFields = {};
     if (tracker) {
       try {
-        trackerDate = "set" in tracker
-          ? tracker.set
-          : await this.recoverWeed(tracker.recoverBefore);
+        for (const [itemId, intent] of Object.entries(tracker)) {
+          trackerFields[itemId] = "set" in intent
+            ? intent.set
+            : await this.recoverLast(itemId, intent.recoverBefore);
+        }
       } catch (e) {
         requeue();
-        await this.loadWeed();      // show what the server actually holds
-        this.setUI("err", `Couldn't check the weed history (${e.code || e.message}). Not saved.`,
+        await this.loadTrackers();  // show what the server actually holds
+        this.setUI("err", `Couldn't check the streak history (${e.code || e.message}). Not saved.`,
           "Retry", () => this.flush());
         return;
       }
@@ -2479,9 +2878,11 @@ const sync = {
        split that made two devices show two different counts. */
     const addTracker = batch => {
       if (!tracker) return;
-      batch.set(this.trackerRef(),
-        { [WEED_ID]: trackerDate || f.deleteField(), updatedAt: f.serverTimestamp() },
-        { merge: true });
+      const fields = { updatedAt: f.serverTimestamp() };
+      for (const [itemId, date] of Object.entries(trackerFields)) {
+        fields[itemId] = date || f.deleteField();
+      }
+      batch.set(this.trackerRef(), fields, { merge: true });
     };
 
     /* Released once commit() has been called rather than when the server
@@ -2514,7 +2915,7 @@ const sync = {
         } catch (e2) { e = e2; }
       }
       requeue();
-      if (tracker) await this.loadWeed();   // never leave a rejected value on screen
+      if (tracker) await this.loadTrackers();   // never leave a rejected value on screen
       this.setUI("err", `Couldn't save to sync (${e.code || e.message}). Saved locally.`,
         "Retry", () => this.flush());
     }
@@ -2553,7 +2954,7 @@ const sync = {
 
   /* resync() above covers the day in view, which also has a live listener.
      Everything else here is read once at sign-in and never again: the 90-day
-     history the streak is counted from, the XP
+     history the streaks are counted from, the XP
      month totals, and the custom edits. A page left open — or a home-screen
      app, which is never really closed — would keep showing all of that as it
      was hours or days ago. Returning to the page is exactly when a stale copy
@@ -2572,7 +2973,7 @@ const sync = {
   async refreshAll() {
     if (this.mode !== "signed-in") return;
     await this.resync();
-    if (!$("scrim").hidden || priorityEditDate) return;
+    if (!$("scrim").hidden || !$("sScrim").hidden || priorityEditDate) return;
     const now = Date.now();
     if (now - this.lastRefresh < 45000) return;
     this.lastRefresh = now;
@@ -2583,12 +2984,14 @@ const sync = {
     // list when it decides there are none — not a copy this tab has been
     // holding since the last refresh.
     await this.loadCustomRemote({ reconcile: false });
+    await this.loadStreaks();
     await this.loadHistory();
     await this.loadXp();
-    // Only when the counter never got an answer. null is settled — an account
-    // with genuinely nothing recorded — and re-querying it on every focus
-    // would buy nothing.
-    if (weedDate === undefined) await this.loadWeed();
+    // Only when a tile never got an answer. null is settled — nothing on
+    // record — and re-querying it on every focus would buy nothing.
+    if (liveStreaks().some(st => st.kind === "avoid" && trackerDates.get(st.itemId) === undefined)) {
+      await this.loadTrackers();
+    }
   },
 
   watchLifecycle() {
@@ -2654,6 +3057,14 @@ $("prioritySwipeDelete").addEventListener("click", e => {
   if (plan) deletePriority();
 });
 
+$("streakAdd").addEventListener("click", () => { if (plan) openStreakAdd(); });
+$("sCancel").addEventListener("click", closeStreakModal);
+$("sSave").addEventListener("click", saveStreakModal);
+$("sDone").addEventListener("click", markStreakDone);
+$("sDelete").addEventListener("click", deleteStreak);
+$("sScrim").addEventListener("click", e => { if (e.target === $("sScrim")) closeStreakModal(); });
+$("sName").addEventListener("keydown", e => { if (e.key === "Enter") saveStreakModal(); });
+
 $("mScope").addEventListener("change", syncEveryField);
 $("mCancel").addEventListener("click", closeModal);
 $("mSave").addEventListener("click", saveModal);
@@ -2662,6 +3073,7 @@ $("mText").addEventListener("keydown", e => { if (e.key === "Enter") saveModal()
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
   if (!$("scrim").hidden) closeModal();
+  else if (!$("sScrim").hidden) closeStreakModal();
   else if (priorityEditDate) cancelPriorityEdit();
 });
 

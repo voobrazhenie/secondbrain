@@ -148,6 +148,20 @@ export async function swipeLeft(page, selector, distance = 140) {
   await page.waitForTimeout(400);
 }
 
+/* Press and hold with a finger. The same CDP route as the swipe above, and for
+ * the same reason: this is real input, not events fired from inside the page. */
+export async function holdPress(page, selector, ms = 700) {
+  const box = await page.locator(selector).first().boundingBox();
+  const x = Math.round(box.x + box.width / 2);
+  const y = Math.round(box.y + box.height / 2);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+  await page.waitForTimeout(ms);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await cdp.detach();
+  await page.waitForTimeout(300);
+}
+
 /* The same drag with a mouse, which should leave the card where it is. */
 export async function dragLeft(page, selector, distance = 140) {
   const box = await page.locator(selector).first().boundingBox();
