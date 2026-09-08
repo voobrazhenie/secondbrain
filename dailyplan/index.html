@@ -185,6 +185,67 @@
   .row.locked .box{border-style:dashed;border-width:2px}
   .row.locked.done .box{border-style:solid}
 
+  /* ---------- categories, and moving things between them ----------
+     A category is a group in users/{uid}/config/plan, and this page now writes
+     that document: the dashed slot at the bottom adds one, a long press on a
+     header renames or removes one, and REORDER is how things are moved.
+
+     Everything a day is made of sits inside a .grp, so a drag has a box to
+     aim at rather than a run of loose rows. */
+  .grp{margin:0}
+  .grp .sec{margin-top:16px}
+  .grp:first-child .sec{margin-top:0}
+
+  /* Tasks whose category has been removed. It has no header — there is no name
+     to put in one — and it sits above everything else so nothing gets lost in
+     the middle of the list. Gone entirely when it is empty, except while
+     things are being moved, when it is a place to drop into. */
+  .grp.nocat{margin-bottom:9px}
+  .grp.nocat .drop{
+    display:none;border:2px dashed var(--ink);opacity:.55;
+    padding:11px;text-align:center;font-size:9px;letter-spacing:.08em;
+    font-family:"Arial Black",Impact,sans-serif;margin-bottom:9px;
+  }
+  body.reordering .grp.nocat .drop{display:block}
+
+  /* ---------- the tools under the list ---------- */
+  .listtools{display:flex;gap:9px;align-items:stretch;margin:18px 0 4px}
+  .addcat{
+    flex:1;min-width:0;background:transparent;color:var(--ink);
+    border:2px dashed var(--ink);box-shadow:none;
+    padding:13px 11px;font-size:10px;letter-spacing:.08em;
+  }
+  .addcat:active{transform:translate(2px,2px);box-shadow:none}
+  .listtools .reorder{flex:0 0 auto}
+  .listtools .reorder.on{background:var(--teal)}
+
+  /* ---------- moving things ----------
+     .handle comes from theme.css. It only exists while REORDER is on, so a
+     row is a row the rest of the time — no grip beside the checkbox on a
+     screen whose whole job is ticking things off. */
+  .row .handle{align-self:stretch;margin-right:11px}
+  .row.grip{padding-left:0}
+  /* Same 30px grip as everywhere else in the app, squared off: a category
+     header has no card around it for the grip to sit against. */
+  .sec .handle{width:30px;height:30px;border:2px solid var(--ink)}
+  /* Nothing is tickable, swipeable or long-pressable while things are being
+     moved: one gesture at a time, and the grip is the only one on offer. */
+  body.reordering .row{cursor:default}
+  body.reordering .sec{cursor:default}
+  /* The hover pair is shown by a rule with a :hover in it, which outranks any
+     plain mode class — so this one says so outright. */
+  body.reordering .sec .add,
+  body.reordering .rowbtns,
+  body.reordering .sec .chev{display:none!important}
+
+  .rowwrap.dragging,.grp.dragging{position:relative;z-index:5;opacity:.9}
+  .rowwrap.dragging .rowclip{box-shadow:6px 6px 0 var(--ink)}
+  /* Where it will land. A solid bar rather than a gap opening up: the list is
+     already a stack of hard-edged boxes and a moving gap reads as a glitch. */
+  .drop-before{box-shadow:0 -5px 0 -1px var(--teal), var(--shadow)}
+  .drop-after{box-shadow:0 5px 0 -1px var(--teal), var(--shadow)}
+  .grp.drop-in{outline:3px solid var(--teal);outline-offset:3px}
+
   /* ---------- the auth gate ----------
      Everything personal is hidden unless Firebase has confirmed an account.
      The attribute ships as "checking" in the markup rather than being set by
@@ -195,7 +256,8 @@
   #wrap:not([data-auth="in"]) .daynav,
   #wrap:not([data-auth="in"]) #priorityWrap,
   #wrap:not([data-auth="in"]) #level,
-  #wrap:not([data-auth="in"]) #list{ display:none }
+  #wrap:not([data-auth="in"]) #list,
+  #wrap:not([data-auth="in"]) .listtools{ display:none }
 
   /* ---------- sync + actions ---------- */
   /* Which of these a person gets is set per account in admin/. Display only:
@@ -502,7 +564,17 @@
 
   <main id="list"></main>
 
-  <div class="sync" id="sync">
+  <!-- The two things you do to the shape of the day rather than to a task in
+       it. Below the list, because that is where you are once you have read it. -->
+  <div class="listtools" id="listTools" hidden>
+    <button class="addcat" id="addCat">+ NEW CATEGORY</button>
+    <button class="reorder" id="reorderBtn">REORDER</button>
+  </div>
+
+  <!-- Signing out lives on the home page now, so this strip is only here when
+       it has something to say: a way in for a signed-out visitor, or a failure
+       and its Retry. Signed in and working, the day ends with the list. -->
+  <div class="sync" id="sync" hidden>
     <span class="dot"></span>
     <span class="msg" id="syncMsg">Checking sync…</span>
     <button id="authBtn" hidden></button>
@@ -578,6 +650,21 @@
   </div>
 </div>
 
+<div class="scrim" id="cScrim" hidden>
+  <div class="modal">
+    <h3 id="cTitle">NEW CATEGORY</h3>
+    <label for="cName">NAME</label>
+    <input id="cName" type="text" maxlength="30" placeholder="e.g. Morning">
+    <div class="acts">
+      <button id="cCancel">CANCEL</button>
+      <button class="primary" id="cSave">SAVE</button>
+    </div>
+    <div class="acts minor" id="cMinor" hidden>
+      <button class="warn" id="cDelete">DELETE CATEGORY</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" hidden>
   <span id="toastMsg"></span>
   <button id="toastUndo">UNDO</button>
@@ -624,6 +711,11 @@ let viewDate = null;  // the day being looked at; null means today
    that has not written one yet, it is empty: this page shows what its owner put
    in it and nothing else. Workout configuration is separate. */
 const TODO_GROUP = "To do";
+/* Tasks whose category has been removed. It is a real group with no name — the
+   empty title is what makes it nameless — pinned to the top of the day and
+   never renamed, removed or collapsed. It exists only while it holds
+   something, so a routine that has never lost a category never carries it. */
+const NOCAT = "";
 /* Every routine has a To do category, whatever else is in it. It is where a new
    task goes when nobody has said where, and a page that opens with nowhere to
    put anything is a dead end. `keepEmpty` is what stops it disappearing on the
@@ -1024,7 +1116,16 @@ function applyCustom(groups, date) {
 
     // keepEmpty keeps a section on the page with nothing in it, so there is a
     // permanent place to add to — otherwise an emptied group disappears.
-    if (items.length || g.keepEmpty) out.push({ ...g, items });
+    //
+    // A category that holds nothing at all stays too. That is a category you
+    // made and have not filled in yet, or one you have just emptied, and it
+    // needs its + to be reachable. A category whose tasks are merely not due
+    // today still goes, which is the case the rule was written for. And while
+    // things are being moved every category is on screen, because a category
+    // you cannot see is one you cannot drop into.
+    if (items.length || g.keepEmpty || reordering || isBare(g)) {
+      out.push({ ...g, items: ordered(items) });
+    }
   }
 
   // Tasks filed under a group the configuration doesn't have — e.g. things pulled in
@@ -1038,9 +1139,36 @@ function applyCustom(groups, date) {
     extra.get(a.group).push({ ...a, custom: true, carriedDays: carriedDays(a, date) });
   }
   for (const [title, items] of extra) {
-    out.push({ title, emoji: items[0].groupEmoji || "📌", items });
+    const group = { title, emoji: items[0].groupEmoji || "📌", items: ordered(items) };
+    // A task with no category belongs at the top, not in the bucket at the end.
+    if (title === NOCAT) out.unshift(group); else out.push(group);
   }
   return out;
+}
+
+/* The order things were dragged into. `rank` is written on the item itself —
+   in the routine for a routine task, in your own list for one you added — so
+   one number answers for both and nothing needs a separate ordering document.
+   Anything never dragged has no rank and keeps its place at the end, which is
+   what an untouched routine looks like. */
+/* Nothing in the routine under this title, and nothing of yours filed under it
+   either — so there is no day on which it could have anything to show.
+
+   It reads the routine rather than the day being drawn on purpose. A category
+   holding one task that comes round every fortnight is empty today and full of
+   something the rest of the time, and it should stay off the screen on the days
+   between; a category holding nothing at all is one to fill in. */
+function isBare(g) {
+  const home = dailyGroup(g.title);
+  if (home && (home.items || []).length) return false;
+  return !custom.added.some(a => a.group === g.title && !custom.hidden[a.id]);
+}
+
+function ordered(items) {
+  return items
+    .map((it, i) => [it, i])
+    .sort((a, b) => (a[0].rank ?? 1e9) - (b[0].rank ?? 1e9) || a[1] - b[1])
+    .map(pair => pair[0]);
 }
 
 function deriveDay(date) {
@@ -1052,7 +1180,10 @@ function deriveDay(date) {
     // having come from the routine.
     const items = scheduleFilter(g.items, date)
       .map(i => ({ ...i, text: itemText(i), carriedDays: overdueDays(i, date) }));
-    if (items.length || g.keepEmpty) groups.push({ ...g, items });
+    // applyCustom() decides what an empty group means — it is the only place
+    // that can see whether anything of yours is filed under it — so every one
+    // is handed on and the emptiness rule is applied once, there.
+    groups.push({ ...g, items });
   }
 
   /* custom.doneOnce is the durable record — it rides in the synced custom
@@ -1066,6 +1197,7 @@ function deriveDay(date) {
   }
 
   const shown = applyCustom(groups, date);
+  shown.sort((a, b) => (a.title === NOCAT ? 0 : 1) - (b.title === NOCAT ? 0 : 1));
 
   const dayOfPlan = daysBetween(dailyConfig.startDate, date) + 1;
   return {
@@ -1208,123 +1340,40 @@ function render() {
   rowEls.clear();
   secEls.clear();
   lastRendered = JSON.stringify(ticks);
+  document.body.classList.toggle("reordering", reordering);
+  $("listTools").hidden = sync.mode !== "signed-in";
+  $("reorderBtn").textContent = reordering ? "DONE" : "REORDER";
+  $("reorderBtn").classList.toggle("on", reordering);
 
-  for (const g of plan.groups || []) {
-    const collapsed = collapsedGroups.has(g.title);
+  const shown = plan.groups || [];
+  // The nameless group is a place to drop into while things are being moved,
+  // so it is drawn even when the day has nothing in it.
+  const groups = reordering && !shown.some(g => g.title === NOCAT)
+    ? [{ title: NOCAT, items: [] }, ...shown]
+    : shown;
 
-    const sec = document.createElement("div");
-    sec.className = "sec" + (collapsed ? " collapsed" : "");
-    sec.tabIndex = 0;
-    sec.setAttribute("role", "button");
-    sec.setAttribute("aria-expanded", String(!collapsed));
-    const chev = document.createElement("span");
-    chev.className = "chev";
-    chev.setAttribute("aria-hidden", "true");
-    chev.textContent = collapsed ? "▸" : "▾";
-    const name = document.createElement("span");
-    name.className = "t";
-    name.textContent = g.title.toUpperCase();
-    const rule = document.createElement("span");
-    rule.className = "r";
-    const cnt = document.createElement("span");
-    cnt.className = "n";
-    const gd = (g.items || []).filter(i => isTicked(i, ticks)).length;
-    cnt.textContent = `${gd}/${(g.items || []).length}`;
-    secEls.set(g.title, cnt);
-    sec.append(chev, name, rule, cnt);
-    if (!g.fixed) {
-      const add = document.createElement("button");
-      add.className = "add";
-      add.textContent = "+";
-      add.title = `Add a task to ${g.title}`;
-      add.addEventListener("click", e => { e.stopPropagation(); openAdd(g.title); });
-      sec.appendChild(add);
+  for (const g of groups) {
+    const nameless = g.title === NOCAT;
+    const collapsed = !nameless && collapsedGroups.has(g.title);
+
+    const block = document.createElement("section");
+    block.className = "grp" + (nameless ? " nocat" : "");
+    block.dataset.group = g.title;
+    list.appendChild(block);
+
+    if (nameless) {
+      const drop = document.createElement("div");
+      drop.className = "drop";
+      drop.textContent = "NO CATEGORY";
+      block.appendChild(drop);
+    } else {
+      block.appendChild(sectionHeader(g, ticks, collapsed));
     }
-    const toggle = e => { if (e.target.closest(".add")) return; toggleGroup(g.title); };
-    sec.addEventListener("click", toggle);
-    sec.addEventListener("keydown", e => {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      e.preventDefault();
-      toggle(e);
-    });
-    list.appendChild(sec);
 
     if (collapsed) continue;
 
     for (const it of g.items || []) {
-      const on = isTicked(it, ticks);
-      const row = document.createElement("label");
-      row.className = "row press-edit" + (on ? " done" : "");
-
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.checked = on;
-      cb.addEventListener("change", () => setTick(it.id, it.invert ? !cb.checked : cb.checked));
-
-      const box = document.createElement("span");
-      box.className = "box";
-      box.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF7" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 L9.5 18 L20 6"/></svg>';
-
-      const em = document.createElement("span");
-      em.className = "emoji";
-      em.textContent = it.emoji || "•";
-
-      const txt = document.createElement("span");
-      txt.className = "txt";
-      txt.append(document.createTextNode(it.text));
-      // Only while it is still dragging — the day it gets done it is not late.
-      if (it.carriedDays > 1 && !on) {
-        const age = document.createElement("span");
-        age.className = "carry";
-        age.textContent = `DAY ${it.carriedDays}`;
-        txt.appendChild(age);
-      }
-      if (it.detail) {
-        const d = document.createElement("span");
-        d.className = "detail";
-        d.textContent = it.detail;
-        txt.appendChild(d);
-      }
-
-      const pill = document.createElement("span");
-      // Items can cost XP as well as pay it, so the sign comes from the number.
-      const xp = it.xp || 0;
-      pill.className = "pill" + (xp < 0 ? " cost" : "");
-      pill.textContent = xp < 0 ? `−${Math.abs(xp)}` : `+${xp}`;
-
-      row.append(cb, box, em, txt, pill);
-      rowEls.set(it.id, row);
-
-      const wrap = document.createElement("div");
-      wrap.className = "rowwrap";
-      const clip = document.createElement("div");
-      clip.className = "rowclip";
-      const tray = document.createElement("div");
-      tray.className = "tray";
-      const trayDelete = document.createElement("button");
-      trayDelete.type = "button";
-      trayDelete.textContent = "DELETE";
-      trayDelete.addEventListener("click", e => {
-        e.preventDefault(); e.stopPropagation();
-        closeRevealed();
-        removeItem(it);
-      });
-      tray.append(trayDelete);
-
-      const btns = document.createElement("div");
-      btns.className = "rowbtns";
-      const bEdit = document.createElement("button");
-      bEdit.textContent = "✎"; bEdit.title = "Edit";
-      bEdit.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); openEdit(it); });
-      const bDel = document.createElement("button");
-      bDel.textContent = "✕"; bDel.title = "Remove";
-      bDel.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); removeItem(it); });
-      btns.append(bEdit, bDel);
-
-      clip.append(tray, row);
-      wrap.append(clip, btns);
-      attachGestures(wrap, row, { id: it.id, onEdit: () => openEdit(it) });
-      list.appendChild(wrap);
+      block.appendChild(taskRow(it, ticks, g));
     }
   }
 
@@ -1334,6 +1383,251 @@ function render() {
   renderLevel();
   renderDayNav();
   renderPriority();
+}
+
+/* The strip above a category. It carries the fold, the tally and the + that
+   adds to it; while things are being moved it carries a grip instead, and a
+   long press on it opens the category's own dialog. */
+function sectionHeader(g, ticks, collapsed) {
+  const sec = document.createElement("div");
+  sec.className = "sec press-edit" + (collapsed ? " collapsed" : "");
+  sec.tabIndex = 0;
+  sec.setAttribute("role", "button");
+  sec.setAttribute("aria-expanded", String(!collapsed));
+
+  if (reordering) sec.appendChild(gripFor(sec, { group: g.title }));
+
+  const chev = document.createElement("span");
+  chev.className = "chev";
+  chev.setAttribute("aria-hidden", "true");
+  chev.textContent = collapsed ? "▸" : "▾";
+  const name = document.createElement("span");
+  name.className = "t";
+  name.textContent = g.title.toUpperCase();
+  const rule = document.createElement("span");
+  rule.className = "r";
+  const cnt = document.createElement("span");
+  cnt.className = "n";
+  const gd = (g.items || []).filter(i => isTicked(i, ticks)).length;
+  cnt.textContent = `${gd}/${(g.items || []).length}`;
+  secEls.set(g.title, cnt);
+  sec.append(chev, name, rule, cnt);
+
+  if (!g.fixed) {
+    const add = document.createElement("button");
+    add.className = "add";
+    add.textContent = "+";
+    add.title = `Add a task to ${g.title}`;
+    add.addEventListener("click", e => { e.stopPropagation(); openAdd(g.title); });
+    sec.appendChild(add);
+  }
+
+  const toggle = e => {
+    if (reordering || e.target.closest(".add") || e.target.closest(".handle")) return;
+    toggleGroup(g.title);
+  };
+  sec.addEventListener("click", toggle);
+  sec.addEventListener("keydown", e => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    toggle(e);
+  });
+  // A category the routine owns can be renamed and removed; the To do group and
+  // the one-off list are the page's own furniture and are left alone.
+  if (!g.fixed && g.title !== TODO_GROUP) {
+    attachHold(sec, () => openCategoryEdit(g.title), { keys: false });
+  }
+  return sec;
+}
+
+function taskRow(it, ticks, g) {
+  const on = isTicked(it, ticks);
+  const row = document.createElement("label");
+  row.className = "row press-edit" + (on ? " done" : "") + (reordering ? " grip" : "");
+
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = on;
+  // Nothing ticks while things are being moved: the row is a thing you pick up.
+  cb.disabled = reordering;
+  cb.addEventListener("change", () => setTick(it.id, it.invert ? !cb.checked : cb.checked));
+
+  const box = document.createElement("span");
+  box.className = "box";
+  box.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#FFFDF7" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 L9.5 18 L20 6"/></svg>';
+
+  const em = document.createElement("span");
+  em.className = "emoji";
+  em.textContent = it.emoji || "•";
+
+  const txt = document.createElement("span");
+  txt.className = "txt";
+  txt.append(document.createTextNode(it.text));
+  // Only while it is still dragging — the day it gets done it is not late.
+  if (it.carriedDays > 1 && !on) {
+    const age = document.createElement("span");
+    age.className = "carry";
+    age.textContent = `DAY ${it.carriedDays}`;
+    txt.appendChild(age);
+  }
+  if (it.detail) {
+    const d = document.createElement("span");
+    d.className = "detail";
+    d.textContent = it.detail;
+    txt.appendChild(d);
+  }
+
+  const pill = document.createElement("span");
+  // Items can cost XP as well as pay it, so the sign comes from the number.
+  const xp = it.xp || 0;
+  pill.className = "pill" + (xp < 0 ? " cost" : "");
+  pill.textContent = xp < 0 ? `−${Math.abs(xp)}` : `+${xp}`;
+
+  row.append(cb, box, em, txt, pill);
+  rowEls.set(it.id, row);
+
+  const wrap = document.createElement("div");
+  wrap.className = "rowwrap";
+  wrap.dataset.id = it.id;
+  const clip = document.createElement("div");
+  clip.className = "rowclip";
+  const tray = document.createElement("div");
+  tray.className = "tray";
+  const trayDelete = document.createElement("button");
+  trayDelete.type = "button";
+  trayDelete.textContent = "DELETE";
+  trayDelete.addEventListener("click", e => {
+    e.preventDefault(); e.stopPropagation();
+    closeRevealed();
+    removeItem(it);
+  });
+  tray.append(trayDelete);
+
+  const btns = document.createElement("div");
+  btns.className = "rowbtns";
+  const bEdit = document.createElement("button");
+  bEdit.textContent = "✎"; bEdit.title = "Edit";
+  bEdit.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); openEdit(it); });
+  const bDel = document.createElement("button");
+  bDel.textContent = "✕"; bDel.title = "Remove";
+  bDel.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); removeItem(it); });
+  btns.append(bEdit, bDel);
+
+  clip.append(tray, row);
+  wrap.append(clip, btns);
+  if (reordering && movable(it.id)) row.insertBefore(gripFor(wrap, { id: it.id, group: g.title }), box);
+  else attachGestures(wrap, row, { id: it.id, onEdit: () => openEdit(it) });
+  return wrap;
+}
+
+/* ---------- moving things about ----------
+   Pointer events rather than HTML5 drag-and-drop, which Safari never fires for
+   touch — the same reason `jobs/` does it this way, and the same shape of code.
+   The grip is the only thing that starts a drag, so a finger anywhere else on
+   the list still scrolls the page.
+
+   Two things move: a task, which can land in another category, and a category,
+   which takes its tasks with it. Both write to the routine — dragging is a
+   change to the shape of the day, not to one date of it. */
+function gripFor(el, what) {
+  const grip = document.createElement("span");
+  grip.className = "handle";
+  grip.setAttribute("aria-label", what.id ? "Drag to move the task" : "Drag to move the category");
+  grip.innerHTML = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true">'
+    + '<circle cx="5" cy="3" r="1.4" fill="#111"/><circle cx="11" cy="3" r="1.4" fill="#111"/>'
+    + '<circle cx="5" cy="8" r="1.4" fill="#111"/><circle cx="11" cy="8" r="1.4" fill="#111"/>'
+    + '<circle cx="5" cy="13" r="1.4" fill="#111"/><circle cx="11" cy="13" r="1.4" fill="#111"/></svg>';
+
+  /* Looked up when the drag starts, not when the grip is made: a category's
+     grip is built before its header is put on the page, so at that moment
+     there is no .grp above it to find. */
+  const movingEl = () => what.id ? el : el.closest(".grp");
+  let moving = null, startY = 0, moved = false, drop = null;
+
+  grip.addEventListener("pointerdown", e => {
+    if (e.button) return;
+    e.preventDefault(); e.stopPropagation();
+    startY = e.clientY; moved = false; drop = null;
+    moving = movingEl();
+    grip.setPointerCapture(e.pointerId);
+  });
+
+  grip.addEventListener("pointermove", e => {
+    if (!grip.hasPointerCapture(e.pointerId)) return;
+    const dy = e.clientY - startY;
+    if (!moved && Math.abs(dy) < 6) return;
+    if (!moving) return;
+    moved = true;
+    moving.classList.add("dragging");
+    moving.style.transform = `translateY(${dy}px)`;
+    clearDropMarks();
+    drop = what.id ? taskTarget(e.clientY, what.id) : groupTarget(e.clientY, what.group);
+    if (!drop) return;
+    if (drop.el) drop.el.classList.add(drop.before ? "drop-before" : "drop-after");
+    else document.querySelector(`.grp[data-group="${cssEscape(drop.group)}"]`)?.classList.add("drop-in");
+  });
+
+  const finish = e => {
+    e.stopPropagation();
+    if (grip.hasPointerCapture(e.pointerId)) grip.releasePointerCapture(e.pointerId);
+    if (moving) { moving.classList.remove("dragging"); moving.style.transform = ""; }
+    clearDropMarks();
+    const landed = drop;
+    moved = false; drop = null;
+    if (!landed) return;
+    if (what.id) moveTask(what.id, landed);
+    else moveCategory(what.group, landed);
+  };
+  grip.addEventListener("pointerup", finish);
+  grip.addEventListener("pointercancel", finish);
+  return grip;
+}
+
+/* An empty category title is a legal one here, and quoting it for a selector
+   has to survive that. */
+const cssEscape = v => (window.CSS && CSS.escape) ? CSS.escape(v) : String(v).replace(/"/g, '\\"');
+
+function clearDropMarks() {
+  document.querySelectorAll(".drop-before,.drop-after,.drop-in")
+    .forEach(el => el.classList.remove("drop-before", "drop-after", "drop-in"));
+}
+
+/* Over another row, it lands beside that row. Over a category with no room in
+   it — an empty one, or its header — it lands in that category. */
+function taskTarget(clientY, selfId) {
+  for (const el of document.querySelectorAll("#list .rowwrap")) {
+    if (el.dataset.id === selfId) continue;
+    const r = el.getBoundingClientRect();
+    if (clientY < r.top || clientY > r.bottom) continue;
+    return {
+      el, id: el.dataset.id,
+      group: el.closest(".grp").dataset.group,
+      before: clientY < r.top + r.height / 2
+    };
+  }
+  const block = blockUnder(clientY);
+  return block ? { group: block.dataset.group } : null;
+}
+
+function groupTarget(clientY, selfTitle) {
+  for (const el of document.querySelectorAll("#list .grp")) {
+    if (el.dataset.group === selfTitle) continue;
+    // The nameless group is pinned to the top; nothing may be moved past it.
+    if (el.dataset.group === NOCAT) continue;
+    const r = el.getBoundingClientRect();
+    if (clientY < r.top || clientY > r.bottom) continue;
+    return { el: el.querySelector(".sec"), group: el.dataset.group,
+             before: clientY < r.top + r.height / 2 };
+  }
+  return null;
+}
+
+function blockUnder(clientY) {
+  for (const el of document.querySelectorAll("#list .grp")) {
+    const r = el.getBoundingClientRect();
+    if (clientY >= r.top - 6 && clientY <= r.bottom + 6) return el;
+  }
+  return null;
 }
 
 /* ---------- gestures ----------
@@ -1455,6 +1749,197 @@ function attachGestures(wrap, card, { id, onEdit, enabled = () => true }) {
   card.addEventListener("contextmenu", e => { if (enabled()) { e.preventDefault(); onEdit(); } });
 }
 
+/* ---------- categories ----------
+   The routine is the shape of the day, and this page now edits it: the dashed
+   slot below the list adds a category, a long press on a header renames or
+   removes one, and a grip moves one. All three write users/{uid}/config/plan.
+
+   Removing a category does not remove its tasks. They go to the nameless group
+   at the top and can be dragged back into whichever one they belong in — the
+   alternative is a rename gone wrong quietly taking a week of routine with it. */
+let reordering = false;
+let categoryEditing = null;   // the title being changed, or null while adding
+
+function toggleReorder() {
+  reordering = !reordering;
+  closeRevealed();
+  // A rebuild rather than a redraw: which categories are on screen changes
+  // with the mode, and that is decided while the day is derived.
+  rebuild();
+}
+
+const dailyGroup = title => (dailyConfig.daily || []).find(g => g.title === title) || null;
+
+/* The nameless group is made when something first needs it and taken away
+   again when it empties, so a routine that has never lost a category never
+   carries an empty one. */
+function noCatGroup() {
+  let g = dailyGroup(NOCAT);
+  if (!g) { g = { title: NOCAT, items: [] }; dailyConfig.daily.unshift(g); }
+  return g;
+}
+function pruneNoCat() {
+  const g = dailyGroup(NOCAT);
+  if (!g || (g.items || []).length) return;
+  if (custom.added.some(a => a.group === NOCAT)) return;
+  dailyConfig.daily = dailyConfig.daily.filter(x => x !== g);
+}
+
+/* Where an item's record actually lives, which is what any move has to change.
+   A one-off has no home in the daily groups, so it cannot be moved between
+   them — its list is its own section and it disappears once it is done. */
+function itemHome(id) {
+  const own = custom.added.find(a => a.id === id);
+  if (own) return { kind: "custom", rec: own };
+  for (const g of dailyConfig.daily || []) {
+    const rec = (g.items || []).find(i => i.id === id);
+    if (rec) return { kind: "routine", rec, group: g };
+  }
+  return null;
+}
+const movable = id => !!itemHome(id);
+
+const visibleIds = title => {
+  const g = (plan.groups || []).find(x => x.title === title);
+  return g ? (g.items || []).map(i => i.id) : [];
+};
+
+/* The order on screen becomes the order stored. Ranks are written on the items
+   themselves, so a routine task and one you added can sit either side of each
+   other rather than the routine always coming first. */
+function setRanks(title, ids) {
+  ids.forEach((id, i) => {
+    const home = itemHome(id);
+    if (home) home.rec.rank = i + 1;
+  });
+}
+
+function moveTask(id, target) {
+  const home = itemHome(id);
+  if (!home) return;
+  const to = target.group;
+  const from = (plan.groups || []).find(g => (g.items || []).some(i => i.id === id))?.title ?? to;
+
+  if (home.kind === "custom") {
+    home.rec.group = to;
+  } else if (from !== to) {
+    // The destination is found before the item is taken out of where it is:
+    // a group that only the day knows about — one made up from a task filed
+    // under a title the routine has never had — is not somewhere to move to,
+    // and finding that out afterwards would drop the task on the floor.
+    const dest = to === NOCAT ? noCatGroup() : dailyGroup(to);
+    if (!dest) return;
+    home.group.items = (home.group.items || []).filter(i => i !== home.rec);
+    dest.items = [...(dest.items || []), home.rec];
+  }
+
+  const ids = visibleIds(to).filter(x => x !== id);
+  let at = ids.length;
+  if (target.id) {
+    const found = ids.indexOf(target.id);
+    if (found >= 0) at = target.before ? found : found + 1;
+  }
+  ids.splice(at, 0, id);
+  setRanks(to, ids);
+  if (from !== to) setRanks(from, visibleIds(from).filter(x => x !== id));
+
+  pruneNoCat();
+  saveCustom();
+  sync.pushPlan();
+  rebuild();
+}
+
+function moveCategory(title, target) {
+  const list = dailyConfig.daily || [];
+  const from = list.findIndex(g => g.title === title);
+  if (from < 0) return;
+  const [g] = list.splice(from, 1);
+  let at = list.findIndex(x => x.title === target.group);
+  if (at < 0) at = list.length; else if (!target.before) at += 1;
+  list.splice(at, 0, g);
+  sync.pushPlan();
+  rebuild();
+}
+
+function openCategoryAdd() {
+  categoryEditing = null;
+  $("cTitle").textContent = "NEW CATEGORY";
+  $("cName").value = "";
+  $("cMinor").hidden = true;
+  $("cScrim").hidden = false;
+  focusSoon($("cName"));
+}
+
+function openCategoryEdit(title) {
+  if (!dailyGroup(title)) return;      // a section the day made up, not a category
+  categoryEditing = title;
+  $("cTitle").textContent = "EDIT CATEGORY";
+  $("cName").value = title;
+  $("cMinor").hidden = false;
+  $("cScrim").hidden = false;
+  focusSoon($("cName"));
+}
+
+function closeCategoryModal() { $("cScrim").hidden = true; categoryEditing = null; }
+
+function saveCategoryModal() {
+  const name = $("cName").value.trim().slice(0, 30);
+  if (!name) { $("cName").focus(); return; }
+  const clash = (dailyConfig.daily || []).some(g => g.title === name && g.title !== categoryEditing);
+  if (clash) { $("cName").focus(); return; }
+
+  if (categoryEditing) {
+    const g = dailyGroup(categoryEditing);
+    if (!g) { closeCategoryModal(); return; }
+    const was = g.title;
+    g.title = name;
+    // Everything that files itself by the category's name has to follow it.
+    for (const a of custom.added) if (a.group === was) a.group = name;
+    if (collapsedGroups.delete(was)) { collapsedGroups.add(name); sync.pushPrefs(); }
+    saveCustom();
+  } else {
+    dailyConfig.daily = [...(dailyConfig.daily || []), { title: name, items: [] }];
+  }
+  sync.pushPlan();
+  closeCategoryModal();
+  rebuild();
+}
+
+/* The tasks stay. They go to the nameless group at the top, where they are in
+   the way until they are put somewhere — which is the point: a category
+   removed by accident should not take the day with it. */
+function deleteCategory() {
+  const title = categoryEditing;
+  const g = dailyGroup(title);
+  if (!g) { closeCategoryModal(); return; }
+  const before = {
+    daily: JSON.parse(JSON.stringify(dailyConfig.daily)),
+    added: JSON.parse(JSON.stringify(custom.added))
+  };
+
+  if ((g.items || []).length) {
+    const none = noCatGroup();
+    none.items = [...(none.items || []), ...g.items];
+  }
+  for (const a of custom.added) if (a.group === title) a.group = NOCAT;
+  dailyConfig.daily = dailyConfig.daily.filter(x => x !== g);
+  collapsedGroups.delete(title);
+  pruneNoCat();
+
+  saveCustom();
+  sync.pushPlan();
+  closeCategoryModal();
+  rebuild();
+
+  showToast(`Removed “${title}”`, () => {
+    dailyConfig.daily = before.daily;
+    custom.added = before.added;
+    saveCustom();
+    sync.pushPlan();
+    rebuild();
+  });
+}
+
 /* ---------- add / edit / remove ---------- */
 let editing = null;   // null = adding; otherwise the item being changed
 let addGroup = null;
@@ -1472,7 +1957,7 @@ function openAdd(group) {
   $("mEvery").value = "7";
   syncEveryField();
   $("scrim").hidden = false;
-  setTimeout(() => $("mText").focus(), 30);
+  focusSoon($("mText"));
 }
 
 function openEdit(item) {
@@ -1493,7 +1978,7 @@ function openEdit(item) {
   }
   syncEveryField();
   $("scrim").hidden = false;
-  setTimeout(() => $("mText").focus(), 30);
+  focusSoon($("mText"));
 }
 
 /* The interval only means anything for the one answer that uses it. */
@@ -1778,7 +2263,7 @@ function swallowNextClick() {
    same dialog from a double-click or a right-click, the way a task row does;
    hover buttons would have to sit on top of the number, which is the one thing
    a tile a third of a column wide has room for. */
-function attachHold(el, onHold) {
+function attachHold(el, onHold, { keys = true } = {}) {
   let timer = null, x0 = 0, y0 = 0, fired = false;
   const cancel = () => { clearTimeout(timer); timer = null; };
   el.addEventListener("pointerdown", e => {
@@ -1800,7 +2285,9 @@ function attachHold(el, onHold) {
   el.addEventListener("click", e => { if (fired) { e.preventDefault(); e.stopPropagation(); fired = false; } }, true);
   el.addEventListener("dblclick", e => { e.preventDefault(); onHold(); });
   el.addEventListener("contextmenu", e => { e.preventDefault(); onHold(); });
-  el.addEventListener("keydown", e => {
+  // A category header already answers Enter and Space by folding up, so it
+  // opts out rather than doing both at once.
+  if (keys) el.addEventListener("keydown", e => {
     if (e.key !== "Enter" && e.key !== " ") return;
     e.preventDefault();
     onHold();
@@ -1848,7 +2335,7 @@ function openStreakAdd() {
   fillGroupSelect(TODO_GROUP);
   $("sMinor").hidden = true;
   $("sScrim").hidden = false;
-  setTimeout(() => $("sName").focus(), 30);
+  focusSoon($("sName"));
 }
 
 function openStreakEdit(id) {
@@ -1869,7 +2356,7 @@ function openStreakEdit(id) {
   if (own) fillGroupSelect(own.group);
   $("sMinor").hidden = false;
   $("sScrim").hidden = false;
-  setTimeout(() => $("sName").focus(), 30);
+  focusSoon($("sName"));
 }
 
 function closeStreakModal() { $("sScrim").hidden = true; streakEditing = null; }
@@ -1978,6 +2465,20 @@ function renderDayNav() {
 async function goToDay(date) {
   viewDate = date;
   await rebuild();
+}
+
+/* Opening a dialog puts the keyboard in its first field, and the wait is what
+   makes that work — focusing an element the same tick it is unhidden does
+   nothing on iOS. The wait is also long enough to tap the second field in, and
+   the focus would then jump back and type into the first one. So it stands
+   down if the finger has already gone somewhere else in the same dialog. */
+function focusSoon(el) {
+  setTimeout(() => {
+    const dialog = el.closest(".scrim");
+    const active = document.activeElement;
+    if (dialog && active && active !== el && dialog.contains(active)) return;
+    el.focus();
+  }, 30);
 }
 
 const isOneOff = id => (dailyConfig.oneOffs?.items || []).some(i => i.id === id);
@@ -2098,9 +2599,13 @@ const sync = {
   trackerPending: null,   // { itemId: { set } | { recoverBefore } }, resolved in flush()
   lastRefresh: 0,         // throttles refreshAll(), see there
 
+  /* The strip is only on screen when it has something to say. Signed in and
+     syncing there is nothing to report and no button left on it — signing out
+     is the home page's — so the day ends with the list. */
   setUI(state, msg, btnLabel, btnAction) {
     const row = $("sync"), btn = $("authBtn");
     row.className = "sync" + (state === "on" ? " on" : state === "err" ? " err" : "");
+    row.hidden = state === "on";
     $("syncMsg").textContent = msg;
     if (btnLabel) { btn.hidden = false; btn.textContent = btnLabel; btn.onclick = btnAction; }
     else { btn.hidden = true; btn.onclick = null; }
@@ -2147,7 +2652,12 @@ const sync = {
     lastRendered = null;
     priorityEditDate = null;
     $("list").textContent = "";
-    for (const id of ["streaks", "level", "priorityWrap", "scrim", "sScrim"]) $(id).hidden = true;
+    reordering = false;
+    categoryEditing = null;
+    document.body.classList.remove("reordering");
+    for (const id of ["streaks", "level", "priorityWrap", "scrim", "sScrim", "cScrim", "listTools"]) {
+      $(id).hidden = true;
+    }
   },
 
   /* Connecting, and knowing who is signed in, is shared/firebase.js's job now.
@@ -2188,7 +2698,7 @@ const sync = {
       return;
     }
     this.uid = user.uid; this.mode = "signed-in";
-    this.setUI("on", `Syncing as ${user.email || "your account"}`, "Sign out", () => this.signOut());
+    this.setUI("on", `Syncing as ${user.email || "your account"}`);
     // Anything still queued from a token refresh goes up FIRST, so the
     // read-back below can't overwrite it with an older server copy.
     this.flush();
@@ -2709,6 +3219,21 @@ const sync = {
     };
   },
 
+  /* The routine is written from here now — categories are added, renamed,
+     removed and reordered on this page, and a task dragged between them moves
+     inside it. Written whole rather than merged: it is read back off what is
+     on screen, and a merge would leave a removed category's items behind. */
+  async pushPlan() {
+    if (this.mode !== "signed-in") return;
+    const { f } = this.fb;
+    try {
+      await f.setDoc(this.planRef(), { ...dailyConfig, updatedAt: f.serverTimestamp() });
+    } catch (e) {
+      this.setUI("err", `Couldn't save the categories (${e.code || e.message}). Saved on this device.`,
+        "Retry", () => this.pushPlan());
+    }
+  },
+
   /* ---------- page preferences ----------
      One small document holding the sections folded up. Written whole rather
      than merged: it is read back off what is on screen, so there is nothing
@@ -2973,7 +3498,8 @@ const sync = {
   async refreshAll() {
     if (this.mode !== "signed-in") return;
     await this.resync();
-    if (!$("scrim").hidden || !$("sScrim").hidden || priorityEditDate) return;
+    if (!$("scrim").hidden || !$("sScrim").hidden || !$("cScrim").hidden) return;
+    if (priorityEditDate || reordering) return;
     const now = Date.now();
     if (now - this.lastRefresh < 45000) return;
     this.lastRefresh = now;
@@ -3057,6 +3583,14 @@ $("prioritySwipeDelete").addEventListener("click", e => {
   if (plan) deletePriority();
 });
 
+$("addCat").addEventListener("click", () => { if (plan) openCategoryAdd(); });
+$("reorderBtn").addEventListener("click", () => { if (plan) toggleReorder(); });
+$("cCancel").addEventListener("click", closeCategoryModal);
+$("cSave").addEventListener("click", saveCategoryModal);
+$("cDelete").addEventListener("click", deleteCategory);
+$("cScrim").addEventListener("click", e => { if (e.target === $("cScrim")) closeCategoryModal(); });
+$("cName").addEventListener("keydown", e => { if (e.key === "Enter") saveCategoryModal(); });
+
 $("streakAdd").addEventListener("click", () => { if (plan) openStreakAdd(); });
 $("sCancel").addEventListener("click", closeStreakModal);
 $("sSave").addEventListener("click", saveStreakModal);
@@ -3074,6 +3608,7 @@ document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
   if (!$("scrim").hidden) closeModal();
   else if (!$("sScrim").hidden) closeStreakModal();
+  else if (!$("cScrim").hidden) closeCategoryModal();
   else if (priorityEditDate) cancelPriorityEdit();
 });
 

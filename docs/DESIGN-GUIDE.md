@@ -114,6 +114,12 @@ Breaking this put one person's day and task list into another account, twice.
 appears in `admin/` as a checkbox and on the home page as a card, for whoever is
 given it.
 
+**Signing out is the home page's.** A section does not carry its own way out —
+there is one place to leave from, and a section's last screenful should be its
+own content. A section does still need a way *in* for a signed-out visitor, and
+somewhere to say that syncing failed; `dailyplan/`'s bottom strip does both and
+is on screen for nothing else.
+
 ## The look
 
 - Neo-brutalist: `--stroke` thick borders, squared corners, hard zero-blur
@@ -162,6 +168,16 @@ given it.
   the margin beside the card rather than on it: inside, they land on whatever
   the card's right-hand side is already showing. `dailyplan/` places both its
   pairs with one rule.
+- **Reordering is a mode, not a gesture.** A REORDER button under the list
+  grows a grip on every row and category header and makes nothing else on the
+  list respond; DONE leaves. Grips are not on screen the rest of the time — the
+  day's job is ticking things off, and a grip beside every checkbox is in the
+  way of it. Swipe already means delete here, so it cannot also mean this.
+- **A dialog's opening focus stands down.** Focusing the first field one tick
+  after the dialog is unhidden does nothing on iOS, so it waits — and the wait
+  is long enough to tap the second field, whereupon the focus jumps back and
+  types the answer into the first one. `focusSoon()` in `dailyplan/` skips the
+  focus if the finger has already gone somewhere else in the same dialog.
 - **Undo, not confirm.** A destructive action happens and offers a toast with
   UNDO, rather than asking first.
 - **Refresh on return.** A home-screen app is never really closed, so re-read

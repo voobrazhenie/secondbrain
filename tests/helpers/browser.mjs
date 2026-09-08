@@ -109,9 +109,16 @@ export async function signIn(page, { settle = 1800 } = {}) {
    row's own button. */
 export async function signOut(page, { settle = 1400 } = {}) {
   const footer = await page.locator("#signOutBtn").count();
+  // DailyPlan has no way out of its own any more — signing out is the home
+  // page's job — so there the sync layer is asked directly.
+  const onPage = footer
+    ? () => page.click("#signOutBtn")
+    : await page.evaluate(() => { const b = document.getElementById("authBtn"); return !!b && !b.hidden; })
+      ? () => page.click("#authBtn")
+      : () => page.evaluate(() => sync.signOut());
   await Promise.all([
     page.waitForNavigation({ waitUntil: "domcontentloaded" }).catch(() => {}),
-    page.click(footer ? "#signOutBtn" : "#authBtn")
+    onPage()
   ]);
   await page.waitForTimeout(settle);
 }
@@ -160,6 +167,26 @@ export async function holdPress(page, selector, ms = 700) {
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await cdp.detach();
   await page.waitForTimeout(300);
+}
+
+/* Drag a grip onto another element with a finger. `at` is how far down the
+ * target to let go: below 0.5 lands above it, above 0.5 lands below it.
+ * Reordering is a touch gesture like the rest, so this goes through CDP. */
+export async function dragTo(page, gripSelector, targetSelector, { at = 0.25 } = {}) {
+  const grip = await page.locator(gripSelector).first().boundingBox();
+  const target = await page.locator(targetSelector).first().boundingBox();
+  const x = Math.round(grip.x + grip.width / 2);
+  const from = Math.round(grip.y + grip.height / 2);
+  const to = Math.round(target.y + target.height * at);
+  const cdp = await page.context().newCDPSession(page);
+  const send = (type, y) => cdp.send("Input.dispatchTouchEvent", {
+    type, touchPoints: type === "touchEnd" ? [] : [{ x, y: Math.round(y) }]
+  });
+  await send("touchStart", from);
+  for (let i = 1; i <= 10; i++) await send("touchMove", from + (to - from) * i / 10);
+  await send("touchEnd", to);
+  await cdp.detach();
+  await page.waitForTimeout(600);
 }
 
 /* The same drag with a mouse, which should leave the card where it is. */

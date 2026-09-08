@@ -7,7 +7,7 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { playwright, serve, openPage, signIn, signOut, painted, paintedAll, stored,
-         swipeLeft, dragLeft, holdPress } from "./helpers/browser.mjs";
+         swipeLeft, dragLeft, holdPress, dragTo } from "./helpers/browser.mjs";
 import { plan, features, routine } from "./helpers/fixtures.mjs";
 
 const browser = await playwright();
@@ -368,7 +368,12 @@ test("adding a streak makes the daily card that feeds it", { skip }, async () =>
   await page.fill("#sCard", "Cold shower");
   await page.selectOption("#sGroup", "Recover");
   await page.click("#sSave");
-  await page.waitForTimeout(700);
+  // Wait for the writes rather than for a number of milliseconds: the save
+  // draws the tile, pushes the streak and pushes the card, and which of the
+  // three lands last is not fixed.
+  await page.waitForSelector("#streakRow .strk");
+  await page.waitForFunction(
+    () => globalThis.__MOCK_STORE.get("users/uidA/config/custom")?.added?.some(a => a.text === "Cold shower"));
 
   assert.deepEqual((await tiles(page)).map(t => t.name), ["Cold shower"]);
   const custom = await stored(page, "users/uidA/config/custom");
@@ -423,5 +428,181 @@ test("holding a streak tile opens its dialog", { skip }, async () => {
   await holdPress(page, "#streakRow .strk");
   assert.equal(await painted(page, "#sScrim"), true, "the dialog is on screen");
   assert.equal(await page.inputValue("#sName"), "No weed");
+  assert.deepEqual(problems, []);
+});
+
+
+/* ---------- categories ----------
+ *
+ * The routine is the shape of the day, and this page writes it now: the dashed
+ * slot adds a category, a long press on a header renames or removes one, and
+ * REORDER is how anything is moved. A removed category must never take its
+ * tasks with it. */
+
+const blocks = page => page.evaluate(() => [...document.querySelectorAll("#list .grp")]
+  .map(g => ({ title: g.dataset.group, ids: [...g.querySelectorAll(".rowwrap")].map(r => r.dataset.id) })));
+
+const openDay = (seed = [plan("uidA"), features("uidA", ["dailyplan"])], opts = {}) =>
+  openPage(browser, site.origin, "/dailyplan/?date=2026-03-10",
+    { user: { uid: "uidA", email: "a@example.com" }, seed, ...opts });
+
+test("a new category stays on the page with nothing in it", { skip }, async () => {
+  const { page, problems } = await openDay();
+  await signIn(page);
+  await page.click("#addCat");
+  await page.fill("#cName", "Morning");
+  await page.click("#cSave");
+  await page.waitForTimeout(700);
+
+  assert.deepEqual((await blocks(page)).map(b => b.title), ["To do", "Meds", "Recover", "Morning"],
+    "an empty category you just made is no use if it vanishes");
+  assert.deepEqual((await stored(page, "users/uidA/config/plan")).daily.map(g => g.title),
+    ["To do", "Meds", "Recover", "Morning"]);
+  assert.deepEqual(problems, []);
+});
+
+test("renaming a category keeps its tasks and its fold", { skip }, async () => {
+  const { page, problems } = await openDay();
+  await signIn(page);
+  await page.evaluate(() => toggleGroup("Meds"));
+  await page.waitForTimeout(400);
+  await page.evaluate(() => openCategoryEdit("Meds"));
+  await page.fill("#cName", "Pills");
+  await page.click("#cSave");
+  await page.waitForTimeout(700);
+
+  const seen = await blocks(page);
+  assert.deepEqual(seen.map(b => b.title), ["To do", "Pills", "Recover"]);
+  assert.deepEqual(await page.evaluate(() => [...collapsedGroups]), ["Pills"],
+    "the fold follows the name");
+  await page.evaluate(() => toggleGroup("Pills"));
+  await page.waitForTimeout(400);
+  assert.deepEqual((await blocks(page)).find(b => b.title === "Pills").ids, ["m-one", "m-two"]);
+  assert.deepEqual(problems, []);
+});
+
+test("removing a category leaves its tasks at the top, with no category", { skip }, async () => {
+  const { page, problems } = await openDay();
+  await signIn(page);
+  await page.evaluate(() => openCategoryEdit("Meds"));
+  await page.click("#cDelete");
+  await page.waitForTimeout(700);
+
+  const seen = await blocks(page);
+  assert.equal(seen[0].title, "", "the nameless block is first");
+  assert.deepEqual(seen[0].ids, ["m-one", "m-two"], "and it holds what the category held");
+  assert.equal(await paintedAll(page, "#list .grp:first-child .sec"), 0, "it has no header");
+  assert.equal(seen.some(b => b.title === "Meds"), false);
+
+  // UNDO puts the category back, tasks and all.
+  await page.click("#toastUndo");
+  await page.waitForTimeout(700);
+  const back = await blocks(page);
+  assert.deepEqual(back.map(b => b.title), ["To do", "Meds", "Recover"]);
+  assert.deepEqual(back.find(b => b.title === "Meds").ids, ["m-one", "m-two"]);
+  assert.deepEqual(problems, []);
+});
+
+test("REORDER puts a grip on every row and stops them ticking", { skip }, async () => {
+  const { page, problems } = await openDay();
+  await signIn(page);
+  assert.equal(await paintedAll(page, "#list .handle"), 0, "no grips in the way of a normal day");
+
+  await page.click("#reorderBtn");
+  await page.waitForTimeout(500);
+  assert.equal(await paintedAll(page, "#list .row .handle"), 3, "one per task");
+  assert.equal(await paintedAll(page, "#list .sec .handle"), 3, "one per category");
+  assert.equal(await paintedAll(page, "#list .sec .add"), 0, "the + is out of the way");
+  assert.equal(await page.evaluate(() => document.querySelector('#list .row input').disabled), true);
+  assert.equal(await page.textContent("#reorderBtn"), "DONE");
+
+  await page.click("#reorderBtn");
+  await page.waitForTimeout(500);
+  assert.equal(await paintedAll(page, "#list .handle"), 0);
+  assert.deepEqual(problems, []);
+});
+
+test("a task dragged into another category moves there in the routine", { skip }, async () => {
+  const { page, problems } = await openDay(undefined, { touch: true });
+  await signIn(page);
+  await page.click("#reorderBtn");
+  await page.waitForTimeout(500);
+
+  await dragTo(page, '.rowwrap[data-id="r-sleep"] .handle', '.rowwrap[data-id="m-one"]');
+  const seen = await blocks(page);
+  assert.deepEqual(seen.find(b => b.title === "Meds").ids, ["r-sleep", "m-one", "m-two"],
+    "dropped on the top half of a row, so it lands above it");
+  assert.deepEqual(seen.find(b => b.title === "Recover").ids, []);
+
+  const daily = (await stored(page, "users/uidA/config/plan")).daily;
+  assert.deepEqual(daily.find(g => g.title === "Meds").items.map(i => i.id).sort(),
+    ["m-one", "m-two", "r-sleep"], "the routine is what changed, not just today");
+  assert.deepEqual(daily.find(g => g.title === "Recover").items, []);
+  assert.deepEqual(problems, []);
+});
+
+test("a category dragged onto another one changes their order", { skip }, async () => {
+  const { page, problems } = await openDay(undefined, { touch: true });
+  await signIn(page);
+  await page.click("#reorderBtn");
+  await page.waitForTimeout(500);
+
+  await dragTo(page, '.grp[data-group="Recover"] .sec .handle', '.grp[data-group="Meds"] .sec');
+  assert.deepEqual((await stored(page, "users/uidA/config/plan")).daily.map(g => g.title),
+    ["To do", "Recover", "Meds"]);
+  assert.deepEqual(problems, []);
+});
+
+test("there is no way to sign out from the day", { skip }, async () => {
+  const { page, problems } = await openDay();
+  await signIn(page);
+  assert.equal(await painted(page, "#sync"), false, "nothing at the bottom when it is working");
+  assert.deepEqual(problems, []);
+});
+
+test("a signed-out visitor still has a way in", { skip }, async () => {
+  const { page } = await openDay();
+  assert.equal(await painted(page, "#sync"), true);
+  assert.equal(await painted(page, "#authBtn"), true);
+  assert.match(await page.textContent("#authBtn"), /sign in/i);
+});
+
+/* The rule that decides whether an empty category is on screen has two sides,
+ * and getting one right must not get the other wrong. */
+test("an empty category shows; one whose task is not due today does not", { skip }, async () => {
+  const cycles = {
+    schemaVersion: 1, startDate: "2026-01-01", principles: null, oneOffs: null,
+    daily: [
+      { title: "Care", emoji: "✨", items: [
+        { id: "c-micro", emoji: "✨", text: "Microneedling", xp: 10, every: 14, anchor: "2026-03-01" }] },
+      { title: "Empty", emoji: "\u{1F4E6}", items: [] }
+    ]
+  };
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/?date=2026-02-20", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [plan("uidA", cycles),
+           features("uidA", ["dailyplan"], { dailyplan: { xp: true, priority: true, streaks: true, intervals: true } })]
+  });
+  await signIn(page);
+  assert.deepEqual((await blocks(page)).map(b => b.title), ["To do", "Empty"],
+    "Care is empty today because nothing is due; Empty has nothing at all and needs its +");
+  assert.deepEqual(problems, []);
+});
+
+test("a task dropped on the nameless zone loses its category and stays there", { skip }, async () => {
+  const { page, problems } = await openDay(undefined, { touch: true });
+  await signIn(page);
+  await page.click("#reorderBtn");
+  await page.waitForTimeout(500);
+
+  await dragTo(page, '.rowwrap[data-id="r-sleep"] .handle', '.grp.nocat .drop', { at: 0.5 });
+  assert.deepEqual((await blocks(page))[0], { title: "", ids: ["r-sleep"] });
+
+  await page.click("#reorderBtn");
+  await page.waitForTimeout(600);
+  assert.deepEqual((await blocks(page))[0], { title: "", ids: ["r-sleep"] },
+    "still there once the moving is over");
+  assert.deepEqual((await stored(page, "users/uidA/config/plan")).daily.find(g => g.title === "").items
+    .map(i => i.id), ["r-sleep"]);
   assert.deepEqual(problems, []);
 });
