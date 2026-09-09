@@ -606,3 +606,27 @@ test("a task dropped on the nameless zone loses its category and stays there", {
     .map(i => i.id), ["r-sleep"]);
   assert.deepEqual(problems, []);
 });
+
+/* The one-off list is not a category: it has no + and cannot be renamed or
+ * removed, so with nothing left in it there is nothing to draw. Keeping it
+ * on screen put an empty SETUP header on the day with no way to get rid of
+ * it — the empty-category rule had reached a section it was never about. */
+test("a one-off section with nothing left in it goes away", { skip }, async () => {
+  const withSetup = routine();
+  withSetup.oneOffs = { title: "Setup", emoji: "🎯", items: [
+    { id: "s-measure", emoji: "📏", text: "Weigh + measure waist", xp: 35 }] };
+
+  const { page, problems } = await openPage(browser, site.origin, "/dailyplan/?date=2026-03-10", {
+    user: { uid: "uidA", email: "a@example.com" },
+    seed: [plan("uidA", withSetup), features("uidA", ["dailyplan"])]
+  });
+  await signIn(page);
+  assert.equal((await blocks(page)).some(b => b.title === "Setup"), true, "it is there while it has one");
+
+  // Swiping the last one away is what emptied it.
+  await page.evaluate(() => removeItem({ id: "s-measure", text: "Weigh + measure waist" }));
+  await page.waitForTimeout(600);
+  assert.equal((await blocks(page)).some(b => b.title === "Setup"), false,
+    "and gone once it holds nothing");
+  assert.deepEqual(problems, []);
+});

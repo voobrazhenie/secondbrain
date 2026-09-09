@@ -1160,7 +1160,13 @@ function applyCustom(groups, date) {
    between; a category holding nothing at all is one to fill in. */
 function isBare(g) {
   const home = dailyGroup(g.title);
-  if (home && (home.items || []).length) return false;
+  // Only a category can be empty and still worth a place. A section the day
+  // made up — the one-off list, or a heading taken from a task filed under a
+  // title the routine has never had — has no + to reach and nothing to fill
+  // in, so with nothing in it there is nothing to draw. That is how an empty
+  // SETUP header ended up on screen with no way to remove it.
+  if (!home) return false;
+  if ((home.items || []).length) return false;
   return !custom.added.some(a => a.group === g.title && !custom.hidden[a.id]);
 }
 
@@ -1395,7 +1401,10 @@ function sectionHeader(g, ticks, collapsed) {
   sec.setAttribute("role", "button");
   sec.setAttribute("aria-expanded", String(!collapsed));
 
-  if (reordering) sec.appendChild(gripFor(sec, { group: g.title }));
+  // Only a category moves, is renamed and is removed. A made-up section has no
+  // record behind it to change, so it gets neither the grip nor the press.
+  const isCategory = !!dailyGroup(g.title);
+  if (reordering && isCategory) sec.appendChild(gripFor(sec, { group: g.title }));
 
   const chev = document.createElement("span");
   chev.className = "chev";
@@ -1434,7 +1443,7 @@ function sectionHeader(g, ticks, collapsed) {
   });
   // A category the routine owns can be renamed and removed; the To do group and
   // the one-off list are the page's own furniture and are left alone.
-  if (!g.fixed && g.title !== TODO_GROUP) {
+  if (isCategory && !g.fixed && g.title !== TODO_GROUP) {
     attachHold(sec, () => openCategoryEdit(g.title), { keys: false });
   }
   return sec;
