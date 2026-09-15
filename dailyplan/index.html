@@ -2129,7 +2129,15 @@ function renderLevel() {
 
 const DEFAULT_TARGET = 30;
 
-let streaks = [];              // [{ id, name, kind, itemId, target, since, done }]
+let streaks = [];              // [{ id, name, kind, itemId, target, since, done, count, last }]
+
+/* Whether the ninety-day history query has answered yet. A build streak used
+   to be counted by walking backwards through it on every draw, and the query
+   is fired after the first paint and not waited for — so a cold start counted
+   with nothing but today in hand, got 1, and drew it as if it were certain.
+   Stepping back a day pulled that one day in and it became 2. Hence the cache
+   below: the walk is still the truth, but it is not what the tile depends on. */
+let historyReady = false;
 
 /* The last day each avoid-streak's card was ticked, from
    users/{uid}/config/trackers — one field per card id, merge-written so two
@@ -2157,7 +2165,14 @@ function normaliseStreak(v) {
     since: isISODate(v.since) ? v.since : null,
     /* Marked done and taken off the row. The record stays so the undo has
        something to put back, and so a finished challenge is not simply lost. */
-    done: isISODate(v.done) ? v.done : null
+    done: isISODate(v.done) ? v.done : null,
+    /* The run as it stood the last time the day records could be read, and the
+       last day the card was ticked. A build streak is drawn from these two
+       whenever the history is not to hand, which is every cold start. They are
+       a cache of what the walk would say, never a second version of it — see
+       buildCount(). */
+    count: Number.isFinite(v.count) ? Math.max(0, Math.round(v.count)) : null,
+    last: isISODate(v.last) ? v.last : null
   };
 }
 
@@ -2193,6 +2208,88 @@ function lastTick(streak, date) {
   return best;
 }
 
+/* ---------- what a build streak is worth ----------
+   Two ways of answering, and which one is used depends on what has arrived.
+
+   The walk is the truth: step back from the day in view while the card was
+   ticked. It needs the day records, and those come from a query fired after
+   the first paint. Until it answers, walking would count with nothing in hand
+   and return a small, confident, wrong number.
+
+   So the answer is cached on the streak — the run, and the last day ticked —
+   and the cache is what a cold start draws. From those two the rule is the one
+   you would say out loud: ticked today, the run stands; ticked yesterday, the
+   run stands and today is not missed yet, because the day is not over; last
+   ticked before that, the run is broken and it is nought.
+
+   Nothing runs while the app is shut, so there is no nightly check to miss.
+   The two facts are stored and the arithmetic is done whenever you look, which
+   is what makes a week away come out right. */
+
+function fromCache(streak, today) {
+  if (streak.count === null || !streak.last) return null;
+  if (streak.last === today) return streak.count;
+  if (streak.last === shiftDate(today, -1)) return streak.count;
+  return 0;
+}
+
+/* The walk. `hit` says whether it ended on a day we could actually see: it
+   stops either on a day that was not ticked — a real break — or by running off
+   the oldest record we hold, which proves nothing and must not be allowed to
+   shorten a run longer than the window. */
+function walkBack(streak, date) {
+  const oldest = historyFloor();
+  let cur = tickOn(streak.itemId, date) ? date : shiftDate(date, -1);
+  let n = 0;
+  while (tickOn(streak.itemId, cur)) {
+    if (streak.since && cur < streak.since) return { n, settled: true };
+    n++;
+    cur = shiftDate(cur, -1);
+  }
+  return { n, settled: !oldest || cur >= oldest };
+}
+
+/* The oldest day the page can see, which is where the history window ends. */
+function historyFloor() {
+  let oldest = null;
+  for (const d of history.keys()) if (!oldest || d < oldest) oldest = d;
+  for (const d of storedDates()) if (!oldest || d < oldest) oldest = d;
+  return oldest;
+}
+
+function buildCount(streak, date) {
+  const today = todayISO();
+  // A past day is a "what did it say then" question, and the walk is the only
+  // thing that can answer it. The cache is about now.
+  if (date !== today) return historyReady ? walkBack(streak, date).n : null;
+  if (!historyReady) return fromCache(streak, today);
+
+  const { n, settled } = walkBack(streak, today);
+  const cached = fromCache(streak, today);
+  // An unsettled walk is a lower bound: it ran out of records rather than
+  // finding a break, so a longer cached run is the better answer.
+  return settled ? n : Math.max(n, cached ?? 0);
+}
+
+/* The cache is written back whenever the walk has been able to check it, and
+   only when it has actually moved — this runs on every draw. */
+function refreshStreakCache() {
+  if (!historyReady || sync.mode !== "signed-in") return;
+  const today = todayISO();
+  let moved = false;
+  for (const st of liveStreaks()) {
+    if (st.kind !== "build") continue;
+    const { n, settled } = walkBack(st, today);
+    if (!settled && n <= (st.count ?? 0)) continue;   // proves nothing
+    const last = n > 0 ? lastTick(st, today) : null;
+    if (st.count === n && st.last === last) continue;
+    st.count = n;
+    st.last = last;
+    moved = true;
+  }
+  if (moved) sync.pushStreaks();
+}
+
 /* The number on the tile, for the day in view. null while the answer is still
    on its way, which is the dash. */
 function streakCount(streak, date) {
@@ -2204,17 +2301,7 @@ function streakCount(streak, date) {
     if (!from) return null;
     return Math.max(0, daysBetween(from, date));
   }
-  /* A build streak counts back from the day in view. The day itself is only
-     part of the run once it has been ticked — an untouched today must not end
-     a run that is still going, so it starts from yesterday until it is done. */
-  let cur = tickOn(streak.itemId, date) ? date : shiftDate(date, -1);
-  let n = 0;
-  while (tickOn(streak.itemId, cur)) {
-    if (streak.since && cur < streak.since) break;
-    n++;
-    cur = shiftDate(cur, -1);
-  }
-  return n;
+  return buildCount(streak, date);
 }
 
 function renderStreaks() {
@@ -2510,6 +2597,7 @@ function setTick(id, on) {
      with the day record so the two can never end up disagreeing. */
   const avoided = liveStreaks().find(st => st.kind === "avoid" && st.itemId === id);
   if (avoided) updateTracker(id, on);
+  noteTick(id, plan.date, on);
 
   /* Finishing a carried task is what stops it carrying: the day it was ticked
      is written on the task itself, so tomorrow simply does not draw it. */
@@ -2536,6 +2624,35 @@ function setTick(id, on) {
   saveDayMeta(plan.date, { xpEarned: todayXp() });
   refreshDerived();
   sync.queueTick(plan.date, id, on);
+}
+
+/* A build streak's run has just changed. With the day records to hand the walk
+   settles it; without them — a tick on a cold start — today is stepped on or
+   off by hand, which is the one case that can be worked out from the cache
+   alone. A tick on some other day with no records is left alone rather than
+   guessed at; the walk corrects it the moment the history lands. */
+function noteTick(itemId, date, on) {
+  const mine = liveStreaks().filter(st => st.kind === "build" && st.itemId === itemId);
+  if (!mine.length) return;
+  if (historyReady) { refreshStreakCache(); return; }
+
+  const today = todayISO();
+  if (date !== today) return;
+  let moved = false;
+  for (const st of mine) {
+    const before = { count: st.count, last: st.last };
+    if (on) {
+      if (st.last === today) continue;
+      st.count = st.last === shiftDate(today, -1) ? (st.count || 0) + 1 : 1;
+      st.last = today;
+    } else {
+      if (st.last !== today) continue;
+      st.count = Math.max(0, (st.count || 1) - 1);
+      st.last = st.count > 0 ? shiftDate(today, -1) : null;
+    }
+    if (st.count !== before.count || st.last !== before.last) moved = true;
+  }
+  if (moved) sync.pushStreaks();
 }
 
 /* Works out what the tracker date should become after this tick, without
@@ -2656,6 +2773,7 @@ const sync = {
     viewDate = null;
     streaks = [];
     trackerDates = new Map();
+    historyReady = false;
     streakEditing = null;
     $("streakRow").textContent = "";
     lastRendered = null;
@@ -3307,10 +3425,18 @@ const sync = {
             : Object.values(v.ticks || {}).filter(Boolean).length
         });
       });
+      historyReady = true;
       this.seedIntervals();
+      refreshStreakCache();
       rebuild();
     } catch (e) {
+      /* Loud, not a console line nobody sees. Every build streak is drawn from
+         its cache until this lands, and a cache that is never checked is how a
+         wrong number stays on screen. */
+      historyReady = false;
       console.warn("History unavailable:", e);
+      this.setUI("err", `Couldn't read your history (${e.code || e.message}). Streaks may be behind.`,
+        "Retry", () => this.loadHistory());
     }
   },
 

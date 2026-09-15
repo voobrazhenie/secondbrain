@@ -630,3 +630,89 @@ test("a one-off section with nothing left in it goes away", { skip }, async () =
     "and gone once it holds nothing");
   assert.deepEqual(problems, []);
 });
+
+/* ---------- a build streak survives a cold start ----------
+ *
+ * The number used to be counted by walking back through the ninety-day history
+ * on every draw, and that query is fired after the first paint and not waited
+ * for. So clearing the browser cache and opening the day counted with nothing
+ * but today in hand and drew a confident 1; stepping back a day pulled that one
+ * day in and it became 2. The run is cached on the streak now, and the walk is
+ * what checks the cache rather than what the tile depends on. */
+
+const WALK = "u-walk";
+const walker = (extra = {}) => [
+  plan("uidA", {
+    schemaVersion: 1, startDate: "2026-01-01", principles: null, oneOffs: null,
+    daily: [{ title: "Routine", emoji: "\u{1F300}", items: [
+      { id: WALK, emoji: "\u{1F6B6}", text: "Morning walk", xp: 10 }] }]
+  }),
+  features("uidA", ["dailyplan"]),
+  ["users/uidA/config/streaks", { items: [{ id: "s-walk", name: "Morning walks", kind: "build",
+    itemId: WALK, target: 30, since: "2026-09-08", done: null, ...extra }] }],
+  ...["2026-09-13", "2026-09-14", "2026-09-15"].map(d =>
+    [`users/uidA/days/${d}`, { ticks: { [WALK]: true }, xpEarned: 0, ticked: 1 }])
+];
+
+const openWalk = seed => openPage(browser, site.origin, "/dailyplan/?date=2026-09-15",
+  { user: { uid: "uidA", email: "a@example.com" }, seed });
+const tileN = page => page.evaluate(() => document.querySelector("#streakRow .strk .n")?.textContent);
+// What a cleared browser cache looks like: the history query has not answered.
+const goCold = page => page.evaluate(() => { history.clear(); historyReady = false; render(); });
+
+test("a build streak counts right, and writes the run back to the account", { skip }, async () => {
+  const { page, problems } = await openWalk(walker());
+  await signIn(page);
+  assert.equal(await tileN(page), "3");
+
+  const saved = (await stored(page, "users/uidA/config/streaks")).items[0];
+  assert.equal(saved.count, 3);
+  assert.equal(saved.last, "2026-09-15");
+  assert.deepEqual(problems, []);
+});
+
+test("with no history in hand the tile reads the stored run, not a guess", { skip }, async () => {
+  const { page, problems } = await openWalk(walker({ count: 3, last: "2026-09-15" }));
+  await signIn(page);
+  await goCold(page);
+  assert.equal(await tileN(page), "3", "this is the bug: it used to say 1");
+  assert.deepEqual(problems, []);
+});
+
+test("a run is alive the day after, and broken the day after that", { skip }, async () => {
+  const alive = await openWalk(walker({ count: 3, last: "2026-09-14" }));
+  await signIn(alive.page);
+  await goCold(alive.page);
+  assert.equal(await tileN(alive.page), "3", "today is not missed until the day is over");
+
+  const broken = await openWalk(walker({ count: 3, last: "2026-09-12" }));
+  await signIn(broken.page);
+  await goCold(broken.page);
+  assert.equal(await tileN(broken.page), "0");
+});
+
+test("a run longer than the history window is not cut down to it", { skip }, async () => {
+  const { page, problems } = await openWalk(walker({ count: 200, last: "2026-09-15" }));
+  await signIn(page);
+  // The walk can only see three days, and running out of records proves nothing.
+  assert.equal(await tileN(page), "200");
+  assert.deepEqual(problems, []);
+});
+
+test("ticking moves the run even before the history has landed", { skip }, async () => {
+  const seed = walker({ count: 4, last: "2026-09-14" })
+    .filter(([path]) => path !== "users/uidA/days/2026-09-15");
+  const { page, problems } = await openWalk(seed);
+  await signIn(page);
+  await goCold(page);
+  assert.equal(await tileN(page), "4", "yesterday's run, today still to do");
+
+  await page.evaluate(() => setTick("u-walk", true));
+  await page.waitForTimeout(500);
+  assert.equal(await tileN(page), "5");
+
+  await page.evaluate(() => setTick("u-walk", false));
+  await page.waitForTimeout(500);
+  assert.equal(await tileN(page), "4", "and back again");
+  assert.deepEqual(problems, []);
+});

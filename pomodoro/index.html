@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#F2EDE0">
+<title>Pomodoro — Second Brain</title>
+
+<!-- Add to Home Screen. iOS ignores the manifest's name/display, so the
+     apple-* metas below are what actually make it launch standalone.
+     One manifest for the whole Second Brain, so moving between sections
+     never falls back to Safari. -->
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Second Brain">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="../theme.css">
+<style>
+  /* Shared colours, strokes and spacing live in theme.css; only what is this
+     page's own stays here. */
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    padding:
+      calc(var(--page-top) + env(safe-area-inset-top)) calc(var(--page-side) + env(safe-area-inset-right))
+      calc(var(--page-bottom) + env(safe-area-inset-bottom)) calc(var(--page-side) + env(safe-area-inset-left));
+    font:15px/1.4 "Archivo","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--page-width);margin:0 auto}
+
+  /* ---------- the clock ----------
+     One card, and its colour says which half of the half-hour you are in:
+     yellow while you are working, lime while you are moving, pink the moment
+     one ends. The number is the whole card — there is nothing else to read. */
+  .clock{
+    background:var(--sunk);border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    padding:26px 18px 22px;text-align:center;margin:0 0 14px;
+  }
+  .clock.focus{background:var(--yellow)}
+  .clock.move{background:var(--lime)}
+  .clock.rang{background:var(--pink)}
+  .clock .k{
+    font-size:9px;letter-spacing:.12em;font-weight:900;
+    font-family:"Arial Black",Impact,sans-serif;
+  }
+  .clock .t{
+    font-family:"Arial Black","Archivo Black",Impact,sans-serif;font-weight:900;
+    font-size:clamp(64px, 22vw, 96px);line-height:.95;margin:8px 0 0;
+    font-variant-numeric:tabular-nums;letter-spacing:-.04em;
+  }
+  .clock .say{
+    margin-top:10px;font-size:13px;font-weight:900;min-height:1.2em;
+  }
+
+  /* The bar drains rather than fills: what is left is the thing you glance at. */
+  .bar{
+    height:15px;padding:2px;margin-top:14px;
+    background:var(--card);border:2px solid var(--ink);
+  }
+  .bar i{display:block;height:100%;background:var(--ink);width:0%}
+  @media (prefers-reduced-motion: no-preference){
+    .bar i{transition:width 1s linear}
+  }
+
+  /* ---------- the two buttons ----------
+     Nothing starts itself. A round ends, it says so, and the next one waits
+     for you — the whole point is that the break is a decision, not a conveyor
+     belt that carries you back to the chair. */
+  .starts{display:flex;gap:9px}
+  .starts button{flex:1;padding:16px 10px;font-size:12px;line-height:1.2}
+  .starts button b{display:block;font-size:19px;margin-bottom:3px}
+  #startFocus{background:var(--yellow)}
+  #startMove{background:var(--lime)}
+  .stop{width:100%;margin-top:9px;padding:13px;background:var(--card)}
+
+  button{
+    font:inherit;font-weight:900;letter-spacing:.05em;cursor:pointer;
+    font-family:"Arial Black",Impact,sans-serif;
+    background:var(--card);color:var(--ink);
+    border:var(--stroke) solid var(--ink);box-shadow:var(--shadow);
+    transition:transform .07s, box-shadow .07s;
+  }
+  button:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+  button[hidden]{display:none}
+
+  /* ---------- the gate ----------
+     Nothing personal is on screen before Firebase has said who is looking, and
+     the markup ships as "checking" so a cached page cannot flash the last
+     person's timer. */
+  #wrap:not([data-auth="in"]) .clock,
+  #wrap:not([data-auth="in"]) .starts,
+  #wrap:not([data-auth="in"]) .stop,
+  #wrap:not([data-auth="in"]) .note{ display:none }
+
+  .sync{
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:16px 0;
+    padding:9px 11px;background:var(--card);
+    border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);
+    font-size:12px;font-weight:700;color:var(--grey);
+  }
+  .sync[hidden]{display:none}
+  .sync .dot{flex:0 0 auto;width:9px;height:9px;border:2px solid var(--ink);background:var(--sunk)}
+  .sync.err .dot{background:var(--pink)}
+  .sync .msg{flex:1;min-width:120px}
+  .sync button{padding:9px 13px;font-size:11px;box-shadow:3px 3px 0 var(--ink)}
+
+  .note{
+    margin:18px 0 0;font-size:11px;line-height:1.5;font-weight:700;color:var(--grey);
+    border-top:2px solid var(--ink);padding-top:10px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap" data-auth="checking">
+
+  <header class="topbar">
+    <a class="crumb" href="../">SECOND BRAIN</a>
+    <span class="crumb here">POMODORO</span>
+    <span class="grow"></span>
+  </header>
+
+  <section class="clock" id="clock" aria-label="Timer">
+    <div class="k" id="clockLabel">READY</div>
+    <div class="t" id="clockTime" role="timer" aria-live="off">30:00</div>
+    <div class="say" id="clockSay">Thirty minutes down, five on your feet.</div>
+    <div class="bar"><i id="clockBar"></i></div>
+  </section>
+
+  <div class="starts">
+    <button id="startFocus"><b>30</b>MINUTES FOCUS</button>
+    <button id="startMove"><b>5</b>MINUTES MOVE</button>
+  </div>
+  <button class="stop" id="stopBtn" hidden>STOP</button>
+
+  <div class="sync" id="sync" hidden>
+    <span class="dot"></span>
+    <span class="msg" id="syncMsg">Checking sync…</span>
+    <button id="authBtn" hidden></button>
+  </div>
+
+  <p class="note">
+    The sound needs the screen on and this page in front. Lock the phone or
+    switch apps and iOS stops the page — you will hear it when you come back,
+    not at the minute it ran out.
+  </p>
+
+</div>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+
+/* Two lengths, and nothing else. Thirty at the desk, five on your feet. */
+const ROUNDS = {
+  focus: { secs: 30 * 60, label: "FOCUS",  say: "Thirty minutes down, five on your feet.",
+           over: "Thirty minutes done. Get up and move." },
+  move:  { secs:  5 * 60, label: "MOVING", say: "Five minutes. Stand up, walk about.",
+           over: "Five minutes done. Back to it when you are ready." }
+};
+
+/* ---------- what a running timer is ----------
+   An end time, not a number counting down. A phone locks, an installed app is
+   put in the background, and any interval doing the counting is throttled or
+   frozen while that happens — so the clock would be minutes slow the moment it
+   came back. Storing when it ends and taking the difference whenever we draw
+   makes coming back correct by construction.
+
+   `rang` is the round that has finished and not yet been cleared. It is what
+   keeps the end state on screen instead of the timer silently resetting, and
+   it is what stops the sound playing twice. */
+let round = null;      // "focus" | "move" | null
+let endsAt = 0;        // epoch ms
+let rang = null;       // the round that just ran out
+let ticker = null;
+let wakeLock = null;
+
+const now = () => Date.now();
+const left = () => Math.max(0, Math.ceil((endsAt - now()) / 1000));
+const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+function render() {
+  const clock = $("clock");
+  const running = !!round;
+
+  if (running) {
+    const s = left();
+    const total = ROUNDS[round].secs;
+    clock.className = "clock " + round;
+    $("clockLabel").textContent = ROUNDS[round].label;
+    $("clockTime").textContent = mmss(s);
+    $("clockSay").textContent = ROUNDS[round].say;
+    $("clockBar").style.width = Math.max(0, Math.min(100, (s / total) * 100)) + "%";
+    document.title = `${mmss(s)} — Pomodoro`;
+  } else if (rang) {
+    clock.className = "clock rang";
+    $("clockLabel").textContent = "TIME";
+    $("clockTime").textContent = "0:00";
+    $("clockSay").textContent = ROUNDS[rang].over;
+    $("clockBar").style.width = "0%";
+    document.title = "Time — Pomodoro";
+  } else {
+    clock.className = "clock";
+    $("clockLabel").textContent = "READY";
+    $("clockTime").textContent = "30:00";
+    $("clockSay").textContent = ROUNDS.focus.say;
+    $("clockBar").style.width = "0%";
+    document.title = "Pomodoro — Second Brain";
+  }
+
+  $("stopBtn").hidden = !running;
+}
+
+/* One second is enough — the number only shows minutes and seconds, and the
+   value is read off the clock rather than accumulated, so a late tick shows
+   the right time rather than a drifted one. */
+function startTicking() {
+  clearInterval(ticker);
+  ticker = setInterval(() => {
+    if (!round) return;
+    if (left() <= 0) finish();
+    else render();
+  }, 1000);
+}
+
+function begin(kind) {
+  // The tap is the only moment the browser will let sound be switched on, so
+  // it happens here whether or not anything is going to be played later.
+  unlockAudio();
+  rang = null;
+  round = kind;
+  endsAt = now() + ROUNDS[kind].secs * 1000;
+  keepScreenOn();
+  startTicking();
+  render();
+  sync.push();
+}
+
+/* Ends the round and stops. Deliberately does not start the other one: the
+   break is a decision, and a timer that rolls straight on takes it away. */
+function finish({ quiet = false } = {}) {
+  if (!round) return;
+  rang = round;
+  round = null;
+  endsAt = 0;
+  clearInterval(ticker);
+  releaseScreen();
+  if (!quiet) chime();
+  render();
+  sync.push();
+}
+
+function stop() {
+  round = null;
+  rang = null;
+  endsAt = 0;
+  clearInterval(ticker);
+  releaseScreen();
+  render();
+  sync.push();
+}
+
+/* ---------- the sound ----------
+   Three short notes from an oscillator rather than a file: nothing to load,
+   nothing to 404, and it is the same half-second on every device. iOS will not
+   make a sound until the page has had a tap, which is what unlockAudio() spends
+   on the start button. */
+let audio = null;
+
+function unlockAudio() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!audio) audio = new Ctx();
+    if (audio.state === "suspended") audio.resume();
+  } catch { /* no audio on this device — the screen still says TIME */ }
+}
+
+function chime() {
+  try {
+    unlockAudio();
+    if (!audio) return;
+    const at = audio.currentTime;
+    [0, 0.22, 0.44].forEach((gap, i) => {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = "sine";
+      osc.frequency.value = i === 2 ? 1046.5 : 784;      // G5, G5, C6
+      gain.gain.setValueAtTime(0.0001, at + gap);
+      gain.gain.exponentialRampToValueAtTime(0.5, at + gap + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + gap + 0.18);
+      osc.connect(gain); gain.connect(audio.destination);
+      osc.start(at + gap);
+      osc.stop(at + gap + 0.2);
+    });
+  } catch { /* the end state on screen is the fallback */ }
+  if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
+}
+
+/* The screen going to sleep is what actually stops the sound arriving on time,
+   so the timer asks to keep it awake while it runs. Not every browser has this
+   and it can be refused; the note under the buttons is the honest version. */
+async function keepScreenOn() {
+  try {
+    if (!navigator.wakeLock || wakeLock) return;
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => { wakeLock = null; });
+  } catch { wakeLock = null; }
+}
+function releaseScreen() {
+  try { wakeLock?.release(); } catch { /* already gone */ }
+  wakeLock = null;
+}
+
+/* ---------- sync ----------
+   The timer lives in the account, not on the device — the same rule the rest of
+   the app follows, and it is what lets a reload, or the app being swapped out
+   and back, pick the round up where it was rather than losing it. */
+let fbLib = null;
+const sync = {
+  fb: null, uid: null, mode: "local", unsub: null,
+
+  setUI(state, msg, btnLabel, btnAction) {
+    const row = $("sync"), btn = $("authBtn");
+    row.className = "sync" + (state === "err" ? " err" : "");
+    row.hidden = state === "on";
+    $("syncMsg").textContent = msg;
+    if (btnLabel) { btn.hidden = false; btn.textContent = btnLabel; btn.onclick = btnAction; }
+    else { btn.hidden = true; btn.onclick = null; }
+  },
+
+  ref() {
+    const { f, db } = this.fb;
+    return f.doc(db, "users", this.uid, "config", "pomodoro");
+  },
+
+  async init() {
+    try {
+      fbLib = await import("../shared/firebase.js");
+      this.fb = await fbLib.connect();
+    } catch (e) {
+      $("wrap").dataset.auth = "err";
+      this.setUI("err", e && e.code === "no-config"
+        ? "Sync isn't configured, so there's nothing to show here."
+        : "Couldn't reach Firebase, so there's nothing to show here.",
+        "Reload", () => location.reload());
+      return;
+    }
+    this.mode = "signed-out";
+    fbLib.watchAuth(this.fb, u => this.onAuth(u));
+  },
+
+  async onAuth(user) {
+    if (this.unsub) { this.unsub(); this.unsub = null; }
+    if (!user) {
+      this.uid = null; this.mode = "signed-out";
+      stop();
+      $("wrap").dataset.auth = "out";
+      this.setUI("off", "Sign in to use the timer.",
+        "Sign in with Google", () => this.signIn());
+      return;
+    }
+    this.uid = user.uid; this.mode = "signed-in";
+    this.setUI("on", `Syncing as ${user.email || "your account"}`);
+    await this.load();
+    $("wrap").dataset.auth = "in";
+  },
+
+  /* What was running when the page was last open. A round whose end time has
+     already passed comes back as the end state rather than as a timer that
+     silently reset — but without the sound, which belonged to a moment that
+     has gone. */
+  async load() {
+    const { f } = this.fb;
+    try {
+      const snap = await fbLib.readDoc(f, this.ref());
+      const v = snap.exists() ? snap.data() : {};
+      const kind = ROUNDS[v.round] ? v.round : null;
+      const ends = Number(v.endsAt) || 0;
+      if (kind && ends > now()) {
+        round = kind; endsAt = ends; rang = null;
+        keepScreenOn();
+        startTicking();
+      } else if (kind) {
+        round = null; endsAt = 0; rang = kind;
+      } else {
+        round = null; endsAt = 0; rang = ROUNDS[v.rang] ? v.rang : null;
+      }
+    } catch (e) {
+      console.warn("Timer unavailable:", e.code || e.message);
+    }
+    render();
+  },
+
+  async push() {
+    if (this.mode !== "signed-in") return;
+    const { f } = this.fb;
+    try {
+      await f.setDoc(this.ref(), {
+        round: round || "", endsAt: round ? endsAt : 0, rang: rang || "",
+        updatedAt: f.serverTimestamp()
+      });
+    } catch (e) {
+      this.setUI("err", `Couldn't save the timer (${e.code || e.message}).`,
+        "Retry", () => this.push());
+    }
+  },
+
+  async signIn() {
+    const msg = await fbLib.signIn(this.fb, text => this.setUI("off", text));
+    if (msg) this.setUI("err", msg, "Try again", () => this.signIn());
+  }
+};
+
+/* Coming back to the page is the moment a frozen timer has to be put right: it
+   may have run out while the app was in the background, and the number on
+   screen is from whenever it was last awake. */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  if (round && left() <= 0) finish();
+  else if (round) { keepScreenOn(); render(); }
+});
+
+$("startFocus").addEventListener("click", () => begin("focus"));
+$("startMove").addEventListener("click", () => begin("move"));
+$("stopBtn").addEventListener("click", stop);
+
+render();
+sync.init();
+</script>
+</body>
+</html>

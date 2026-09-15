@@ -17,7 +17,8 @@ export const SECTIONS = [
   { key: "streams",       label: "Streams",        path: "streams/" },
   { key: "ideas",         label: "Startup ideas",  path: "ideas/" },
   { key: "finance",       label: "Finance",        path: "finance/" },
-  { key: "opportunities", label: "Opportunities",  path: "opportunities/" }
+  { key: "opportunities", label: "Opportunities",  path: "opportunities/" },
+  { key: "pomodoro",      label: "Pomodoro",       path: "pomodoro/" }
 ];
 
 /* Nothing on, which is what an account with no features document gets. A new

@@ -3,7 +3,8 @@
  * there is no routine in this repository any more. */
 
 export const SECTION_KEYS = [
-  "exercise", "dailyplan", "jobs", "streams", "ideas", "finance", "opportunities"
+  "exercise", "dailyplan", "jobs", "streams", "ideas", "finance", "opportunities",
+  "pomodoro"
 ];
 
 export const sections = on => Object.fromEntries(SECTION_KEYS.map(k => [k, on.includes(k)]));
