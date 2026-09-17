@@ -11,6 +11,13 @@ import assert from "node:assert/strict";
 import { playwright, serve, openPage, signIn, signOut, painted, stored } from "./helpers/browser.mjs";
 import { person, admin, features, sections } from "./helpers/fixtures.mjs";
 
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import { SECTIONS } from "../shared/sections.js";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+
 const browser = await playwright();
 const site = browser ? await serve() : null;
 const skip = browser ? false : "no browser (run: npx playwright install chromium)";
@@ -129,4 +136,43 @@ test("the Telegram group is on the page in both states, and opens away from the 
   await signIn(page);
   assert.equal((await link()).painted, true, "still there with the sections up");
   assert.deepEqual(problems, []);
+});
+
+
+/* The deck is written out by hand in index.html rather than built from
+ * shared/sections.js, because each card carries its own icon and colour. That
+ * is fine until a section is added to the list and nobody remembers the other
+ * half: Pomodoro was switched on for an account, had a working page, and simply
+ * was not on the home screen, because there was no card to show. Nothing
+ * failed — there was just nothing there.
+ *
+ * So the two halves are checked against each other here. A new section needs a
+ * card, and a card needs to be a section somebody can actually be given. */
+test("every section has a card on the home page, and every card is a section", async () => {
+  const html = await readFile(join(ROOT, "index.html"), "utf8");
+  const carded = [...html.matchAll(/<div class="card" data-key="([^"]+)"/g)].map(m => m[1]);
+  const listed = SECTIONS.map(s => s.key);
+
+  for (const key of listed) {
+    assert.ok(carded.includes(key),
+      `"${key}" is in shared/sections.js but has no card in index.html, so it can be ` +
+      `switched on in admin/ and still never appear on the home page`);
+  }
+  for (const key of carded) {
+    assert.ok(listed.includes(key),
+      `index.html has a card for "${key}", which is not a section in shared/sections.js, ` +
+      `so nobody can be given it`);
+  }
+});
+
+/* The card has to go somewhere, and a href that does not resolve is a card that
+   opens onto nothing. */
+test("every card points at a page that exists", async () => {
+  const html = await readFile(join(ROOT, "index.html"), "utf8");
+  const faces = [...html.matchAll(/<a class="face" href="([^"]+)"/g)].map(m => m[1]);
+  assert.equal(faces.length, SECTIONS.length);
+  for (const path of faces) {
+    await assert.doesNotReject(readFile(join(ROOT, path, "index.html"), "utf8"),
+      `index.html links to ${path}, which has no page`);
+  }
 });

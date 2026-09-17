@@ -110,9 +110,13 @@ Firebase's own offline cache is what makes it work with no signal, and that one
 is filed under the document path so it can never be handed to the next account.
 Breaking this put one person's day and task list into another account, twice.
 
-**A new section is off by default.** Add it to `shared/sections.js` and it
-appears in `admin/` as a checkbox and on the home page as a card, for whoever is
-given it.
+**A new section is off by default, and it takes two edits, not one.** Add it to
+`shared/sections.js` — that is what puts the checkbox in `admin/` — and add its
+card to the deck in `index.html`, which is written out by hand because each card
+carries its own icon and colour. Doing only the first is silent: the section can
+be switched on for somebody, its page works if you type the address, and the
+home screen simply never shows it. Pomodoro shipped that way.
+`tests/home.test.mjs` now fails if the two lists disagree.
 
 **Signing out is the home page's.** A section does not carry its own way out —
 there is one place to leave from, and a section's last screenful should be its
